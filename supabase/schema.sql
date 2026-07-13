@@ -322,6 +322,7 @@ begin
     select 1 from information_schema.columns
     where table_schema = 'public' and table_name = 'issues' and column_name = 'attachments' and data_type = 'ARRAY'
   ) then
+    alter table public.issues alter column attachments drop default;
     alter table public.issues alter column attachments type jsonb
       using coalesce(to_jsonb(attachments), '[]'::jsonb);
     update public.issues

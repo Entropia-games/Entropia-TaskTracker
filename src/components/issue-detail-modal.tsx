@@ -89,6 +89,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
   const [linkedPRs, setLinkedPRs] = useState<Database["public"]["Tables"]["issue_links"]["Row"][]>([])
   const [editTitle, setEditTitle] = useState("")
   const [editDescription, setEditDescription] = useState("")
+  const [editingDescription, setEditingDescription] = useState(false)
   const titleRef = useRef<HTMLInputElement>(null)
   const descRef = useRef<HTMLTextAreaElement>(null)
 
@@ -98,6 +99,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
       setEditDescription(issue.description ?? "")
     }
   }, [issue])
+  useEffect(() => { if (editingDescription) descRef.current?.focus() }, [editingDescription])
   const [parentEpicId, setParentEpicId] = useState<number | null>(null)
 
   useEffect(() => {
@@ -139,6 +141,16 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
 
   const userMap = new Map(users.map((u) => [u.id, u]))
   const creatorName = issue.created_by
+
+  function linkifyText(text: string) {
+    const urlRegex = /(https?:\/\/[^\s<]+[^\s<,.])/g
+    const parts = text.split(urlRegex)
+    return parts.map((part, i) =>
+      urlRegex.test(part)
+        ? <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-blue-400 underline hover:text-blue-300">{part}</a>
+        : part
+    )
+  }
 
   const activeStatus = STATUS_OPTIONS.find((s) => s.value === status)
   const activePriority = PRIORITY_OPTIONS.find((p) => p.value === priority)
@@ -213,15 +225,24 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
               onKeyDown={(e) => { if (e.key === "Enter") { e.currentTarget.blur() } }}
               className="w-full border-none bg-transparent p-0 text-lg font-medium outline-none ring-0"
             />
-            <textarea
-              ref={descRef}
-              value={editDescription}
-              onChange={(e) => setEditDescription(e.target.value)}
-              onBlur={() => { if (editDescription !== (issue.description ?? "")) updateIssue(issue.id, { description: editDescription || null }) }}
-              placeholder="Add description..."
-              rows={3}
-              className="w-full resize-none border-none bg-transparent p-0 text-sm text-muted-foreground outline-none ring-0 placeholder:text-muted-foreground/30"
-            />
+            {editingDescription ? (
+              <textarea
+                ref={descRef}
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                onBlur={() => { setEditingDescription(false); if (editDescription !== (issue.description ?? "")) updateIssue(issue.id, { description: editDescription || null }) }}
+                placeholder="Add description..."
+                rows={3}
+                className="w-full resize-none border-none bg-transparent p-0 text-sm text-muted-foreground outline-none ring-0 placeholder:text-muted-foreground/30"
+              />
+            ) : (
+              <div
+                className="w-full cursor-text whitespace-pre-wrap text-sm text-muted-foreground outline-none ring-0"
+                onClick={() => { setEditDescription(issue.description ?? ""); setEditingDescription(true) }}
+              >
+                {issue.description ? linkifyText(issue.description) : <span className="text-muted-foreground/30">Add description...</span>}
+              </div>
+            )}
           </div>
 
           <div className="!mt-0 !rounded-none !border-t !border-border/50 px-5 py-4">

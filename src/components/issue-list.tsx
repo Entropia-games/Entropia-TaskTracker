@@ -523,7 +523,7 @@ export function IssueList({ title, issues, focusId }: Props) {
                             <button
                               data-team-btn
                               onClick={(e) => e.stopPropagation()}
-                              className={cn("flex w-16 shrink-0 items-center justify-center rounded border px-1 py-0.5 text-sm font-medium transition-colors", issue.team ? (cn("border-border/30", teamColors[issue.team] ?? "text-muted-foreground/70")) : "border-dashed border-transparent group-hover:border-border/30 text-transparent group-hover:text-muted-foreground/40 hover:border-border/60 hover:text-muted-foreground/70")}
+                              className={cn("flex w-16 shrink-0 items-center justify-center rounded border px-1 py-0.5 text-sm font-medium transition-colors hover:bg-accent", issue.team ? (cn("border-border/30", teamColors[issue.team] ?? "text-muted-foreground/70")) : "border-dashed border-transparent group-hover:border-border/30 text-transparent group-hover:text-muted-foreground/40 hover:border-border/60 hover:text-muted-foreground/70")}
                             >
                               {issue.team ?? <><Plus className="size-3 mr-0.5" />Team</>}
                             </button>
@@ -555,7 +555,7 @@ export function IssueList({ title, issues, focusId }: Props) {
                             <button
                               data-milestone-btn
                               onClick={(e) => e.stopPropagation()}
-                              className={cn("flex w-28 shrink-0 items-center gap-1 rounded border px-1 py-0.5 text-sm font-medium transition-colors", issue.milestone_id ? (cn("border-border/30 text-red-400/60 [&_svg]:text-red-400/60")) : "border-dashed border-transparent group-hover:border-border/30 text-transparent group-hover:text-muted-foreground/40 hover:border-border/60 hover:text-muted-foreground/70")}
+                              className={cn("flex w-28 shrink-0 items-center gap-1 rounded border px-1 py-0.5 text-sm font-medium transition-colors hover:bg-accent", issue.milestone_id ? (cn("border-border/30 text-red-400/60 [&_svg]:text-red-400/60")) : "border-dashed border-transparent group-hover:border-border/30 text-transparent group-hover:text-muted-foreground/40 hover:border-border/60 hover:text-muted-foreground/70")}
                             >
                               {issue.milestone_id && milestoneMap.has(issue.milestone_id) ? (
                                 <><Diamond className="size-3.5 shrink-0" /><span className="truncate">{milestoneMap.get(issue.milestone_id)!.name}</span></>
@@ -591,7 +591,7 @@ export function IssueList({ title, issues, focusId }: Props) {
                             <button
                               data-assignee-btn
                               onClick={(e) => e.stopPropagation()}
-                              className={cn("flex w-36 shrink-0 items-center justify-end gap-1.5 rounded border px-1 py-0.5 text-sm font-medium transition-colors", issue.assignee_id && userMap.has(issue.assignee_id) ? "border-border/30" : "border-dashed border-transparent group-hover:border-border/30 text-transparent group-hover:text-muted-foreground/40 hover:border-border/60 hover:text-muted-foreground/70")}
+                              className={cn("flex w-36 shrink-0 items-center justify-end gap-1.5 rounded border px-1 py-0.5 text-sm font-medium transition-colors hover:bg-accent", issue.assignee_id && userMap.has(issue.assignee_id) ? "border-border/30" : "border-dashed border-transparent group-hover:border-border/30 text-transparent group-hover:text-muted-foreground/40 hover:border-border/60 hover:text-muted-foreground/70")}
                             >
                               {issue.assignee_id && userMap.has(issue.assignee_id) ? (
                                 <>
@@ -749,7 +749,7 @@ export function IssueList({ title, issues, focusId }: Props) {
                         <button
                           data-team-btn
                           onClick={(e) => e.stopPropagation()}
-                          className={cn("flex w-16 shrink-0 items-center justify-center rounded border px-1 py-0.5 text-sm font-medium transition-colors", issue.team ? (cn("border-border/30", teamColors[issue.team] ?? "text-muted-foreground/70")) : "border-dashed border-transparent group-hover:border-border/30 text-transparent group-hover:text-muted-foreground/40 hover:border-border/60 hover:text-muted-foreground/70")}
+                          className={cn("flex w-16 shrink-0 items-center justify-center rounded border px-1 py-0.5 text-sm font-medium transition-colors hover:bg-accent", issue.team ? (cn("border-border/30", teamColors[issue.team] ?? "text-muted-foreground/70")) : "border-dashed border-transparent group-hover:border-border/30 text-transparent group-hover:text-muted-foreground/40 hover:border-border/60 hover:text-muted-foreground/70")}
                         >
                           {issue.team ?? <><Plus className="size-3 mr-0.5" />Team</>}
                         </button>
@@ -781,7 +781,7 @@ export function IssueList({ title, issues, focusId }: Props) {
                         <button
                           data-milestone-btn
                           onClick={(e) => e.stopPropagation()}
-                          className={cn("flex w-28 shrink-0 items-center gap-1 rounded border px-1 py-0.5 text-sm font-medium transition-colors", issue.milestone_id ? (cn("border-border/30 text-red-400/60 [&_svg]:text-red-400/60")) : "border-dashed border-transparent group-hover:border-border/30 text-transparent group-hover:text-muted-foreground/40 hover:border-border/60 hover:text-muted-foreground/70")}
+                          className={cn("flex w-28 shrink-0 items-center gap-1 rounded border px-1 py-0.5 text-sm font-medium transition-colors hover:bg-accent", issue.milestone_id ? (cn("border-border/30 text-red-400/60 [&_svg]:text-red-400/60")) : "border-dashed border-transparent group-hover:border-border/30 text-transparent group-hover:text-muted-foreground/40 hover:border-border/60 hover:text-muted-foreground/70")}
                         >
                           {issue.milestone_id && milestoneMap.has(issue.milestone_id) ? (
                             <><Diamond className="size-3.5 shrink-0" /><span className="truncate">{milestoneMap.get(issue.milestone_id)!.name}</span></>
@@ -817,7 +817,7 @@ export function IssueList({ title, issues, focusId }: Props) {
                         <button
                           data-assignee-btn
                           onClick={(e) => e.stopPropagation()}
-                          className={cn("flex w-36 shrink-0 items-center justify-end gap-1.5 rounded border px-1 py-0.5 text-sm font-medium transition-colors", issue.assignee_id && userMap.has(issue.assignee_id) ? "border-border/30" : "border-dashed border-transparent group-hover:border-border/30 text-transparent group-hover:text-muted-foreground/40 hover:border-border/60 hover:text-muted-foreground/70")}
+                          className={cn("flex w-36 shrink-0 items-center justify-end gap-1.5 rounded border px-1 py-0.5 text-sm font-medium transition-colors hover:bg-accent", issue.assignee_id && userMap.has(issue.assignee_id) ? "border-border/30" : "border-dashed border-transparent group-hover:border-border/30 text-transparent group-hover:text-muted-foreground/40 hover:border-border/60 hover:text-muted-foreground/70")}
                         >
                           {issue.assignee_id && userMap.has(issue.assignee_id) ? (
                             <>

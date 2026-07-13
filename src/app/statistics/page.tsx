@@ -46,8 +46,6 @@ export default function StatisticsPage() {
   const [milestonePopoverOpen, setMilestonePopoverOpen] = useState(false)
   const [milestoneToDelete, setMilestoneToDelete] = useState<number | null>(null)
 
-  const selectedMilestone = milestones.find((m) => m.id === selectedMilestoneId)
-
   const filteredIssues = selectedMilestoneId
     ? issues.filter((i) => i.milestone_id === selectedMilestoneId)
     : issues
@@ -115,7 +113,7 @@ export default function StatisticsPage() {
                 render={
                   <button className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm hover:bg-accent text-foreground">
                     <Diamond className="size-3 text-red-400/60" />
-                    {selectedMilestone?.name ?? "All issues"}
+                    {milestones.find((m) => m.id === selectedMilestoneId)?.name ?? "All issues"}
                     <ChevronDown className="size-3" />
                   </button>
                 }
@@ -147,18 +145,6 @@ export default function StatisticsPage() {
               </PopoverContent>
             </Popover>
           </div>
-
-          {selectedMilestone && (
-            <div className="rounded-lg border border-border/30 px-4 py-3 space-y-1">
-              <h2 className="text-sm font-medium">{selectedMilestone.name}</h2>
-              {selectedMilestone.description && (
-                <p className="text-xs text-muted-foreground/60">{selectedMilestone.description}</p>
-              )}
-              {selectedMilestone.target_date && (
-                <p className="text-xs text-muted-foreground/40">Target: {selectedMilestone.target_date}</p>
-              )}
-            </div>
-          )}
 
           {/* Overall */}
           <div className="space-y-2">

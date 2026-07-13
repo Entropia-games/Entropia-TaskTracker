@@ -14,7 +14,7 @@ import { Circle, ChevronDown, Trash2, X, ArrowUp, ArrowDown, Minus, AlertCircle,
 import { CreateIssueModal } from "@/components/create-issue-modal"
 import { IssueDetailModal } from "@/components/issue-detail-modal"
 import { useIssues, type Issue, type IssueStatus, type IssuePriority, type IssueTeam, type Milestone } from "@/lib/issues-context"
-import { useAuth } from "@/lib/auth-context"
+import { useAuthGate } from "@/lib/auth-gate-context"
 import { getSupabase } from "@/lib/supabase"
 import type { Database } from "@/lib/database.types"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -60,11 +60,11 @@ type Props = {
 }
 
 export function IssueList({ title, issues, focusId }: Props) {
-  const { deleteIssues, updateIssue, currentProject, milestones: projectMilestones } = useIssues()
-  const { user } = useAuth()
+  const { issues: allIssues, deleteIssues, updateIssue, currentProject, milestones: projectMilestones } = useIssues()
+  const { requireAuth } = useAuthGate()
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [detailIssueId, setDetailIssueId] = useState<number | null>(null)
-  const detailIssue = issues.find((i) => i.id === detailIssueId) ?? null
+  const detailIssue = allIssues.find((i) => i.id === detailIssueId) ?? null
   const [detailParentIssue, setDetailParentIssue] = useState<Issue | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [statusFilter, setStatusFilter] = useState<IssueStatus | null>(null)
@@ -132,7 +132,7 @@ export function IssueList({ title, issues, focusId }: Props) {
 
   const handleDelete = () => {
     if (selectedIds.size === 0) return
-    setConfirmDelete(true)
+    requireAuth(() => setConfirmDelete(true))
   }
 
   const confirmDeleteAction = () => {
@@ -320,7 +320,7 @@ export function IssueList({ title, issues, focusId }: Props) {
                   className={`group flex cursor-pointer items-center gap-3 border-b border-border/20 px-6 py-2.5 transition-colors hover:bg-accent/30 ${
                     selectedIds.has(issue.id) ? "bg-accent/20" : ""
                   }`}
-                  onClick={(e) => { if ((e.target as HTMLElement).closest("[data-pr-link], [data-team-btn], [data-milestone-btn], [data-assignee-btn]")) return; setDetailIssueId(issue.id) }}
+                  onClick={(e) => { if ((e.target as HTMLElement).closest("[data-pr-link], [data-team-btn], [data-milestone-btn], [data-assignee-btn]")) return; requireAuth(() => setDetailIssueId(issue.id)) }}
                 >
                   <div onClick={(e) => e.stopPropagation()}>
                     <Checkbox
@@ -374,7 +374,7 @@ export function IssueList({ title, issues, focusId }: Props) {
                     <PopoverContent className="w-32 p-1" align="start">
                       <button
                         className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent"
-                        onClick={(e) => { e.stopPropagation(); updateIssue(issue.id, { team: null }); setOpenTeamPopover(null) }}
+                          onClick={(e) => { e.stopPropagation(); requireAuth(() => updateIssue(issue.id, { team: null })); setOpenTeamPopover(null) }}
                       >
                         <Circle className="size-3 text-muted-foreground/40" />
                         No Team
@@ -383,7 +383,7 @@ export function IssueList({ title, issues, focusId }: Props) {
                         <button
                           key={t}
                           className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", issue.team === t ? "text-foreground" : "text-muted-foreground")}
-                          onClick={(e) => { e.stopPropagation(); updateIssue(issue.id, { team: t }); setOpenTeamPopover(null) }}
+                          onClick={(e) => { e.stopPropagation(); requireAuth(() => updateIssue(issue.id, { team: t })); setOpenTeamPopover(null) }}
                         >
                           <Circle className={cn("size-3", teamColors[t])} />
                           {t}
@@ -410,7 +410,7 @@ export function IssueList({ title, issues, focusId }: Props) {
                     <PopoverContent className="w-40 p-1" align="start">
                       <button
                         className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent"
-                        onClick={(e) => { e.stopPropagation(); updateIssue(issue.id, { milestone_id: null }); setOpenMilestonePopover(null) }}
+                          onClick={(e) => { e.stopPropagation(); requireAuth(() => updateIssue(issue.id, { milestone_id: null })); setOpenMilestonePopover(null) }}
                       >
                         <Diamond className="size-3 text-muted-foreground/40" />
                         No Milestone
@@ -419,7 +419,7 @@ export function IssueList({ title, issues, focusId }: Props) {
                         <button
                           key={m.id}
                           className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", issue.milestone_id === m.id ? "text-foreground" : "text-muted-foreground")}
-                          onClick={(e) => { e.stopPropagation(); updateIssue(issue.id, { milestone_id: m.id }); setOpenMilestonePopover(null) }}
+                          onClick={(e) => { e.stopPropagation(); requireAuth(() => updateIssue(issue.id, { milestone_id: m.id })); setOpenMilestonePopover(null) }}
                         >
                           <Diamond className="size-3 text-red-400/60 shrink-0" />
                           {m.name}
@@ -455,7 +455,7 @@ export function IssueList({ title, issues, focusId }: Props) {
                     <PopoverContent className="w-36 p-1" align="end">
                       <button
                         className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent"
-                        onClick={(e) => { e.stopPropagation(); updateIssue(issue.id, { assignee_id: null }); setOpenAssigneePopover(null) }}
+                          onClick={(e) => { e.stopPropagation(); requireAuth(() => updateIssue(issue.id, { assignee_id: null })); setOpenAssigneePopover(null) }}
                       >
                         <Circle className="size-3 text-muted-foreground/40" />
                         No Assignee
@@ -464,7 +464,7 @@ export function IssueList({ title, issues, focusId }: Props) {
                         <button
                           key={u.id}
                           className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", issue.assignee_id === u.id ? "text-foreground" : "text-muted-foreground")}
-                          onClick={(e) => { e.stopPropagation(); updateIssue(issue.id, { assignee_id: u.id }); setOpenAssigneePopover(null) }}
+                          onClick={(e) => { e.stopPropagation(); requireAuth(() => updateIssue(issue.id, { assignee_id: u.id })); setOpenAssigneePopover(null) }}
                         >
                           <Avatar className="size-5">
                             <AvatarFallback className="text-[9px]">{(u.name ?? u.email)[0].toUpperCase()}</AvatarFallback>

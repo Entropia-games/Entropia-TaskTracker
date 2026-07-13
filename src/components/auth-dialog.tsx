@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog"
 import { useAuth } from "@/lib/auth-context"
 
-export function AuthDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+export function AuthDialog({ open, onOpenChange, onSignedIn, gate }: { open: boolean; onOpenChange: (v: boolean) => void; onSignedIn?: () => void; gate?: boolean }) {
   const { signIn } = useAuth()
   const [nickname, setNickname] = useState("")
   const [password, setPassword] = useState("")
@@ -28,6 +28,7 @@ export function AuthDialog({ open, onOpenChange }: { open: boolean; onOpenChange
       setError(err)
     } else {
       onOpenChange(false)
+      onSignedIn?.()
     }
   }
 
@@ -37,6 +38,9 @@ export function AuthDialog({ open, onOpenChange }: { open: boolean; onOpenChange
         <DialogHeader>
           <DialogTitle>Sign in</DialogTitle>
         </DialogHeader>
+        {gate && (
+          <p className="px-2 -mt-1 text-xs text-muted-foreground">Вы не авторизованы, авторизуйтесь</p>
+        )}
         <div className="flex flex-col gap-3 px-2">
           <Input
             placeholder="Nickname"

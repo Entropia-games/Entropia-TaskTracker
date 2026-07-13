@@ -27,6 +27,7 @@ import {
   ChevronDown,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
+import { useAuthGate } from "@/lib/auth-gate-context"
 import { useIssues } from "@/lib/issues-context"
 import { AuthDialog } from "@/components/auth-dialog"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -58,6 +59,7 @@ const navItems: NavItem[] = [
 
 export function AppSidebar() {
   const { user, username, signOut } = useAuth()
+  const { requireAuth } = useAuthGate()
   const { projects, currentProject, setCurrentProject } = useIssues()
   const [projectPopoverOpen, setProjectPopoverOpen] = useState(false)
   const [authOpen, setAuthOpen] = useState(false)
@@ -67,11 +69,11 @@ export function AppSidebar() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") { e.preventDefault(); setSearchOpen(true) }
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") { e.preventDefault(); requireAuth(() => setSearchOpen(true)) }
     }
     window.addEventListener("keydown", handler)
     return () => window.removeEventListener("keydown", handler)
-  }, [])
+  }, [requireAuth])
 
   const navigate = useCallback((href: string) => {
     if (href !== "#") router.push(href)
@@ -159,7 +161,7 @@ export function AppSidebar() {
       <SidebarFooter className="border-t border-sidebar-border pb-3">
         <SidebarMenu className="gap-1">
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Search (Ctrl+K)" onClick={() => setSearchOpen(true)}>
+            <SidebarMenuButton tooltip="Search (Ctrl+K)" onClick={() => requireAuth(() => setSearchOpen(true))}>
               <span className="flex items-center gap-2 text-muted-foreground">
                 <Search className="size-4" />
                 <span className="group-data-[collapsible=icon]:hidden text-sm">Search</span>

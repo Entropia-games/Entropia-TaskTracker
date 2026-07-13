@@ -9,7 +9,6 @@ import {
   DialogContent,
   DialogFooter,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import {
   Select,
@@ -27,7 +26,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
 import { useIssues, type IssueStatus, type IssuePriority, type IssueTeam, type Milestone, type Attachment } from "@/lib/issues-context"
 import { getSupabase } from "@/lib/supabase"
-import { useAuth } from "@/lib/auth-context"
+import { useAuthGate } from "@/lib/auth-gate-context"
 import type { Database } from "@/lib/database.types"
 import { uploadFiles } from "@/lib/uploadthing"
 import { compressImage } from "@/lib/compress-image"
@@ -93,6 +92,7 @@ const PRIORITY_COLORS: Record<IssuePriority, string> = {
 
 export function CreateIssueModal() {
   const { addIssue, milestones: projectMilestones } = useIssues()
+  const { requireAuth } = useAuthGate()
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
@@ -218,15 +218,15 @@ export function CreateIssueModal() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger
-        render={
-          <button className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-muted-foreground hover:bg-accent">
-            <Plus className="size-3.5" />
-            New Issue
-          </button>
-        }
-      />
+    <>
+      <button
+        className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-muted-foreground hover:bg-accent"
+        onClick={() => requireAuth(() => setOpen(true))}
+      >
+        <Plus className="size-3.5" />
+        New Issue
+      </button>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
         className="!max-w-3xl !max-h-[90vh] !overflow-y-auto !rounded-xl !border-0 !p-0 !pb-1 sm:!max-w-3xl"
         showCloseButton={false}
@@ -288,7 +288,7 @@ export function CreateIssueModal() {
               </div>
             )}
             <button
-              onClick={() => imageInputRef.current?.click()}
+              onClick={() => requireAuth(() => imageInputRef.current?.click())}
               disabled={uploading}
               className="mt-2 inline-flex items-center gap-1.5 rounded px-2 py-1 text-xs text-muted-foreground/50 hover:text-muted-foreground hover:bg-accent transition-colors"
             >
@@ -458,5 +458,6 @@ export function CreateIssueModal() {
         </div>
       </DialogContent>
     </Dialog>
+    </>
   )
 }

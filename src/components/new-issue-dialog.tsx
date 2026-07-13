@@ -9,7 +9,6 @@ import {
   DialogContent,
   DialogFooter,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import {
   Select,
@@ -26,6 +25,7 @@ import {
 import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
 import { useIssues, type IssueStatus, type IssuePriority } from "@/lib/issues-context"
+import { useAuthGate } from "@/lib/auth-gate-context"
 import { Plus, CalendarIcon } from "lucide-react"
 import { format } from "date-fns"
 
@@ -47,6 +47,7 @@ const PRIORITY_OPTIONS = [
 
 export function NewIssueDialog() {
   const { addIssue } = useIssues()
+  const { requireAuth } = useAuthGate()
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
@@ -74,15 +75,15 @@ export function NewIssueDialog() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger
-        render={
-          <button className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-accent">
-            <Plus className="size-3.5" />
-            New Issue
-          </button>
-        }
-      />
+    <>
+      <button
+        className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-accent"
+        onClick={() => requireAuth(() => setOpen(true))}
+      >
+        <Plus className="size-3.5" />
+        New Issue
+      </button>
+      <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="!max-w-xl !rounded-xl !p-0" showCloseButton={false}>
         <DialogTitle className="sr-only">Create issue</DialogTitle>
         <div className="flex flex-col gap-0">
@@ -156,6 +157,7 @@ export function NewIssueDialog() {
           </DialogFooter>
         </div>
       </DialogContent>
-    </Dialog>
+      </Dialog>
+    </>
   )
 }

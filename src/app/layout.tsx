@@ -5,6 +5,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/lib/auth-context";
+import { AuthGateProvider } from "@/lib/auth-gate-context";
 import { IssuesProvider } from "@/lib/issues-context";
 
 const inter = Inter({
@@ -30,6 +31,7 @@ export default function RootLayout({
       <body className="min-h-full flex">
         <TooltipProvider>
           <AuthProvider>
+            <AuthGateProvider>
             <IssuesProvider>
             <SidebarProvider defaultOpen={true}>
               <AppSidebar />
@@ -40,7 +42,8 @@ export default function RootLayout({
                 {children}
               </main>
             </SidebarProvider>
-          </IssuesProvider>
+            </IssuesProvider>
+            </AuthGateProvider>
           </AuthProvider>
         </TooltipProvider>
       </body>

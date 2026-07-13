@@ -7,6 +7,7 @@ import { getSupabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 import { useIssues, type Issue, type IssuePriority, type IssueTeam, type IssueStatus } from "@/lib/issues-context"
+import { useAuthGate } from "@/lib/auth-gate-context"
 import type { Database } from "@/lib/database.types"
 
 type Props = {
@@ -36,6 +37,7 @@ export function SearchModal({ open, onOpenChange }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
   const { currentProject } = useIssues()
+  const { requireAuth } = useAuthGate()
 
   useEffect(() => {
     if (!open) { setQuery(""); setResults([]); return }
@@ -61,8 +63,10 @@ export function SearchModal({ open, onOpenChange }: Props) {
   }, [query, currentProject])
 
   const handleSelect = (issue: Issue) => {
-    router.push(`/?issue=${issue.id}`)
-    onOpenChange(false)
+    requireAuth(() => {
+      router.push(`/?issue=${issue.id}`)
+      onOpenChange(false)
+    })
   }
 
   return (

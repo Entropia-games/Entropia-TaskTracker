@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
 import type { Issue, IssueStatus, IssuePriority, IssueTeam, Attachment } from "@/lib/issues-context"
 import { useIssues } from "@/lib/issues-context"
+import { useAuthGate } from "@/lib/auth-gate-context"
 import { uploadFiles } from "@/lib/uploadthing"
 import { compressImage } from "@/lib/compress-image"
 import type { Database } from "@/lib/database.types"
@@ -85,6 +86,7 @@ type Props = {
 
 export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetail, parentIssue }: Props) {
   const { updateIssue, issues, milestones, currentProject } = useIssues()
+  const { requireAuth } = useAuthGate()
   const [status, setStatus] = useState<IssueStatus>("backlog")
   const [priority, setPriority] = useState<IssuePriority>("none")
   const [team, setTeam] = useState<IssueTeam | null>(null)
@@ -100,16 +102,26 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
   const [confirmEpicToggle, setConfirmEpicToggle] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
+  const [readyId, setReadyId] = useState<number | null>(null)
+  const [displayedIssue, setDisplayedIssue] = useState<Issue | null>(null)
   const titleRef = useRef<HTMLInputElement>(null)
   const descRef = useRef<HTMLTextAreaElement>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
 
+  // `loading` is true while the target `issue`'s related data is buffering.
+  // `data` is what is currently rendered: during loading we keep showing the
+  // previously displayed issue; once ready we render the live `issue` so edits
+  // and uploads stay in sync with context.
+  const loading = open && !!issue && readyId !== issue.id
+  const data = loading ? (displayedIssue ?? issue) : issue
+
   useEffect(() => {
-    if (issue) {
-      setEditTitle(issue.title)
-      setEditDescription(issue.description ?? "")
+    if (data) {
+      setEditTitle(data.title)
+      setEditDescription(data.description ?? "")
     }
-  }, [issue])
+  }, [data])
+
   useEffect(() => {
     if (editingDescription && descRef.current) {
       descRef.current.style.height = "auto"
@@ -124,47 +136,70 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
   }, [lightboxUrl])
+
   const [parentEpicId, setParentEpicId] = useState<number | null>(null)
 
   useEffect(() => {
-    if (issue) {
-      setStatus(issue.status)
-      setPriority(issue.priority)
-      setTeam(issue.team)
-      setAssigneeId(issue.assignee_id)
-      setMilestoneId(issue.milestone_id)
-      setIsEpic(issue.is_epic)
-      setParentEpicId(issue.parent_epic_id)
+    if (data) {
+      setStatus(data.status)
+      setPriority(data.priority)
+      setTeam(data.team)
+      setAssigneeId(data.assignee_id)
+      setMilestoneId(data.milestone_id)
+      setIsEpic(data.is_epic)
+      setParentEpicId(data.parent_epic_id)
     }
-  }, [issue])
+  }, [data])
 
   useEffect(() => {
-    if (!issue) return
+    if (!open || !issue) {
+      setReadyId(null)
+      setDisplayedIssue(null)
+      return
+    }
+    if (readyId === issue.id) {
+      setDisplayedIssue(issue)
+      return
+    }
+    // New target: buffer its related data, keep the previous issue on screen.
+    let active = true
+    const tasks: PromiseLike<void>[] = []
     if (issue.is_epic) {
-      getSupabase().from("issues").select("*").eq("parent_epic_id", issue.id).then(({ data }) => {
-        if (data) setChildIssues(data as Issue[])
-      })
+      tasks.push(
+        getSupabase().from("issues").select("*").eq("parent_epic_id", issue.id).then(({ data: rows }) => {
+          if (active && rows) setChildIssues(rows as Issue[])
+        }),
+      )
+    } else {
+      tasks.push(
+        getSupabase().from("issues").select("id,title").eq("is_epic", true).then(({ data: rows }) => {
+          if (active && rows) setAllEpics(rows as Issue[])
+        }),
+      )
     }
-  }, [issue])
-
-  useEffect(() => {
-    if (!issue || issue.is_epic || !open) return
-    getSupabase().from("issues").select("id,title").eq("is_epic", true).then(({ data }) => {
-      if (data) setAllEpics(data as Issue[])
+    tasks.push(
+      getSupabase().from("issue_links").select("*").eq("issue_id", issue.id).then(({ data: rows }) => {
+        if (active && rows) setLinkedPRs(rows)
+      }),
+    )
+    Promise.all(tasks).then(() => {
+      if (active) {
+        setReadyId(issue.id)
+        setDisplayedIssue(issue)
+      }
     })
-  }, [issue, open])
+    return () => {
+      active = false
+    }
+  }, [open, issue, readyId])
 
-  useEffect(() => {
-    if (!issue) return
-    getSupabase().from("issue_links").select("*").eq("issue_id", issue.id).then(({ data }) => {
-      if (data) setLinkedPRs(data)
-    })
-  }, [issue])
+  const show = open && (!loading || displayedIssue !== null)
 
   if (!issue) return null
+  if (!data) return null
 
   const userMap = new Map(users.map((u) => [u.id, u]))
-  const creatorName = issue.created_by
+  const creatorName = data.created_by
 
   function linkifyText(text: string) {
     const lines = text.split("\n")
@@ -192,9 +227,12 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
     })
   }
 
-  const currentAttachments = (issue.attachments as Attachment[] | null) ?? []
+  const currentAttachments = (data.attachments as Attachment[] | null) ?? []
   const isImageAtt = (a: Attachment) =>
     a.type?.startsWith("image/") ?? /\.(png|jpe?g|gif|webp|svg|bmp|avif)$/i.test(a.url)
+
+  const guardedUpdate = (patch: Parameters<typeof updateIssue>[1]) =>
+    requireAuth(() => updateIssue(data.id, patch))
 
   const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -210,7 +248,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
           name: res.serverData.name ?? file.name,
           type: res.serverData.type ?? file.type,
         }
-        updateIssue(issue.id, { attachments: [...currentAttachments, att] })
+        guardedUpdate({ attachments: [...currentAttachments, att] })
       }
     } catch (err) {
       console.error("Upload failed", err)
@@ -221,7 +259,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
 
   const removeAttachment = async (att: Attachment) => {
     const next = currentAttachments.filter((a) => a.url !== att.url)
-    updateIssue(issue.id, { attachments: next })
+    guardedUpdate({ attachments: next })
     fetch("/api/delete-images", { method: "POST", body: JSON.stringify({ urls: [att.url] }) })
       .catch((e) => console.error("Failed to delete image", e))
   }
@@ -236,48 +274,48 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
 
   const handleStatusChange = (v: IssueStatus) => {
     setStatus(v)
-    updateIssue(issue.id, { status: v })
+    guardedUpdate({ status: v })
   }
 
   const handlePriorityChange = (v: IssuePriority) => {
     setPriority(v)
-    updateIssue(issue.id, { priority: v })
+    guardedUpdate({ priority: v })
   }
 
   const handleTeamChange = (v: IssueTeam | null) => {
     setTeam(v)
-    updateIssue(issue.id, { team: v })
+    guardedUpdate({ team: v })
   }
 
   const handleAssigneeChange = (id: string | null) => {
     setAssigneeId(id)
-    updateIssue(issue.id, { assignee_id: id })
+    guardedUpdate({ assignee_id: id })
   }
 
   const handleMilestoneChange = (id: number | null) => {
     setMilestoneId(id)
-    updateIssue(issue.id, { milestone_id: id })
+    guardedUpdate({ milestone_id: id })
   }
 
   const handleEpicToggle = () => {
     const next = !isEpic
     setIsEpic(next)
     if (!next) {
-      getSupabase().from("issues").update({ parent_epic_id: null }).eq("parent_epic_id", issue.id).then()
-      issues.filter((i) => i.parent_epic_id === issue.id).forEach((child) => updateIssue(child.id, { parent_epic_id: null }))
+      getSupabase().from("issues").update({ parent_epic_id: null }).eq("parent_epic_id", data.id).then()
+      issues.filter((i) => i.parent_epic_id === data.id).forEach((child) => updateIssue(child.id, { parent_epic_id: null }))
     }
-    updateIssue(issue.id, { is_epic: next })
+    guardedUpdate({ is_epic: next })
   }
 
   const handleParentEpicChange = (id: number | null) => {
     setParentEpicId(id)
-    updateIssue(issue.id, { parent_epic_id: id })
+    guardedUpdate({ parent_epic_id: id })
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={show} onOpenChange={onOpenChange}>
       <DialogContent className="!max-w-xl !max-h-[90vh] !overflow-y-auto !rounded-xl !border-0 !p-0 sm:!max-w-xl" showCloseButton={false}>
-        <DialogTitle className="sr-only">{currentProject?.code ?? "?"}-{issue.display_id}</DialogTitle>
+        <DialogTitle className="sr-only">{currentProject?.code ?? "?"}-{data.display_id}</DialogTitle>
         <div className="flex flex-col gap-0">
           <div className="flex flex-col gap-4 px-5 pb-6 pt-6">
             <div className="flex items-center gap-2 text-xs text-muted-foreground/60 font-mono">
@@ -290,8 +328,8 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
                   Back
                 </button>
               )}
-              {issue.is_epic && <Layers className="size-3.5 text-purple-400" />}
-              <span>{currentProject?.code ?? "?"}-{issue.display_id}</span>
+              {data.is_epic && <Layers className="size-3.5 text-purple-400" />}
+              <span>{currentProject?.code ?? "?"}-{data.display_id}</span>
               <span className="text-muted-foreground/20">·</span>
               <span className={cn(activeStatus?.color)}>{activeStatus?.label}</span>
             </div>
@@ -299,7 +337,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
               ref={titleRef}
               value={editTitle}
               onChange={(e) => setEditTitle(e.target.value)}
-              onBlur={() => { if (editTitle !== issue.title) updateIssue(issue.id, { title: editTitle }) }}
+              onBlur={() => { if (editTitle !== data.title) guardedUpdate({ title: editTitle }) }}
               onKeyDown={(e) => { if (e.key === "Enter") { e.currentTarget.blur() } }}
               className="w-full border-none bg-transparent p-0 text-lg font-medium outline-none ring-0"
             />
@@ -313,7 +351,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
                     e.target.style.height = "auto"
                     e.target.style.height = e.target.scrollHeight + "px"
                   }}
-                  onBlur={() => { setEditingDescription(false); if (editDescription !== (issue.description ?? "")) updateIssue(issue.id, { description: editDescription.trim() ? editDescription : null }) }}
+                  onBlur={() => { setEditingDescription(false); if (editDescription !== (data.description ?? "")) guardedUpdate({ description: editDescription.trim() ? editDescription : null }) }}
                   placeholder="Add description..."
                   rows={3}
                   className="w-full resize-none overflow-hidden border-none bg-transparent p-0 text-sm text-muted-foreground outline-none ring-0 placeholder:text-muted-foreground/30"
@@ -321,9 +359,9 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
               ) : (
                 <div
                   className="w-full cursor-text whitespace-pre-wrap text-sm text-muted-foreground outline-none ring-0"
-                  onClick={() => { setEditDescription(issue.description ?? ""); setEditingDescription(true) }}
+                  onClick={() => { setEditDescription(data.description ?? ""); setEditingDescription(true) }}
                 >
-                  {issue.description?.trim() ? linkifyText(issue.description) : <span className="text-muted-foreground/30">Add description...</span>}
+                  {data.description?.trim() ? linkifyText(data.description) : <span className="text-muted-foreground/30">Add description...</span>}
                 </div>
               )}
               <input ref={imageInputRef} type="file" accept="image/*,.pdf,.doc,.docx,.txt,.zip,.xls,.xlsx,.ppt,.pptx" className="hidden" onChange={handleAttachmentUpload} />
@@ -372,7 +410,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
                 </div>
               )}
               <button
-                onClick={() => imageInputRef.current?.click()}
+                onClick={() => requireAuth(() => imageInputRef.current?.click())}
                 disabled={uploading}
                 className="mt-2 inline-flex items-center gap-1.5 rounded px-2 py-1 text-xs text-muted-foreground/50 hover:text-muted-foreground hover:bg-accent transition-colors"
               >
@@ -451,10 +489,10 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
                 </Select>
               )}
 
-              {issue.due_date && (
+              {data.due_date && (
                 <div className="flex items-center gap-1.5 rounded-md border border-transparent px-2 py-1 hover:border-border/30">
                   <CalendarIcon className="size-3.5 text-muted-foreground/60" />
-                  <span className="text-xs text-muted-foreground">{format(new Date(issue.due_date), "MMM d, yyyy")}</span>
+                  <span className="text-xs text-muted-foreground">{format(new Date(data.due_date), "MMM d, yyyy")}</span>
                 </div>
               )}
 
@@ -508,7 +546,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
 
             <div className="mt-3 flex flex-wrap items-center gap-4 text-[11px] text-muted-foreground/60">
               {creatorName && <span>Created by {creatorName}</span>}
-              <span>{format(new Date(issue.created_at), "MMM d, yyyy · HH:mm")}</span>
+              <span>{format(new Date(data.created_at), "MMM d, yyyy · HH:mm")}</span>
               <button
                 onClick={isEpic ? () => setConfirmEpicToggle(true) : handleEpicToggle}
                 className={cn("flex items-center gap-1 rounded px-1.5 py-0.5 transition-colors hover:bg-accent", isEpic ? "text-purple-400" : "text-muted-foreground/60")}
@@ -606,6 +644,12 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
             )}
           </div>
         </div>
+
+        {loading && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center rounded-xl bg-background/40 backdrop-blur-[1px]">
+            <div className="size-5 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground" />
+          </div>
+        )}
       </DialogContent>
       <Dialog open={confirmEpicToggle} onOpenChange={setConfirmEpicToggle}>
         <DialogContent className="sm:max-w-xs">

@@ -246,7 +246,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
               <Select value={priority} onValueChange={(v) => handlePriorityChange(v as IssuePriority)}>
                 <SelectTrigger className="h-7 gap-1.5 border border-transparent bg-transparent px-2 text-xs text-muted-foreground hover:border-border/30 hover:bg-accent data-open:bg-accent">
                   <PriorityIcon className={cn("size-3.5", activePriority?.color)} />
-                  <SelectValue />
+                  <SelectValue>{PRIORITY_OPTIONS.find((o) => o.value === priority)?.label}</SelectValue>
                 </SelectTrigger>
                 <SelectContent align="start" className="min-w-40">
                   {PRIORITY_OPTIONS.map((opt) => {
@@ -263,10 +263,10 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
 
               <Select value={team ?? "none"} onValueChange={(v) => handleTeamChange(v === "none" ? null : v as IssueTeam)}>
                 <SelectTrigger className={cn("h-7 gap-1.5 border border-transparent bg-transparent px-2 text-xs hover:border-border/30 hover:bg-accent data-open:bg-accent", team ? teamColors[team] : "text-muted-foreground")}>
-                  <SelectValue placeholder="Team" />
+                  <SelectValue>{team ?? "No Team"}</SelectValue>
                 </SelectTrigger>
                 <SelectContent align="start" className="min-w-32">
-                  <SelectItem value="none">No team</SelectItem>
+                  <SelectItem value="none">No Team</SelectItem>
                   <SelectItem value="ART">ART</SelectItem>
                   <SelectItem value="DEV">DEV</SelectItem>
                   <SelectItem value="QA">QA</SelectItem>
@@ -278,10 +278,10 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
               {milestones.length > 0 && (
                 <Select value={milestoneId?.toString() ?? "none"} onValueChange={(v) => handleMilestoneChange(v === "none" ? null : Number(v))}>
                   <SelectTrigger className={cn("h-7 gap-1.5 border border-transparent bg-transparent px-2 text-xs hover:border-border/30 hover:bg-accent data-open:bg-accent", milestoneId ? "text-foreground" : "text-muted-foreground")}>
-                    <SelectValue placeholder="Milestone" />
+                    <SelectValue>{milestoneId ? milestones.find((m) => m.id === milestoneId)?.name : "No Milestone"}</SelectValue>
                   </SelectTrigger>
                   <SelectContent align="start" className="min-w-40">
-                    <SelectItem value="none">No milestone</SelectItem>
+                    <SelectItem value="none">No Milestone</SelectItem>
                     {milestones.map((m) => (
                       <SelectItem key={m.id} value={m.id.toString()}>{m.name}</SelectItem>
                     ))}

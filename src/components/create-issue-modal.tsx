@@ -99,11 +99,6 @@ export function CreateIssueModal() {
   const [milestoneId, setMilestoneId] = useState<number | null>(null)
   const [users, setUsers] = useState<Database["public"]["Tables"]["users"]["Row"][]>([])
   const [milestones, setMilestones] = useState<Milestone[]>([])
-  const [isMac, setIsMac] = useState(false)
-
-  useEffect(() => {
-    setIsMac(navigator.platform.includes("Mac"))
-  }, [])
 
   useEffect(() => {
     if (!open) return
@@ -204,7 +199,7 @@ export function CreateIssueModal() {
               rows={1}
             />
           </div>
-          <DialogFooter className="!mt-0 !mb-0 !rounded-none !border-t !border-border/50 !bg-transparent px-5 py-4 sm:flex sm:flex-row sm:justify-between">
+          <DialogFooter className="!mt-0 !mb-0 !mx-0 flex-col sm:flex-col !rounded-none !border-t !border-border/50 !bg-transparent px-5 py-4">
             <div className="flex flex-wrap items-center gap-1.5">
               <Select value={status} onValueChange={(v) => setStatus(v as IssueStatus)}>
                 <SelectTrigger className="h-7 gap-1.5 border-0 bg-transparent px-2 text-xs text-muted-foreground hover:bg-accent data-open:bg-accent">
@@ -226,7 +221,7 @@ export function CreateIssueModal() {
               <Select value={priority} onValueChange={(v) => setPriority(v as IssuePriority)}>
                 <SelectTrigger className="h-7 gap-1.5 border-0 bg-transparent px-2 text-xs text-muted-foreground hover:bg-accent data-open:bg-accent">
                   <PriorityIcon className={cn("size-3.5", PRIORITY_COLORS[priority])} />
-                  <SelectValue />
+                  <SelectValue>{PRIORITY_OPTIONS.find((o) => o.value === priority)?.label}</SelectValue>
                 </SelectTrigger>
                 <SelectContent align="start" className="min-w-40">
                   {PRIORITY_OPTIONS.map((opt) => {
@@ -286,7 +281,7 @@ export function CreateIssueModal() {
               </Popover>
               <Select value={team ?? "none"} onValueChange={(v) => setTeam(v === "none" ? null : v as IssueTeam)}>
                 <SelectTrigger className={cn("h-7 gap-1.5 border-0 bg-transparent px-2 text-xs hover:bg-accent data-open:bg-accent", team ? teamColors[team] : "text-muted-foreground")}>
-                  <SelectValue placeholder="Team" />
+                  <SelectValue>{team ?? "No Team"}</SelectValue>
                 </SelectTrigger>
                 <SelectContent align="start" className="min-w-32">
                   <SelectItem value="none">No team</SelectItem>
@@ -300,7 +295,7 @@ export function CreateIssueModal() {
               {milestones.length > 0 && (
                 <Select value={milestoneId?.toString() ?? "none"} onValueChange={(v) => setMilestoneId(v === "none" ? null : Number(v))}>
                   <SelectTrigger className={cn("h-7 gap-1.5 border-0 bg-transparent px-2 text-xs hover:bg-accent data-open:bg-accent", milestoneId ? "text-foreground" : "text-muted-foreground")}>
-                    <SelectValue placeholder="Milestone" />
+                    <SelectValue>{milestoneId ? milestones.find((m) => m.id === milestoneId)?.name : "No Milestone"}</SelectValue>
                   </SelectTrigger>
                   <SelectContent align="start" className="min-w-40">
                     <SelectItem value="none">No milestone</SelectItem>
@@ -354,10 +349,7 @@ export function CreateIssueModal() {
                 </PopoverContent>
               </Popover>
             </div>
-            <div className="flex items-center gap-2 pt-2 sm:pt-0">
-              <span className="hidden text-[11px] text-muted-foreground/40 sm:inline">
-                {isMac ? "⌘" : "Ctrl"} + Enter
-              </span>
+            <div className="flex items-center justify-end gap-2 pt-3">
               <Button size="sm" disabled={!title.trim()} onClick={handleSubmit}>
                 Create Issue
               </Button>

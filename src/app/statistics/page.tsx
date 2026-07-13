@@ -2,7 +2,8 @@
 
 import { useState } from "react"
 import { useIssues, type IssueStatus, type IssuePriority, type IssueTeam } from "@/lib/issues-context"
-import { Circle, CircleDot, CircleCheck, CircleOff, ArrowUp, ArrowDown, Minus, AlertCircle, Layers, Plus, X } from "lucide-react"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Circle, ChevronDown, CircleDot, CircleCheck, CircleOff, ArrowUp, ArrowDown, Minus, AlertCircle, Layers, Plus, X, Diamond } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const statusLabels: Record<IssueStatus, string> = {
@@ -105,16 +106,35 @@ export default function StatisticsPage() {
 
           {/* Milestone selector */}
           <div className="flex items-center gap-2">
-            <select
-              value={selectedMilestoneId ?? ""}
-              onChange={(e) => setSelectedMilestoneId(e.target.value ? Number(e.target.value) : null)}
-              className="flex-1 rounded-lg border border-border/30 bg-transparent px-3 py-2 text-sm outline-none ring-0"
-            >
-              <option value="">All issues</option>
-              {milestones.map((m) => (
-                <option key={m.id} value={m.id}>{m.name}</option>
-              ))}
-            </select>
+            <Popover>
+              <PopoverTrigger
+                render={
+                  <button className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm hover:bg-accent text-foreground">
+                    <Diamond className="size-3 text-red-400/60" />
+                    {selectedMilestone?.name ?? "All issues"}
+                    <ChevronDown className="size-3" />
+                  </button>
+                }
+              />
+              <PopoverContent className="w-48 p-1" align="start">
+                  <button
+                    className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", selectedMilestoneId === null ? "text-foreground" : "text-muted-foreground")}
+                    onClick={() => setSelectedMilestoneId(null)}
+                  >
+                    All issues
+                  </button>
+                  {milestones.map((m) => (
+                    <button
+                      key={m.id}
+                      className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", selectedMilestoneId === m.id ? "text-foreground" : "text-muted-foreground")}
+                      onClick={() => setSelectedMilestoneId(m.id)}
+                    >
+                      <Diamond className="size-3 text-red-400/60 shrink-0" />
+                      {m.name}
+                    </button>
+                  ))}
+              </PopoverContent>
+            </Popover>
           </div>
 
           {selectedMilestone && (

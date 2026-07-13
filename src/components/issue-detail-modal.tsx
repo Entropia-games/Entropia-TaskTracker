@@ -302,7 +302,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
                   {issue.attachments!.map((url) => (
                     <div key={url} className="group relative">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={url} alt="" className="h-40 w-auto max-w-[320px] rounded border border-border/50 object-cover" />
+                      <img src={url} alt="" className="w-full max-h-[420px] rounded border border-border/50 object-cover" />
                       <button
                         onClick={() => removeAttachment(url)}
                         className="absolute right-1 top-1 rounded bg-black/60 p-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100"

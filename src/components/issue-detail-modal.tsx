@@ -304,7 +304,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
                     e.target.style.height = "auto"
                     e.target.style.height = e.target.scrollHeight + "px"
                   }}
-                  onBlur={() => { setEditingDescription(false); if (editDescription !== (issue.description ?? "")) updateIssue(issue.id, { description: editDescription || null }) }}
+                  onBlur={() => { setEditingDescription(false); if (editDescription !== (issue.description ?? "")) updateIssue(issue.id, { description: editDescription.trim() ? editDescription : null }) }}
                   placeholder="Add description..."
                   rows={3}
                   className="w-full resize-none overflow-hidden border-none bg-transparent p-0 text-sm text-muted-foreground outline-none ring-0 placeholder:text-muted-foreground/30"
@@ -314,7 +314,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
                   className="w-full cursor-text whitespace-pre-wrap text-sm text-muted-foreground outline-none ring-0"
                   onClick={() => { setEditDescription(issue.description ?? ""); setEditingDescription(true) }}
                 >
-                  {issue.description ? linkifyText(issue.description) : <span className="text-muted-foreground/30">Add description...</span>}
+                  {issue.description?.trim() ? linkifyText(issue.description) : <span className="text-muted-foreground/30">Add description...</span>}
                 </div>
               )}
               <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />

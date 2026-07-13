@@ -146,7 +146,7 @@ export function CreateIssueModal() {
     if (!title.trim()) return
     addIssue({
       title: title.trim(),
-      description,
+      description: description.trim() ? description : null,
       status,
       priority,
       team,

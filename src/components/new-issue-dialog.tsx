@@ -60,7 +60,7 @@ export function NewIssueDialog() {
     if (!title.trim()) return
     addIssue({
       title: title.trim(),
-      description,
+      description: description.trim() ? description : null,
       status: status as IssueStatus,
       priority: priority as IssuePriority,
       due_date: dueDate ? dueDate.toISOString() : null,

@@ -250,7 +250,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="!max-w-xl !rounded-xl !border-0 !p-0 sm:!max-w-xl" showCloseButton={false}>
+      <DialogContent className="!max-w-xl !max-h-[90vh] !overflow-y-auto !rounded-xl !border-0 !p-0 sm:!max-w-xl" showCloseButton={false}>
         <DialogTitle className="sr-only">{currentProject?.code ?? "?"}-{issue.display_id}</DialogTitle>
         <div className="flex flex-col gap-0">
           <div className="flex flex-col gap-4 px-5 pb-6 pt-6">

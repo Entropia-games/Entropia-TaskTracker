@@ -75,6 +75,7 @@ export function IssueList({ title, issues, focusId }: Props) {
   const [openMilestonePopover, setOpenMilestonePopover] = useState<number | null>(null)
   const [openAssigneePopover, setOpenAssigneePopover] = useState<number | null>(null)
   const [openLinkPopover, setOpenLinkPopover] = useState<number | null>(null)
+  const [openPriorityPopover, setOpenPriorityPopover] = useState<number | null>(null)
   const [showDone, setShowDone] = useState(true)
   const [users, setUsers] = useState<Database["public"]["Tables"]["users"]["Row"][]>([])
   const [linkedPRMap, setLinkedPRMap] = useState<Map<number, { count: number; firstUrl: string; firstState: string }>>(new Map())
@@ -322,7 +323,7 @@ export function IssueList({ title, issues, focusId }: Props) {
                   className={`group flex cursor-pointer items-center gap-3 border-b border-border/20 px-6 py-2.5 transition-colors hover:bg-accent/30 ${
                     selectedIds.has(issue.id) ? "bg-accent/20" : ""
                   }`}
-                  onClick={(e) => { if ((e.target as HTMLElement).closest("[data-pr-link], [data-team-btn], [data-milestone-btn], [data-assignee-btn], [data-link-btn]")) return; requireAuth(() => setDetailIssueId(issue.id)) }}
+                  onClick={(e) => { if ((e.target as HTMLElement).closest("[data-pr-link], [data-team-btn], [data-milestone-btn], [data-assignee-btn], [data-link-btn], [data-priority-btn]")) return; requireAuth(() => setDetailIssueId(issue.id)) }}
                 >
                   <div onClick={(e) => e.stopPropagation()}>
                     <Checkbox
@@ -331,10 +332,37 @@ export function IssueList({ title, issues, focusId }: Props) {
                       className={`size-4 ${selectedIds.has(issue.id) ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
                     />
                   </div>
-                  {(() => {
-                    const PIcon = priorityIcons[issue.priority]
-                    return <PIcon className={`size-4 shrink-0 ${priorityColors[issue.priority]}`} />
-                  })()}
+                  <Popover open={openPriorityPopover === issue.id} onOpenChange={(v) => setOpenPriorityPopover(v ? issue.id : null)}>
+                    <PopoverTrigger
+                      render={
+                        <button
+                          data-priority-btn
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex size-4 shrink-0 items-center justify-center rounded hover:bg-accent"
+                        >
+                          {(() => {
+                            const PIcon = priorityIcons[issue.priority]
+                            return <PIcon className={`size-4 shrink-0 ${priorityColors[issue.priority]}`} />
+                          })()}
+                        </button>
+                      }
+                    />
+                    <PopoverContent className="w-36 p-1" align="start">
+                      {(["none", "low", "medium", "high", "urgent"] as IssuePriority[]).map((p) => {
+                        const PIcon = priorityIcons[p]
+                        return (
+                          <button
+                            key={p}
+                            className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-accent", issue.priority === p ? "text-foreground" : "text-muted-foreground")}
+                            onClick={(e) => { e.stopPropagation(); requireAuth(() => updateIssue(issue.id, { priority: p })); setOpenPriorityPopover(null) }}
+                          >
+                            <PIcon className={cn("size-3.5", priorityColors[p])} />
+                            <span className="capitalize">{p}</span>
+                          </button>
+                        )
+                      })}
+                    </PopoverContent>
+                  </Popover>
                   <span className="flex w-5 shrink-0 items-center justify-center">{issue.is_epic && <Layers className="size-4 text-purple-400" />}</span>
                   <span className={cn("min-w-[4rem] text-sm font-mono", issue.status === "done" || issue.status === "canceled" ? "text-muted-foreground/30 line-through" : "text-muted-foreground/60")}>
                     {currentProject?.code ?? "?"}-{issue.display_id}

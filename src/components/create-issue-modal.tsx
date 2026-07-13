@@ -22,7 +22,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
 import { useIssues, type IssueStatus, type IssuePriority, type IssueTeam, type Milestone, type Attachment } from "@/lib/issues-context"
 import { getSupabase } from "@/lib/supabase"
@@ -32,7 +31,6 @@ import { uploadFiles } from "@/lib/uploadthing"
 import { compressImage } from "@/lib/compress-image"
 import {
   Plus,
-  CalendarIcon,
   Circle,
   CircleDot,
   CircleCheck,
@@ -47,7 +45,6 @@ import {
   Image,
   X,
 } from "lucide-react"
-import { format } from "date-fns"
 
 const STATUS_OPTIONS: { value: IssueStatus; label: string; icon: typeof Circle }[] = [
   { value: "backlog", label: "Backlog", icon: CircleOff },
@@ -98,7 +95,6 @@ export function CreateIssueModal() {
   const [description, setDescription] = useState("")
   const [status, setStatus] = useState<IssueStatus>("todo")
   const [priority, setPriority] = useState<IssuePriority>("none")
-  const [dueDate, setDueDate] = useState<Date>()
   const [team, setTeam] = useState<IssueTeam | null>(null)
   const [isEpic, setIsEpic] = useState(false)
   const [assigneeId, setAssigneeId] = useState<string | null>(null)
@@ -166,7 +162,6 @@ export function CreateIssueModal() {
       is_epic: isEpic,
       milestone_id: milestoneId,
       parent_epic_id: parentEpicId,
-      due_date: dueDate ? dueDate.toISOString() : null,
       assignee_id: assigneeId,
       attachments,
     })
@@ -177,7 +172,6 @@ export function CreateIssueModal() {
     setTeam(null)
     setMilestoneId(null)
     setParentEpicId(null)
-    setDueDate(undefined)
     setAssigneeId(null)
     setIsEpic(false)
     setAttachments([])
@@ -205,7 +199,7 @@ export function CreateIssueModal() {
     }
     window.addEventListener("keydown", handler)
     return () => window.removeEventListener("keydown", handler)
-  }, [open, title, description, status, priority, dueDate, discardAttachments])
+  }, [open, title, description, status, priority, discardAttachments])
 
   const handleOpenChange = (v: boolean) => {
     setOpen(v)
@@ -217,7 +211,6 @@ export function CreateIssueModal() {
         setTeam(null)
         setIsEpic(false)
         setParentEpicId(null)
-        setDueDate(undefined)
         discardAttachments()
       }
   }
@@ -363,24 +356,6 @@ export function CreateIssueModal() {
                   </button>
                 </PopoverContent>
               </Popover>
-              <Popover>
-                <PopoverTrigger
-                  render={
-                    <button
-                      className={cn(
-                        "flex h-7 cursor-default items-center gap-1.5 border-0 px-2 text-xs text-muted-foreground hover:bg-accent",
-                        !dueDate && "opacity-60"
-                      )}
-                    >
-                      <CalendarIcon className="size-3.5" />
-                      {dueDate ? format(dueDate, "MMM d") : "Due date"}
-                    </button>
-                  }
-                />
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={dueDate} onSelect={setDueDate} />
-                </PopoverContent>
-              </Popover>
               <Select value={team ?? "none"} onValueChange={(v) => setTeam(v === "none" ? null : v as IssueTeam)}>
                 <SelectTrigger className={cn("h-7 gap-1.5 border-0 bg-transparent px-2 text-xs hover:bg-accent data-open:bg-accent", team ? teamColors[team] : "text-muted-foreground")}>
                   <Circle className={cn("size-3 shrink-0", team ? teamColors[team] : "text-muted-foreground/40")} />
@@ -444,7 +419,6 @@ export function CreateIssueModal() {
                   </PopoverContent>
                 </Popover>
               )}
-              <span className="mx-1 h-4 w-px bg-border/50" />
               <Popover>
                 <PopoverTrigger
                   render={
@@ -487,11 +461,11 @@ export function CreateIssueModal() {
                   ))}
                 </PopoverContent>
               </Popover>
-            </div>
-            <div className="flex items-center justify-end gap-2 pt-3">
-              <Button size="sm" disabled={!title.trim()} onClick={handleSubmit}>
-                Create Issue
-              </Button>
+              <div className="ml-auto flex items-center">
+                <Button size="sm" disabled={!title.trim()} onClick={handleSubmit}>
+                  Create Issue
+                </Button>
+              </div>
             </div>
           </DialogFooter>
         </div>

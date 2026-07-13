@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -9,7 +9,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { Circle, ChevronDown, Trash2, X, ArrowUp, ArrowDown, Minus, AlertCircle, CircleDot, CircleCheck, CircleOff, Layers } from "lucide-react"
+import { Circle, ChevronDown, Trash2, X, ArrowUp, ArrowDown, Minus, AlertCircle, CircleDot, CircleCheck, CircleOff, Layers, GitPullRequest } from "lucide-react"
 import { CreateIssueModal } from "@/components/create-issue-modal"
 import { IssueDetailModal } from "@/components/issue-detail-modal"
 import { useIssues, type Issue, type IssueStatus, type IssuePriority, type IssueTeam } from "@/lib/issues-context"
@@ -64,12 +64,31 @@ export function IssueList({ title, issues }: Props) {
   const [priorityFilter, setPriorityFilter] = useState<IssuePriority | null>(null)
   const [teamFilter, setTeamFilter] = useState<IssueTeam | null>(null)
   const [users, setUsers] = useState<Database["public"]["Tables"]["users"]["Row"][]>([])
+  const [linkedPRMap, setLinkedPRMap] = useState<Map<number, { count: number; firstUrl: string }>>(new Map())
 
   useEffect(() => {
     getSupabase().from("users").select("*").then(({ data }) => {
       if (data) setUsers(data)
     })
   }, [])
+
+  useEffect(() => {
+    const ids = issues.map((i) => i.id)
+    if (ids.length === 0) return
+    getSupabase().from("issue_links").select("issue_id, pr_url").in("issue_id", ids).then(({ data }) => {
+      if (!data) return
+      const map = new Map<number, { count: number; firstUrl: string }>()
+      for (const link of data) {
+        const existing = map.get(link.issue_id)
+        if (existing) {
+          existing.count++
+        } else {
+          map.set(link.issue_id, { count: 1, firstUrl: link.pr_url })
+        }
+      }
+      setLinkedPRMap(map)
+    })
+  }, [issues])
 
   const userMap = new Map(users.map((u) => [u.id, u]))
 
@@ -239,6 +258,21 @@ export function IssueList({ title, issues }: Props) {
                     return <PIcon className={`size-3.5 shrink-0 ${priorityColors[issue.priority]}`} />
                   })()}
                   {issue.is_epic && <Layers className="size-3.5 shrink-0 text-purple-400" />}
+                  {linkedPRMap.has(issue.id) && (() => {
+                    const pr = linkedPRMap.get(issue.id)!
+                    return (
+                      <a
+                        href={pr.firstUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="group/link flex items-center gap-0.5 text-green-400/70 hover:text-green-400 transition-colors"
+                      >
+                        <GitPullRequest className="size-3.5" />
+                        {pr.count > 1 && <span className="text-[10px] font-medium">{pr.count}</span>}
+                      </a>
+                    )
+                  })()}
                   <span className="min-w-[4rem] text-xs text-muted-foreground/60 font-mono">
                     {issue.id}
                   </span>

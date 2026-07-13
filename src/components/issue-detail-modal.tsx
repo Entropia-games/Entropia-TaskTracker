@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import type { Issue, IssueStatus, IssuePriority, IssueTeam } from "@/lib/issues-context"
 import { useIssues } from "@/lib/issues-context"
+import { uploadFiles } from "@/lib/uploadthing"
 import type { Database } from "@/lib/database.types"
 import {
   Dialog,
@@ -39,6 +40,7 @@ import {
   FileText,
   ExternalLink,
   Diamond,
+  Image,
 } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
@@ -93,8 +95,10 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
   const [editDescription, setEditDescription] = useState("")
   const [editingDescription, setEditingDescription] = useState(false)
   const [confirmEpicToggle, setConfirmEpicToggle] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const titleRef = useRef<HTMLInputElement>(null)
   const descRef = useRef<HTMLTextAreaElement>(null)
+  const imageInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (issue) {
@@ -146,13 +150,46 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
   const creatorName = issue.created_by
 
   function linkifyText(text: string) {
-    const urlRegex = /(https?:\/\/[^\s<]+[^\s<,.])/g
-    const parts = text.split(urlRegex)
-    return parts.map((part, i) =>
-      urlRegex.test(part)
-        ? <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-blue-400 underline hover:text-blue-300">{part}</a>
-        : part
-    )
+    const lines = text.split("\n")
+    return lines.map((line, li) => {
+      const imgMatch = line.match(/!\[([^\]]*)\]\(([^)]+)\)/)
+      if (imgMatch) {
+        return (
+          <div key={li} className="my-1">
+            <img src={imgMatch[2]} alt={imgMatch[1]} className="max-h-96 max-w-full rounded-lg object-contain" />
+          </div>
+        )
+      }
+      const urlRegex = /(https?:\/\/[^\s<]+[^\s<,.])/g
+      const parts = line.split(urlRegex)
+      return (
+        <span key={li}>
+          {parts.map((part, pi) =>
+            urlRegex.test(part)
+              ? <a key={pi} href={part} target="_blank" rel="noopener noreferrer" className="text-blue-400 underline hover:text-blue-300">{part}</a>
+              : part
+          )}
+          {li < lines.length - 1 && <br />}
+        </span>
+      )
+    })
+  }
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      const [res] = await uploadFiles("image", { files: [file] })
+      if (res?.serverData?.url) {
+        const imgMd = `![image](${res.serverData.url})`
+        setEditDescription((prev) => prev + (prev ? "\n" : "") + imgMd)
+      }
+    } catch (err) {
+      console.error("Upload failed", err)
+    }
+    setUploading(false)
+    if (imageInputRef.current) imageInputRef.current.value = ""
   }
 
   const activeStatus = STATUS_OPTIONS.find((s) => s.value === status)
@@ -233,15 +270,25 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
               className="w-full border-none bg-transparent p-0 text-lg font-medium outline-none ring-0"
             />
             {editingDescription ? (
-              <textarea
-                ref={descRef}
-                value={editDescription}
-                onChange={(e) => setEditDescription(e.target.value)}
-                onBlur={() => { setEditingDescription(false); if (editDescription !== (issue.description ?? "")) updateIssue(issue.id, { description: editDescription || null }) }}
-                placeholder="Add description..."
-                rows={3}
-                className="w-full resize-none border-none bg-transparent p-0 text-sm text-muted-foreground outline-none ring-0 placeholder:text-muted-foreground/30"
-              />
+              <div className="relative">
+                <textarea
+                  ref={descRef}
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  onBlur={() => { setEditingDescription(false); if (editDescription !== (issue.description ?? "")) updateIssue(issue.id, { description: editDescription || null }) }}
+                  placeholder="Add description..."
+                  rows={3}
+                  className="w-full resize-none border-none bg-transparent p-0 text-sm text-muted-foreground outline-none ring-0 placeholder:text-muted-foreground/30"
+                />
+                <button
+                  onClick={() => imageInputRef.current?.click()}
+                  disabled={uploading}
+                  className="absolute bottom-1 right-1 rounded p-1 text-muted-foreground/40 hover:text-muted-foreground hover:bg-accent transition-colors"
+                >
+                  <Image className="size-4" />
+                </button>
+                <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+              </div>
             ) : (
               <div
                 className="w-full cursor-text whitespace-pre-wrap text-sm text-muted-foreground outline-none ring-0"

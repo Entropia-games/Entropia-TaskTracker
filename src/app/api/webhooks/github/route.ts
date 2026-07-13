@@ -18,6 +18,7 @@ type GitHubPR = {
     title: string
     state: string
     merged: boolean
+    body?: string | null
   }
   repository: { full_name: string }
 }
@@ -48,26 +49,32 @@ export async function POST(req: Request) {
     { auth: { autoRefreshToken: false, persistSession: false } },
   )
 
-  const codeMatch = prTitle.match(/([A-Z]+)-(\d+)/)
-  let issueId: number | null = null
+  const prText = `${pr.title}\n${pr.body ?? ""}`
+  const refRegex = /([A-Z]+)-(\d+)/g
+  const refs = new Set<string>()
+  let rm: RegExpExecArray | null
+  while ((rm = refRegex.exec(prText)) !== null) refs.add(`${rm[1]}-${rm[2]}`)
 
-  if (codeMatch) {
-    const code = codeMatch[1]
-    const num = Number(codeMatch[2])
+  const resolvedIds: number[] = []
+  for (const ref of refs) {
+    const dash = ref.indexOf("-")
+    const code = ref.slice(0, dash)
+    const num = Number(ref.slice(dash + 1))
     const { data: project } = await sb.from("projects").select("id").eq("code", code).maybeSingle()
-    if (project) {
-      const { data: found } = await sb.from("issues").select("id").eq("id", num).eq("project_id", project.id).maybeSingle()
-      if (found) issueId = found.id
+    if (!project) continue
+    const { data: found } = await sb.from("issues").select("id").eq("display_id", num).eq("project_id", project.id).maybeSingle()
+    if (found) resolvedIds.push(found.id)
+  }
+
+  const { data: existingLinks } = await sb.from("issue_links").select("id, issue_id").eq("pr_url", prUrl)
+
+  for (const link of existingLinks ?? []) {
+    if (!resolvedIds.includes(link.issue_id)) {
+      await sb.from("issue_links").delete().eq("id", link.id)
     }
   }
 
-  const { data: existing } = await sb.from("issue_links").select("id, issue_id").eq("pr_url", prUrl).maybeSingle()
-
-  if (existing && existing.issue_id !== issueId) {
-    await sb.from("issue_links").delete().eq("id", existing.id)
-  }
-
-  if (issueId) {
+  for (const issueId of resolvedIds) {
     const { data: existingLink } = await sb.from("issue_links").select("id").eq("issue_id", issueId).eq("pr_url", prUrl).maybeSingle()
     if (existingLink) {
       await sb.from("issue_links").update({ pr_state: prState, pr_title: prTitle }).eq("id", existingLink.id)

@@ -37,6 +37,7 @@ import {
   Link,
   FileText,
   ExternalLink,
+  Diamond,
 } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
@@ -263,27 +264,29 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
 
               <Select value={team ?? "none"} onValueChange={(v) => handleTeamChange(v === "none" ? null : v as IssueTeam)}>
                 <SelectTrigger className={cn("h-7 gap-1.5 border border-transparent bg-transparent px-2 text-xs hover:border-border/30 hover:bg-accent data-open:bg-accent", team ? teamColors[team] : "text-muted-foreground")}>
+                  <Circle className={cn("size-3 shrink-0", team ? teamColors[team] : "text-muted-foreground/40")} />
                   <SelectValue>{team ?? "No Team"}</SelectValue>
                 </SelectTrigger>
                 <SelectContent align="start" className="min-w-32">
-                  <SelectItem value="none">No Team</SelectItem>
-                  <SelectItem value="ART">ART</SelectItem>
-                  <SelectItem value="DEV">DEV</SelectItem>
-                  <SelectItem value="QA">QA</SelectItem>
-                  <SelectItem value="GD">GD</SelectItem>
-                  <SelectItem value="Sound">Sound</SelectItem>
+                  <SelectItem value="none"><Circle className="size-3 text-muted-foreground/40" />No Team</SelectItem>
+                  <SelectItem value="ART"><Circle className="size-3 text-blue-400" />ART</SelectItem>
+                  <SelectItem value="DEV"><Circle className="size-3 text-blue-400" />DEV</SelectItem>
+                  <SelectItem value="QA"><Circle className="size-3 text-white/80" />QA</SelectItem>
+                  <SelectItem value="GD"><Circle className="size-3 text-yellow-400" />GD</SelectItem>
+                  <SelectItem value="Sound"><Circle className="size-3 text-orange-400" />Sound</SelectItem>
                 </SelectContent>
               </Select>
 
               {milestones.length > 0 && (
                 <Select value={milestoneId?.toString() ?? "none"} onValueChange={(v) => handleMilestoneChange(v === "none" ? null : Number(v))}>
                   <SelectTrigger className={cn("h-7 gap-1.5 border border-transparent bg-transparent px-2 text-xs hover:border-border/30 hover:bg-accent data-open:bg-accent", milestoneId ? "text-foreground" : "text-muted-foreground")}>
+                    <Diamond className={cn("size-3 shrink-0", milestoneId ? "text-red-400/60" : "text-muted-foreground/40")} />
                     <SelectValue>{milestoneId ? milestones.find((m) => m.id === milestoneId)?.name : "No Milestone"}</SelectValue>
                   </SelectTrigger>
                   <SelectContent align="start" className="min-w-40">
-                    <SelectItem value="none">No Milestone</SelectItem>
+                    <SelectItem value="none"><Diamond className="size-3 text-muted-foreground/40" />No Milestone</SelectItem>
                     {milestones.map((m) => (
-                      <SelectItem key={m.id} value={m.id.toString()}>{m.name}</SelectItem>
+                      <SelectItem key={m.id} value={m.id.toString()}><Diamond className="size-3 text-red-400/60" />{m.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

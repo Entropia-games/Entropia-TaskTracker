@@ -349,14 +349,14 @@ export function IssueList({ title, issues, focusId }: Props) {
                       </a>
                     )
                   })()}</span>
-                  <span className="flex w-28 shrink-0 items-center gap-1 text-sm text-red-400/60">
-                    {issue.milestone_id && milestoneMap.has(issue.milestone_id) && (
-                      <><Diamond className="size-3 shrink-0" /><span className="truncate">{milestoneMap.get(issue.milestone_id)!.name}</span></>
-                    )}
-                  </span>
                   {issue.team && (
                     <span className={cn("flex w-14 shrink-0 items-center justify-center rounded border border-border/30 px-1 py-0.5 text-sm font-semibold", teamColors[issue.team] ?? "text-muted-foreground/70")}>{issue.team}</span>
                   )}
+                  <span className="flex w-28 shrink-0 items-center gap-1 text-base text-red-400/60">
+                    {issue.milestone_id && milestoneMap.has(issue.milestone_id) && (
+                      <><Diamond className="size-3.5 shrink-0" /><span className="truncate">{milestoneMap.get(issue.milestone_id)!.name}</span></>
+                    )}
+                  </span>
                   {issue.assignee_id && userMap.has(issue.assignee_id) && (
                     <div className="flex w-36 shrink-0 items-center justify-end gap-1.5">
                       <span className="text-sm text-muted-foreground truncate">

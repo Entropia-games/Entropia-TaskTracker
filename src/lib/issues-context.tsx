@@ -58,6 +58,7 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
   const addIssue = useCallback(async (input: NewIssueInput) => {
     if (!user) return
     const sb = getSupabase()
+    const creatorName = username ?? (await sb.from("users").select("name").eq("id", user.id).single()).data?.name ?? "Unknown"
     const { data, error } = await sb
       .from("issues")
         .insert({
@@ -71,7 +72,7 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
           milestone_id: input.milestone_id ?? null,
           due_date: input.due_date,
           assignee_id: input.assignee_id ?? null,
-          created_by: username ?? "Unknown",
+          created_by: creatorName,
         })
       .select()
       .single()
@@ -82,7 +83,7 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
     }
 
     setIssues((prev) => [data, ...prev])
-  }, [user])
+  }, [user, username])
 
   const updateIssue = useCallback(async (id: number, changes: Partial<Issue>) => {
     if (!user) return

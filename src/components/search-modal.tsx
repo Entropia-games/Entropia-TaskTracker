@@ -76,7 +76,6 @@ export function SearchModal({ open, onOpenChange }: Props) {
             placeholder="Search issues..."
             className="flex-1 border-none bg-transparent text-sm outline-none ring-0 placeholder:text-muted-foreground/30"
           />
-          <kbd className="hidden md:inline-flex text-[10px] text-muted-foreground/50 rounded border border-border/30 px-1.5 py-0.5 font-mono">ESC</kbd>
         </div>
         {results.length > 0 && (
           <div className="max-h-80 overflow-auto p-1.5 space-y-0.5">

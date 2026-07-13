@@ -193,6 +193,9 @@ export default function StatisticsPage() {
               const count = statusCounts[s]
               const barPct = total > 0 ? Math.round((count / total) * 100) : 0
               const Icon = statusIcons[s]
+              const barColors: Record<IssueStatus, string> = {
+                backlog: "bg-muted-foreground/20", todo: "bg-blue-400", in_progress: "bg-yellow-400", done: "bg-green-400", canceled: "bg-muted-foreground/20",
+              }
               return (
                 <div key={s} className="space-y-1">
                   <div className="flex items-center justify-between text-sm">
@@ -203,7 +206,7 @@ export default function StatisticsPage() {
                     <span className="text-muted-foreground/60">{count} ({barPct}%)</span>
                   </div>
                   <div className="h-1.5 rounded-full bg-border/50 overflow-hidden">
-                    <div className={cn("h-full rounded-full", s === "done" ? "bg-green-400" : "bg-muted-foreground/20")} style={{ width: `${barPct}%` }} />
+                    <div className={cn("h-full rounded-full transition-all", barColors[s])} style={{ width: `${barPct}%` }} />
                   </div>
                 </div>
               )
@@ -217,6 +220,9 @@ export default function StatisticsPage() {
               const count = priorityCounts[p]
               const barPct = total > 0 ? Math.round((count / total) * 100) : 0
               const PIcon = priorityIcons[p]
+              const barColors: Record<IssuePriority, string> = {
+                urgent: "bg-red-400", high: "bg-orange-400", medium: "bg-blue-400", low: "bg-muted-foreground/40", none: "bg-muted-foreground/20",
+              }
               return (
                 <div key={p} className="space-y-1">
                   <div className="flex items-center justify-between text-sm">
@@ -227,7 +233,7 @@ export default function StatisticsPage() {
                     <span className="text-muted-foreground/60">{count} ({barPct}%)</span>
                   </div>
                   <div className="h-1.5 rounded-full bg-border/50 overflow-hidden">
-                    <div className="h-full rounded-full bg-muted-foreground/20" style={{ width: `${barPct}%` }} />
+                    <div className={cn("h-full rounded-full transition-all", barColors[p])} style={{ width: `${barPct}%` }} />
                   </div>
                 </div>
               )

@@ -327,7 +327,7 @@ export function IssueList({ title, issues, focusId }: Props) {
                     return <PIcon className={`size-4 shrink-0 ${priorityColors[issue.priority]}`} />
                   })()}
                   <span className="flex w-5 shrink-0 items-center justify-center">{issue.is_epic && <Layers className="size-4 text-purple-400" />}</span>
-                  <span className="min-w-[4rem] text-sm text-muted-foreground/60 font-mono">
+                  <span className={cn("min-w-[4rem] text-sm font-mono", issue.status === "done" || issue.status === "canceled" ? "text-muted-foreground/30 line-through" : "text-muted-foreground/60")}>
                     {currentProject?.code ?? "?"}-{issue.display_id}
                   </span>
                   <span className="flex-1 truncate text-sm">{issue.title}</span>

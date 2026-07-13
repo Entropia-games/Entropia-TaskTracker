@@ -134,6 +134,28 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
 
   const deleteIssues = useCallback(async (ids: number[]) => {
     if (!user || ids.length === 0) return
+
+    const { data: issues } = await getSupabase()
+      .from("issues")
+      .select("description")
+      .in("id", ids)
+    if (issues) {
+      const urls: string[] = []
+      for (const iss of issues) {
+        if (iss.description) {
+          const re = /!\[.*?\]\((.*?)\)/g
+          let m: RegExpExecArray | null
+          while ((m = re.exec(iss.description)) !== null) {
+            urls.push(m[1])
+          }
+        }
+      }
+      if (urls.length > 0) {
+        fetch("/api/delete-images", { method: "POST", body: JSON.stringify({ urls }) })
+          .catch((e) => console.error("Failed to delete images", e))
+      }
+    }
+
     const { error } = await getSupabase()
       .from("issues")
       .delete()

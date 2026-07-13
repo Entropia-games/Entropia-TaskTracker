@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import type { Issue, IssueStatus, IssuePriority, IssueTeam } from "@/lib/issues-context"
 import { useIssues } from "@/lib/issues-context"
 import { uploadFiles } from "@/lib/uploadthing"
+import { compressImage } from "@/lib/compress-image"
 import type { Database } from "@/lib/database.types"
 import {
   Dialog,
@@ -187,7 +188,8 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
     if (!file) return
     setUploading(true)
     try {
-      const [res] = await uploadFiles("image", { files: [file] })
+      const compressed = await compressImage(file)
+      const [res] = await uploadFiles("image", { files: [compressed] })
       if (res?.serverData?.url) {
         const next = [...(issue.attachments ?? []), res.serverData.url]
         updateIssue(issue.id, { attachments: next })

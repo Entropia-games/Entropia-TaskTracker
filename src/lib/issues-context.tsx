@@ -107,6 +107,7 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
           assignee_id: input.assignee_id ?? null,
           created_by: creatorName,
           project_id: currentProject.id,
+          attachments: input.attachments ?? [],
         })
       .select()
       .single()

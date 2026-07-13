@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -9,7 +9,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { Circle, ChevronDown, Trash2, X, ArrowUp, ArrowDown, Minus, AlertCircle, CircleDot, CircleCheck, CircleOff, Layers } from "lucide-react"
+import { Circle, ChevronDown, Trash2, X, ArrowUp, ArrowDown, Minus, AlertCircle, CircleDot, CircleCheck, CircleOff, Layers, GitPullRequest } from "lucide-react"
 import { CreateIssueModal } from "@/components/create-issue-modal"
 import { IssueDetailModal } from "@/components/issue-detail-modal"
 import { useIssues, type Issue, type IssueStatus, type IssuePriority, type IssueTeam } from "@/lib/issues-context"
@@ -64,12 +64,32 @@ export function IssueList({ title, issues }: Props) {
   const [priorityFilter, setPriorityFilter] = useState<IssuePriority | null>(null)
   const [teamFilter, setTeamFilter] = useState<IssueTeam | null>(null)
   const [users, setUsers] = useState<Database["public"]["Tables"]["users"]["Row"][]>([])
+  const [linkedPRMap, setLinkedPRMap] = useState<Map<number, { count: number; firstUrl: string; firstState: string }>>(new Map())
+  const rowClickTarget = useRef<number | null>(null)
 
   useEffect(() => {
     getSupabase().from("users").select("*").then(({ data }) => {
       if (data) setUsers(data)
     })
   }, [])
+
+  useEffect(() => {
+    const ids = issues.map((i) => i.id)
+    if (ids.length === 0) return
+    getSupabase().from("issue_links").select("issue_id, pr_url, pr_state").in("issue_id", ids).then(({ data }) => {
+      if (!data) return
+      const map = new Map<number, { count: number; firstUrl: string; firstState: string }>()
+      for (const link of data) {
+        const existing = map.get(link.issue_id)
+        if (existing) {
+          existing.count++
+        } else {
+          map.set(link.issue_id, { count: 1, firstUrl: link.pr_url, firstState: link.pr_state })
+        }
+      }
+      setLinkedPRMap(map)
+    })
+  }, [issues])
 
   const userMap = new Map(users.map((u) => [u.id, u]))
 
@@ -243,6 +263,25 @@ export function IssueList({ title, issues }: Props) {
                     {issue.id}
                   </span>
                   <span className="flex-1 truncate text-sm">{issue.title}</span>
+                  {linkedPRMap.has(issue.id) && (() => {
+                    const pr = linkedPRMap.get(issue.id)!
+                    const isMerged = pr.firstState === "merged"
+                    const isClosed = pr.firstState === "closed"
+                    return (
+                      <span
+                        onClick={(e) => { e.stopPropagation(); window.open(pr.firstUrl, "_blank") }}
+                        className={cn(
+                          "flex shrink-0 cursor-pointer items-center gap-0.5 transition-colors",
+                          isMerged ? "text-purple-400/70 hover:text-purple-400" :
+                          isClosed ? "text-red-400/70 hover:text-red-400" :
+                          "text-green-400/70 hover:text-green-400",
+                        )}
+                      >
+                        <GitPullRequest className="size-3.5" />
+                        {pr.count > 1 && <span className="text-[10px] font-medium">{pr.count}</span>}
+                      </span>
+                    )
+                  })()}
                   {issue.team && (
                     <span className={cn("shrink-0 rounded border border-border/30 px-1.5 py-0.5 text-xs font-semibold", teamColors[issue.team] ?? "text-muted-foreground/70")}>{issue.team}</span>
                   )}

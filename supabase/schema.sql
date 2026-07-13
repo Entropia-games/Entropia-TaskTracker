@@ -90,7 +90,7 @@ $$;
 do $$
 begin
   if not exists (select 1 from pg_type where typname = 'issue_team') then
-    create type issue_team as enum ('ART', 'DEV', 'QA', 'GD', 'Sound');
+    create type issue_team as enum ('3D', 'Concept', 'DEV', 'QA', 'GD', 'Sound');
   end if;
 end;
 $$;

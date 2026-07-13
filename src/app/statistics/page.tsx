@@ -33,10 +33,10 @@ const priorityColors: Record<IssuePriority, string> = {
 }
 
 const teamColors: Record<string, string> = {
-  DEV: "text-blue-400", ART: "text-red-400", QA: "text-white/80", GD: "text-yellow-400", Sound: "text-orange-400",
+  "3D": "text-red-400", Concept: "text-blue-400", DEV: "text-purple-400", QA: "text-white/80", GD: "text-yellow-400", Sound: "text-orange-400",
 }
 
-const teams: IssueTeam[] = ["ART", "DEV", "QA", "GD", "Sound"]
+const teams: IssueTeam[] = ["3D", "Concept", "DEV", "QA", "GD", "Sound"]
 
 export default function StatisticsPage() {
   const { issues, milestones, createMilestone, deleteMilestone } = useIssues()

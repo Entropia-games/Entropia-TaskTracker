@@ -170,7 +170,7 @@ export type Database = {
     Enums: {
       issue_status: "backlog" | "todo" | "in_progress" | "done" | "canceled"
       issue_priority: "none" | "low" | "medium" | "high" | "urgent"
-      issue_team: "ART" | "DEV" | "QA" | "GD" | "Sound"
+      issue_team: "3D" | "Concept" | "DEV" | "QA" | "GD" | "Sound"
     }
     CompositeTypes: Record<string, never>
   }

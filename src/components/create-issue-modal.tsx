@@ -71,11 +71,12 @@ const STATUS_COLORS: Record<IssueStatus, string> = {
 }
 
 const teamColors: Record<string, string> = {
-  DEV:   "text-blue-400",
-  ART:   "text-red-400",
-  QA:    "text-white/80",
-  GD:    "text-yellow-400",
-  Sound: "text-orange-400",
+  "3D":     "text-red-400",
+  Concept:  "text-blue-400",
+  DEV:      "text-purple-400",
+  QA:       "text-white/80",
+  GD:       "text-yellow-400",
+  Sound:    "text-orange-400",
 }
 
 const PRIORITY_COLORS: Record<IssuePriority, string> = {
@@ -283,8 +284,9 @@ export function CreateIssueModal() {
                 </SelectTrigger>
                 <SelectContent align="start" className="min-w-32">
                   <SelectItem value="none"><Circle className="size-3 text-muted-foreground/40" />No Team</SelectItem>
-                  <SelectItem value="ART"><Circle className="size-3 text-blue-400" />ART</SelectItem>
-                  <SelectItem value="DEV"><Circle className="size-3 text-blue-400" />DEV</SelectItem>
+                  <SelectItem value="3D"><Circle className="size-3 text-red-400" />3D</SelectItem>
+                  <SelectItem value="Concept"><Circle className="size-3 text-blue-400" />Concept</SelectItem>
+                  <SelectItem value="DEV"><Circle className="size-3 text-purple-400" />DEV</SelectItem>
                   <SelectItem value="QA"><Circle className="size-3 text-white/80" />QA</SelectItem>
                   <SelectItem value="GD"><Circle className="size-3 text-yellow-400" />GD</SelectItem>
                   <SelectItem value="Sound"><Circle className="size-3 text-orange-400" />Sound</SelectItem>

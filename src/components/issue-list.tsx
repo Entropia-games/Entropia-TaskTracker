@@ -44,11 +44,12 @@ const priorityColors: Record<IssuePriority, string> = {
 }
 
 const teamColors: Record<string, string> = {
-  DEV:   "text-blue-400",
-  ART:   "text-red-400",
-  QA:    "text-white/80",
-  GD:    "text-yellow-400",
-  Sound: "text-orange-400",
+  "3D":     "text-red-400",
+  Concept:  "text-blue-400",
+  DEV:      "text-purple-400",
+  QA:       "text-white/80",
+  GD:       "text-yellow-400",
+  Sound:    "text-orange-400",
 }
 
 type Props = {
@@ -248,7 +249,7 @@ export function IssueList({ title, issues, focusId }: Props) {
               >
                 All
               </button>
-              {(["ART", "DEV", "QA", "GD", "Sound"] as IssueTeam[]).map((t) => (
+              {(["3D", "Concept", "DEV", "QA", "GD", "Sound"] as IssueTeam[]).map((t) => (
                 <button
                   key={t}
                   className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", teamFilter === t ? "text-foreground" : "text-muted-foreground")}

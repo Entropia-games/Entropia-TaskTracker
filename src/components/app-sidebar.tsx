@@ -34,8 +34,9 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 
 const teams = [
-  { label: "ART", color: "text-red-400" },
-  { label: "DEV", color: "text-blue-400" },
+  { label: "3D", color: "text-red-400" },
+  { label: "Concept", color: "text-blue-400" },
+  { label: "DEV", color: "text-purple-400" },
   { label: "QA", color: "text-white/80" },
   { label: "GD", color: "text-yellow-400" },
   { label: "Sound", color: "text-orange-400" },

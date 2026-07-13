@@ -349,7 +349,7 @@ export function IssueList({ title, issues, focusId }: Props) {
                       </a>
                     )
                   })()}</span>
-                  <span className="flex w-28 shrink-0 items-center gap-1 text-xs text-red-400/60">
+                  <span className="flex w-28 shrink-0 items-center gap-1 text-sm text-red-400/60">
                     {issue.milestone_id && milestoneMap.has(issue.milestone_id) && (
                       <><Diamond className="size-3 shrink-0" /><span className="truncate">{milestoneMap.get(issue.milestone_id)!.name}</span></>
                     )}

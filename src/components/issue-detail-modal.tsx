@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { createPortal } from "react-dom"
 import type { Issue, IssueStatus, IssuePriority, IssueTeam } from "@/lib/issues-context"
 import { useIssues } from "@/lib/issues-context"
 import { uploadFiles } from "@/lib/uploadthing"
@@ -98,6 +99,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
   const [editingDescription, setEditingDescription] = useState(false)
   const [confirmEpicToggle, setConfirmEpicToggle] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
   const titleRef = useRef<HTMLInputElement>(null)
   const descRef = useRef<HTMLTextAreaElement>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
@@ -115,6 +117,13 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
       descRef.current.focus()
     }
   }, [editingDescription])
+
+  useEffect(() => {
+    if (!lightboxUrl) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setLightboxUrl(null) }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [lightboxUrl])
   const [parentEpicId, setParentEpicId] = useState<number | null>(null)
 
   useEffect(() => {
@@ -314,7 +323,12 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
                   {issue.attachments!.map((url) => (
                     <div key={url} className="group relative">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={url} alt="" className="w-full max-h-[420px] rounded border border-border/50 object-cover" />
+                      <img
+                        src={url}
+                        alt=""
+                        onClick={() => setLightboxUrl(url)}
+                        className="w-full max-h-[420px] cursor-pointer rounded border border-border/50 object-cover"
+                      />
                       <button
                         onClick={() => removeAttachment(url)}
                         className="absolute right-1 top-1 rounded bg-black/60 p-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100"
@@ -570,6 +584,27 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
             <Button variant="destructive" size="sm" onClick={() => { setConfirmEpicToggle(false); handleEpicToggle() }}>Convert</Button>
           </div>
         </DialogContent>
+        {lightboxUrl &&
+          createPortal(
+            <div
+              className="fixed inset-0 z-[100] flex cursor-zoom-out items-center justify-center bg-black/85 p-4"
+              onClick={() => setLightboxUrl(null)}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={lightboxUrl}
+                alt=""
+                className="max-h-full max-w-full cursor-zoom-out rounded-lg object-contain"
+              />
+              <button
+                onClick={() => setLightboxUrl(null)}
+                className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white hover:bg-white/20"
+              >
+                <X className="size-4" />
+              </button>
+            </div>,
+            document.body
+          )}
       </Dialog>
     </Dialog>
   )

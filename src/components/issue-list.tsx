@@ -64,7 +64,7 @@ export function IssueList({ title, issues }: Props) {
   const [priorityFilter, setPriorityFilter] = useState<IssuePriority | null>(null)
   const [teamFilter, setTeamFilter] = useState<IssueTeam | null>(null)
   const [users, setUsers] = useState<Database["public"]["Tables"]["users"]["Row"][]>([])
-  const [linkedPRMap, setLinkedPRMap] = useState<Map<number, { count: number; firstUrl: string }>>(new Map())
+  const [linkedPRMap, setLinkedPRMap] = useState<Map<number, { count: number; firstUrl: string; firstState: string }>>(new Map())
 
   useEffect(() => {
     getSupabase().from("users").select("*").then(({ data }) => {
@@ -75,15 +75,15 @@ export function IssueList({ title, issues }: Props) {
   useEffect(() => {
     const ids = issues.map((i) => i.id)
     if (ids.length === 0) return
-    getSupabase().from("issue_links").select("issue_id, pr_url").in("issue_id", ids).then(({ data }) => {
+    getSupabase().from("issue_links").select("issue_id, pr_url, pr_state").in("issue_id", ids).then(({ data }) => {
       if (!data) return
-      const map = new Map<number, { count: number; firstUrl: string }>()
+      const map = new Map<number, { count: number; firstUrl: string; firstState: string }>()
       for (const link of data) {
         const existing = map.get(link.issue_id)
         if (existing) {
           existing.count++
         } else {
-          map.set(link.issue_id, { count: 1, firstUrl: link.pr_url })
+          map.set(link.issue_id, { count: 1, firstUrl: link.pr_url, firstState: link.pr_state })
         }
       }
       setLinkedPRMap(map)
@@ -260,13 +260,20 @@ export function IssueList({ title, issues }: Props) {
                   {issue.is_epic && <Layers className="size-3.5 shrink-0 text-purple-400" />}
                   {linkedPRMap.has(issue.id) && (() => {
                     const pr = linkedPRMap.get(issue.id)!
+                    const isMerged = pr.firstState === "merged"
+                    const isClosed = pr.firstState === "closed"
                     return (
                       <a
                         href={pr.firstUrl}
                         target="_blank"
                         rel="noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="group/link flex items-center gap-0.5 text-green-400/70 hover:text-green-400 transition-colors"
+                        className={cn(
+                          "group/link flex items-center gap-0.5 transition-colors",
+                          isMerged ? "text-purple-400/70 hover:text-purple-400" :
+                          isClosed ? "text-red-400/70 hover:text-red-400" :
+                          "text-green-400/70 hover:text-green-400",
+                        )}
                       >
                         <GitPullRequest className="size-3.5" />
                         {pr.count > 1 && <span className="text-[10px] font-medium">{pr.count}</span>}

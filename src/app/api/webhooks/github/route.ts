@@ -49,7 +49,6 @@ export async function POST(req: Request) {
   )
 
   const codeMatch = prTitle.match(/([A-Z]+)-(\d+)/)
-  const hashMatch = prTitle.match(/#(\d+)/)
   let issueId: number | null = null
 
   if (codeMatch) {
@@ -60,8 +59,6 @@ export async function POST(req: Request) {
       const { data: found } = await sb.from("issues").select("id").eq("id", num).eq("project_id", project.id).maybeSingle()
       if (found) issueId = found.id
     }
-  } else if (hashMatch) {
-    issueId = Number(hashMatch[1])
   }
 
   const { data: existing } = await sb.from("issue_links").select("id, issue_id").eq("pr_url", prUrl).maybeSingle()

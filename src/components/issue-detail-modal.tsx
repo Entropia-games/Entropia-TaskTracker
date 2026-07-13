@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import type { Issue, IssueStatus, IssuePriority, IssueTeam } from "@/lib/issues-context"
+import { linkify } from "@/lib/utils"
 import { useIssues } from "@/lib/issues-context"
 import type { Database } from "@/lib/database.types"
 import {
@@ -188,7 +189,15 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
             </div>
             <h2 className="text-lg font-medium">{issue.title}</h2>
             {issue.description && (
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap">{issue.description}</p>
+              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                {linkify(issue.description).map((part) =>
+                  part.type === "link" ? (
+                    <a key={part.key} href={part.url} target="_blank" rel="noreferrer" className="text-blue-400 hover:underline">{part.url}</a>
+                  ) : (
+                    part.text
+                  )
+                )}
+              </p>
             )}
           </div>
 

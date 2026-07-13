@@ -75,6 +75,33 @@ export type Database = {
         }
         Relationships: []
       }
+      issue_links: {
+        Row: {
+          id: number
+          issue_id: number
+          pr_url: string
+          pr_title: string
+          pr_state: string
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          issue_id: number
+          pr_url: string
+          pr_title: string
+          pr_state?: string
+          created_at?: string
+        }
+        Update: {
+          id?: number
+          issue_id?: number
+          pr_url?: string
+          pr_title?: string
+          pr_state?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: Record<string, never>
     Functions: {

@@ -36,6 +36,7 @@ import {
   Plus,
   Link,
   FileText,
+  ExternalLink,
 } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
@@ -83,6 +84,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
   const [isEpic, setIsEpic] = useState(false)
   const [childIssues, setChildIssues] = useState<Issue[]>([])
   const [allEpics, setAllEpics] = useState<Issue[]>([])
+  const [linkedPRs, setLinkedPRs] = useState<Database["public"]["Tables"]["issue_links"]["Row"][]>([])
   const [parentEpicId, setParentEpicId] = useState<number | null>(null)
 
   useEffect(() => {
@@ -111,6 +113,13 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
       if (data) setAllEpics(data as Issue[])
     })
   }, [issue, open])
+
+  useEffect(() => {
+    if (!issue) return
+    getSupabase().from("issue_links").select("*").eq("issue_id", issue.id).then(({ data }) => {
+      if (data) setLinkedPRs(data)
+    })
+  }, [issue])
 
   if (!issue) return null
 
@@ -337,6 +346,28 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
               )}
             </div>
 
+            {linkedPRs.length > 0 && (
+              <div className="mt-4 space-y-1.5 border-t border-border/30 pt-4">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50">Linked PRs</span>
+                {linkedPRs.map((link) => {
+                  const stateColor =
+                    link.pr_state === "merged" ? "bg-purple-500/20 text-purple-400" :
+                    link.pr_state === "open" ? "bg-green-500/20 text-green-400" :
+                    "bg-muted/50 text-muted-foreground/60"
+                  return (
+                    <div key={link.id} className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm">
+                      <a href={link.pr_url} target="_blank" rel="noreferrer" className="flex items-center gap-2 min-w-0 flex-1 hover:text-foreground transition-colors">
+                        <span className={cn("shrink-0 rounded-full px-1.5 py-px text-[10px] font-medium", stateColor)}>
+                          {link.pr_state === "merged" ? "Merged" : link.pr_state === "open" ? "Open" : "Closed"}
+                        </span>
+                        <span className="truncate text-xs text-muted-foreground">{link.pr_title}</span>
+                        <ExternalLink className="size-3 shrink-0 text-muted-foreground/40" />
+                      </a>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
             {isEpic && childIssues.length > 0 && (
               <div className="mt-4 space-y-3 border-t border-border/30 pt-4">
                 <div className="flex items-center gap-2">

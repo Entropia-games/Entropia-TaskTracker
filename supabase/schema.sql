@@ -306,11 +306,28 @@ begin
 end;
 $$;
 
--- Add attachments (image URLs) to issues
+-- Add attachments (image/file metadata) to issues
 do $$
 begin
   if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'issues' and column_name = 'attachments') then
-    alter table public.issues add column attachments text[] not null default '{}';
+    alter table public.issues add column attachments jsonb not null default '[]'::jsonb;
+  end if;
+end;
+$$;
+
+-- Migrate existing text[] attachments (URL strings) to jsonb metadata objects
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'issues' and column_name = 'attachments' and data_type = 'ARRAY'
+  ) then
+    alter table public.issues alter column attachments type jsonb
+      using coalesce(
+        (select jsonb_agg(jsonb_build_object('url', a, 'name', null, 'type', null)) from unnest(attachments) a),
+        '[]'::jsonb
+      );
+    alter table public.issues alter column attachments set default '[]'::jsonb;
   end if;
 end;
 $$;

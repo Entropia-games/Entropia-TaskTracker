@@ -20,6 +20,12 @@ export type Issue = Database["public"]["Tables"]["issues"]["Row"]
 export type Milestone = Database["public"]["Tables"]["milestones"]["Row"]
 export type Project = Database["public"]["Tables"]["projects"]["Row"]
 
+export type Attachment = {
+  url: string
+  name: string | null
+  type: string | null
+}
+
 type NewIssueInput = Database["public"]["Tables"]["issues"]["Insert"]
 
 type IssuesContext = {
@@ -107,7 +113,7 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
           assignee_id: input.assignee_id ?? null,
           created_by: creatorName,
           project_id: currentProject.id,
-          attachments: input.attachments ?? [],
+          attachments: (input.attachments ?? []) as Issue["attachments"],
         })
       .select()
       .single()
@@ -150,7 +156,13 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
             urls.push(m[1])
           }
         }
-        if (iss.attachments) urls.push(...iss.attachments)
+        const atts = iss.attachments as unknown
+        if (Array.isArray(atts)) {
+          for (const a of atts) {
+            if (typeof a === "string") urls.push(a)
+            else if (a && typeof a === "object" && "url" in a) urls.push((a as Attachment).url)
+          }
+        }
       }
       if (urls.length > 0) {
         fetch("/api/delete-images", { method: "POST", body: JSON.stringify({ urls }) })

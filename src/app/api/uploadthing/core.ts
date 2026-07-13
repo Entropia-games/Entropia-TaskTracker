@@ -4,7 +4,9 @@ const f = createUploadthing()
 
 export const ourFileRouter = {
   image: f({ image: { maxFileSize: "4MB", maxFileCount: 1 } })
-    .onUploadComplete(({ file }) => ({ url: file.url })),
+    .onUploadComplete(({ file }) => ({ url: file.url, name: file.name, type: file.type })),
+  file: f({ blob: { maxFileSize: "16MB", maxFileCount: 1 } })
+    .onUploadComplete(({ file }) => ({ url: file.url, name: file.name, type: file.type })),
 } satisfies FileRouter
 
 export type OurFileRouter = typeof ourFileRouter

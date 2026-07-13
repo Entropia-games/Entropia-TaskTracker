@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
-import { useIssues, type IssueStatus, type IssuePriority, type IssueTeam, type Milestone } from "@/lib/issues-context"
+import { useIssues, type IssueStatus, type IssuePriority, type IssueTeam, type Milestone, type Attachment } from "@/lib/issues-context"
 import { getSupabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth-context"
 import type { Database } from "@/lib/database.types"
@@ -104,7 +104,7 @@ export function CreateIssueModal() {
   const [assigneeId, setAssigneeId] = useState<string | null>(null)
   const [milestoneId, setMilestoneId] = useState<number | null>(null)
   const [users, setUsers] = useState<Database["public"]["Tables"]["users"]["Row"][]>([])
-  const [attachments, setAttachments] = useState<string[]>([])
+  const [attachments, setAttachments] = useState<Attachment[]>([])
   const [uploading, setUploading] = useState(false)
   const imageInputRef = useRef<HTMLInputElement>(null)
 
@@ -116,14 +116,25 @@ export function CreateIssueModal() {
     setMilestoneId(null)
   }, [open])
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const isImageAtt = (a: Attachment) =>
+    a.type?.startsWith("image/") ?? /\.(png|jpe?g|gif|webp|svg|bmp|avif)$/i.test(a.url)
+
+  const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     setUploading(true)
     try {
-      const compressed = await compressImage(file)
-      const [res] = await uploadFiles("image", { files: [compressed] })
-      if (res?.serverData?.url) setAttachments((prev) => [...prev, res.serverData.url])
+      const isImage = file.type.startsWith("image/")
+      const toUpload = isImage ? await compressImage(file) : file
+      const [res] = await uploadFiles(isImage ? "image" : "file", { files: [toUpload] })
+      if (res?.serverData?.url) {
+        const att: Attachment = {
+          url: res.serverData.url,
+          name: res.serverData.name ?? file.name,
+          type: res.serverData.type ?? file.type,
+        }
+        setAttachments((prev) => [...prev, att])
+      }
     } catch (err) {
       console.error("Upload failed", err)
     }
@@ -131,9 +142,9 @@ export function CreateIssueModal() {
     if (imageInputRef.current) imageInputRef.current.value = ""
   }
 
-  const removeAttachment = (url: string) => {
-    setAttachments((prev) => prev.filter((u) => u !== url))
-    fetch("/api/delete-images", { method: "POST", body: JSON.stringify({ urls: [url] }) })
+  const removeAttachment = (att: Attachment) => {
+    setAttachments((prev) => prev.filter((a) => a.url !== att.url))
+    fetch("/api/delete-images", { method: "POST", body: JSON.stringify({ urls: [att.url] }) })
       .catch((e) => console.error("Failed to delete image", e))
   }
 
@@ -171,7 +182,7 @@ export function CreateIssueModal() {
 
   const discardAttachments = () => {
     if (attachments.length > 0) {
-      fetch("/api/delete-images", { method: "POST", body: JSON.stringify({ urls: attachments }) })
+      fetch("/api/delete-images", { method: "POST", body: JSON.stringify({ urls: attachments.map((a) => a.url) }) })
         .catch((e) => console.error("Failed to delete image", e))
     }
     setAttachments([])
@@ -236,19 +247,42 @@ export function CreateIssueModal() {
               onChange={(e) => setDescription(e.target.value)}
               rows={1}
             />
-            <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+            <input ref={imageInputRef} type="file" accept="image/*,.pdf,.doc,.docx,.txt,.zip,.xls,.xlsx,.ppt,.pptx" className="hidden" onChange={handleAttachmentUpload} />
             {attachments.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {attachments.map((url) => (
-                  <div key={url} className="group relative">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={url} alt="" className="w-full max-h-[420px] rounded border border-border/50 object-cover" />
-                    <button
-                      onClick={() => removeAttachment(url)}
-                      className="absolute right-1 top-1 rounded bg-black/60 p-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100"
-                    >
-                      <X className="size-3" />
-                    </button>
+              <div className="mt-2 flex flex-col gap-2">
+                {attachments.map((att) => (
+                  <div key={att.url} className="group relative">
+                    {isImageAtt(att) ? (
+                      <>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={att.url} alt="" className="w-full max-h-[420px] rounded border border-border/50 object-cover" />
+                        <button
+                          onClick={() => removeAttachment(att)}
+                          className="absolute right-1 top-1 rounded bg-black/60 p-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                        >
+                          <X className="size-3" />
+                        </button>
+                      </>
+                    ) : (
+                      <div className="flex items-center gap-2 rounded border border-border/50 bg-muted/30 px-2 py-1.5">
+                        <FileText className="size-4 shrink-0 text-muted-foreground" />
+                        <a
+                          href={att.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 truncate text-sm text-blue-400 hover:text-blue-300 hover:underline"
+                          title={att.name ?? att.url}
+                        >
+                          {att.name ?? att.url}
+                        </a>
+                        <button
+                          onClick={() => removeAttachment(att)}
+                          className="rounded p-0.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-foreground"
+                        >
+                          <X className="size-3" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

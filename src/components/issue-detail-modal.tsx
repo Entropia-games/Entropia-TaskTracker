@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
-import type { Issue, IssueStatus, IssuePriority, IssueTeam } from "@/lib/issues-context"
+import type { Issue, IssueStatus, IssuePriority, IssueTeam, Attachment } from "@/lib/issues-context"
 import { useIssues } from "@/lib/issues-context"
 import { uploadFiles } from "@/lib/uploadthing"
 import { compressImage } from "@/lib/compress-image"
@@ -192,16 +192,25 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
     })
   }
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const currentAttachments = (issue.attachments as Attachment[] | null) ?? []
+  const isImageAtt = (a: Attachment) =>
+    a.type?.startsWith("image/") ?? /\.(png|jpe?g|gif|webp|svg|bmp|avif)$/i.test(a.url)
+
+  const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     setUploading(true)
     try {
-      const compressed = await compressImage(file)
-      const [res] = await uploadFiles("image", { files: [compressed] })
+      const isImage = file.type.startsWith("image/")
+      const toUpload = isImage ? await compressImage(file) : file
+      const [res] = await uploadFiles(isImage ? "image" : "file", { files: [toUpload] })
       if (res?.serverData?.url) {
-        const next = [...(issue.attachments ?? []), res.serverData.url]
-        updateIssue(issue.id, { attachments: next })
+        const att: Attachment = {
+          url: res.serverData.url,
+          name: res.serverData.name ?? file.name,
+          type: res.serverData.type ?? file.type,
+        }
+        updateIssue(issue.id, { attachments: [...currentAttachments, att] })
       }
     } catch (err) {
       console.error("Upload failed", err)
@@ -210,10 +219,10 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
     if (imageInputRef.current) imageInputRef.current.value = ""
   }
 
-  const removeAttachment = async (url: string) => {
-    const next = (issue.attachments ?? []).filter((u) => u !== url)
+  const removeAttachment = async (att: Attachment) => {
+    const next = currentAttachments.filter((a) => a.url !== att.url)
     updateIssue(issue.id, { attachments: next })
-    fetch("/api/delete-images", { method: "POST", body: JSON.stringify({ urls: [url] }) })
+    fetch("/api/delete-images", { method: "POST", body: JSON.stringify({ urls: [att.url] }) })
       .catch((e) => console.error("Failed to delete image", e))
   }
 
@@ -317,24 +326,47 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
                   {issue.description?.trim() ? linkifyText(issue.description) : <span className="text-muted-foreground/30">Add description...</span>}
                 </div>
               )}
-              <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-              {(issue.attachments ?? []).length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {issue.attachments!.map((url) => (
-                    <div key={url} className="group relative">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={url}
-                        alt=""
-                        onClick={() => setLightboxUrl(url)}
-                        className="w-full max-h-[420px] cursor-pointer rounded border border-border/50 object-cover"
-                      />
-                      <button
-                        onClick={() => removeAttachment(url)}
-                        className="absolute right-1 top-1 rounded bg-black/60 p-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100"
-                      >
-                        <X className="size-3" />
-                      </button>
+              <input ref={imageInputRef} type="file" accept="image/*,.pdf,.doc,.docx,.txt,.zip,.xls,.xlsx,.ppt,.pptx" className="hidden" onChange={handleAttachmentUpload} />
+              {currentAttachments.length > 0 && (
+                <div className="mt-2 flex flex-col gap-2">
+                  {currentAttachments.map((att) => (
+                    <div key={att.url} className="group relative">
+                      {isImageAtt(att) ? (
+                        <>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={att.url}
+                            alt=""
+                            onClick={() => setLightboxUrl(att.url)}
+                            className="w-full max-h-[420px] cursor-pointer rounded border border-border/50 object-cover"
+                          />
+                          <button
+                            onClick={() => removeAttachment(att)}
+                            className="absolute right-1 top-1 rounded bg-black/60 p-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                          >
+                            <X className="size-3" />
+                          </button>
+                        </>
+                      ) : (
+                        <div className="flex items-center gap-2 rounded border border-border/50 bg-muted/30 px-2 py-1.5">
+                          <FileText className="size-4 shrink-0 text-muted-foreground" />
+                          <a
+                            href={att.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 truncate text-sm text-blue-400 hover:text-blue-300 hover:underline"
+                            title={att.name ?? att.url}
+                          >
+                            {att.name ?? att.url}
+                          </a>
+                          <button
+                            onClick={() => removeAttachment(att)}
+                            className="rounded p-0.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-foreground"
+                          >
+                            <X className="size-3" />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

@@ -71,6 +71,7 @@ export function IssueList({ title, issues, focusId }: Props) {
   const [priorityFilter, setPriorityFilter] = useState<IssuePriority | null>(null)
   const [teamFilter, setTeamFilter] = useState<IssueTeam | null>(null)
   const [milestoneFilter, setMilestoneFilter] = useState<number | null>(null)
+  const [assigneeFilter, setAssigneeFilter] = useState<string | null>(null)
   const [openTeamPopover, setOpenTeamPopover] = useState<number | null>(null)
   const [openMilestonePopover, setOpenMilestonePopover] = useState<number | null>(null)
   const [openAssigneePopover, setOpenAssigneePopover] = useState<number | null>(null)
@@ -121,6 +122,11 @@ export function IssueList({ title, issues, focusId }: Props) {
     if (priorityFilter && i.priority !== priorityFilter) return false
     if (teamFilter && i.team !== teamFilter) return false
     if (milestoneFilter && i.milestone_id !== milestoneFilter) return false
+    if (assigneeFilter === "__none__") {
+      if (i.assignee_id) return false
+    } else if (assigneeFilter && i.assignee_id !== assigneeFilter) {
+      return false
+    }
     return true
   })
 
@@ -301,6 +307,47 @@ export function IssueList({ title, issues, focusId }: Props) {
               </PopoverContent>
             </Popover>
           )}
+          <Popover>
+            <PopoverTrigger
+              render={
+                <button className={cn("flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm hover:bg-accent", assigneeFilter ? "text-foreground" : "text-muted-foreground")}>
+                  {assigneeFilter === "__none__"
+                    ? "Unassigned"
+                    : assigneeFilter
+                      ? (users.find((u) => u.id === assigneeFilter)?.name ?? "Assignee")
+                      : "Assignee"}
+                  <ChevronDown className="size-3" />
+                </button>
+              }
+            />
+            <PopoverContent className="w-48 p-1" align="end">
+              <button
+                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent"
+                onClick={() => setAssigneeFilter(null)}
+              >
+                All
+              </button>
+              <button
+                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent"
+                onClick={() => setAssigneeFilter("__none__")}
+              >
+                <span className="flex size-4 items-center justify-center rounded-full bg-muted-foreground/20 text-[9px]">?</span>
+                Unassigned
+              </button>
+              {users.map((u) => (
+                <button
+                  key={u.id}
+                  className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", assigneeFilter === u.id ? "text-foreground" : "text-muted-foreground")}
+                  onClick={() => setAssigneeFilter(u.id)}
+                >
+                  <span className="flex size-4 items-center justify-center rounded-full bg-muted-foreground/30 text-[9px] font-medium text-foreground">
+                    {(u.name ?? u.email[0])[0].toUpperCase()}
+                  </span>
+                  {u.name ?? u.email}
+                </button>
+              ))}
+            </PopoverContent>
+          </Popover>
           <span className="mx-1 h-4 w-px bg-border" />
           <CreateIssueModal />
         </div>

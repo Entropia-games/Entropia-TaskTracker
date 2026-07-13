@@ -9,10 +9,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { Circle, ChevronDown, Trash2, X, ArrowUp, ArrowDown, Minus, AlertCircle, CircleDot, CircleCheck, CircleOff, Layers, GitPullRequest } from "lucide-react"
+import { Circle, ChevronDown, Trash2, X, ArrowUp, ArrowDown, Minus, AlertCircle, CircleDot, CircleCheck, CircleOff, Layers, GitPullRequest, Diamond } from "lucide-react"
 import { CreateIssueModal } from "@/components/create-issue-modal"
 import { IssueDetailModal } from "@/components/issue-detail-modal"
-import { useIssues, type Issue, type IssueStatus, type IssuePriority, type IssueTeam } from "@/lib/issues-context"
+import { useIssues, type Issue, type IssueStatus, type IssuePriority, type IssueTeam, type Milestone } from "@/lib/issues-context"
 import { getSupabase } from "@/lib/supabase"
 import type { Database } from "@/lib/database.types"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -64,14 +64,19 @@ export function IssueList({ title, issues, focusId }: Props) {
   const [statusFilter, setStatusFilter] = useState<IssueStatus | null>(null)
   const [priorityFilter, setPriorityFilter] = useState<IssuePriority | null>(null)
   const [teamFilter, setTeamFilter] = useState<IssueTeam | null>(null)
+  const [milestoneFilter, setMilestoneFilter] = useState<number | null>(null)
   const [showDone, setShowDone] = useState(true)
   const [users, setUsers] = useState<Database["public"]["Tables"]["users"]["Row"][]>([])
+  const [milestones, setMilestones] = useState<Milestone[]>([])
   const [linkedPRMap, setLinkedPRMap] = useState<Map<number, { count: number; firstUrl: string; firstState: string }>>(new Map())
   const rowClickTarget = useRef<number | null>(null)
 
   useEffect(() => {
     getSupabase().from("users").select("*").then(({ data }) => {
       if (data) setUsers(data)
+    })
+    getSupabase().from("milestones").select("*").order("created_at", { ascending: false }).then(({ data }) => {
+      if (data) setMilestones(data)
     })
   }, [])
 
@@ -101,11 +106,13 @@ export function IssueList({ title, issues, focusId }: Props) {
   }, [issues])
 
   const userMap = new Map(users.map((u) => [u.id, u]))
+  const milestoneMap = new Map(milestones.map((m) => [m.id, m]))
 
   const filteredIssues = issues.filter((i) => {
     if (statusFilter && i.status !== statusFilter) return false
     if (priorityFilter && i.priority !== priorityFilter) return false
     if (teamFilter && i.team !== teamFilter) return false
+    if (milestoneFilter && i.milestone_id !== milestoneFilter) return false
     return true
   })
 
@@ -250,6 +257,37 @@ export function IssueList({ title, issues, focusId }: Props) {
               ))}
             </PopoverContent>
           </Popover>
+          {milestones.length > 0 && (
+            <Popover>
+              <PopoverTrigger
+                render={
+                  <button className={cn("flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm hover:bg-accent", milestoneFilter ? "text-foreground" : "text-muted-foreground")}>
+                    <Diamond className={cn("size-3", milestoneFilter ? "text-red-400/60" : "text-muted-foreground/40")} />
+                    Milestone{milestoneFilter ? `: ${milestones.find((m) => m.id === milestoneFilter)?.name}` : ""}
+                    <ChevronDown className="size-3" />
+                  </button>
+                }
+              />
+              <PopoverContent className="w-48 p-1" align="end">
+                <button
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent"
+                  onClick={() => setMilestoneFilter(null)}
+                >
+                  All
+                </button>
+                {milestones.map((m) => (
+                  <button
+                    key={m.id}
+                    className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", milestoneFilter === m.id ? "text-foreground" : "text-muted-foreground")}
+                    onClick={() => setMilestoneFilter(m.id)}
+                  >
+                    <Diamond className="size-3 text-red-400/60 shrink-0" />
+                    {m.name}
+                  </button>
+                ))}
+              </PopoverContent>
+            </Popover>
+          )}
           <span className="mx-1 h-4 w-px bg-border" />
           <CreateIssueModal />
         </div>
@@ -311,8 +349,13 @@ export function IssueList({ title, issues, focusId }: Props) {
                       </a>
                     )
                   })()}</span>
+                  <span className="flex w-28 shrink-0 items-center gap-1 text-xs text-red-400/60">
+                    {issue.milestone_id && milestoneMap.has(issue.milestone_id) && (
+                      <><Diamond className="size-3 shrink-0" /><span className="truncate">{milestoneMap.get(issue.milestone_id)!.name}</span></>
+                    )}
+                  </span>
                   {issue.team && (
-                    <span className={cn("shrink-0 rounded border border-border/30 px-1.5 py-0.5 text-sm font-semibold", teamColors[issue.team] ?? "text-muted-foreground/70")}>{issue.team}</span>
+                    <span className={cn("flex w-14 shrink-0 items-center justify-center rounded border border-border/30 px-1 py-0.5 text-sm font-semibold", teamColors[issue.team] ?? "text-muted-foreground/70")}>{issue.team}</span>
                   )}
                   {issue.assignee_id && userMap.has(issue.assignee_id) && (
                     <div className="flex w-36 shrink-0 items-center justify-end gap-1.5">

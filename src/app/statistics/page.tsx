@@ -41,6 +41,7 @@ export default function StatisticsPage() {
   const [selectedMilestoneId, setSelectedMilestoneId] = useState<number | null>(null)
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState("")
+  const [milestonePopoverOpen, setMilestonePopoverOpen] = useState(false)
 
   const selectedMilestone = milestones.find((m) => m.id === selectedMilestoneId)
 
@@ -106,7 +107,7 @@ export default function StatisticsPage() {
 
           {/* Milestone selector */}
           <div className="flex items-center gap-2">
-            <Popover>
+            <Popover open={milestonePopoverOpen} onOpenChange={setMilestonePopoverOpen}>
               <PopoverTrigger
                 render={
                   <button className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm hover:bg-accent text-foreground">
@@ -119,7 +120,7 @@ export default function StatisticsPage() {
               <PopoverContent className="w-48 p-1" align="start">
                   <button
                     className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", selectedMilestoneId === null ? "text-foreground" : "text-muted-foreground")}
-                    onClick={() => setSelectedMilestoneId(null)}
+                    onClick={() => { setSelectedMilestoneId(null); setMilestonePopoverOpen(false) }}
                   >
                     All issues
                   </button>
@@ -127,7 +128,7 @@ export default function StatisticsPage() {
                     <button
                       key={m.id}
                       className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", selectedMilestoneId === m.id ? "text-foreground" : "text-muted-foreground")}
-                      onClick={() => setSelectedMilestoneId(m.id)}
+                      onClick={() => { setSelectedMilestoneId(m.id); setMilestonePopoverOpen(false) }}
                     >
                       <Diamond className="size-3 text-red-400/60 shrink-0" />
                       {m.name}

@@ -10,7 +10,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { Circle, ChevronDown, Trash2, X, ArrowUp, ArrowDown, Minus, AlertCircle, CircleDot, CircleCheck, CircleOff, Layers, GitPullRequest, Diamond, Plus } from "lucide-react"
+import {   Circle, ChevronDown, Trash2, X, ArrowUp, ArrowDown, Minus, AlertCircle, CircleDot, CircleCheck, CircleOff, Layers, GitPullRequest, Diamond, Plus, Link } from "lucide-react"
 import { CreateIssueModal } from "@/components/create-issue-modal"
 import { IssueDetailModal } from "@/components/issue-detail-modal"
 import { useIssues, type Issue, type IssueStatus, type IssuePriority, type IssueTeam, type Milestone } from "@/lib/issues-context"
@@ -74,6 +74,7 @@ export function IssueList({ title, issues, focusId }: Props) {
   const [openTeamPopover, setOpenTeamPopover] = useState<number | null>(null)
   const [openMilestonePopover, setOpenMilestonePopover] = useState<number | null>(null)
   const [openAssigneePopover, setOpenAssigneePopover] = useState<number | null>(null)
+  const [openLinkPopover, setOpenLinkPopover] = useState<number | null>(null)
   const [showDone, setShowDone] = useState(true)
   const [users, setUsers] = useState<Database["public"]["Tables"]["users"]["Row"][]>([])
   const [linkedPRMap, setLinkedPRMap] = useState<Map<number, { count: number; firstUrl: string; firstState: string }>>(new Map())
@@ -112,6 +113,7 @@ export function IssueList({ title, issues, focusId }: Props) {
 
   const userMap = new Map(users.map((u) => [u.id, u]))
   const milestoneMap = new Map(projectMilestones.map((m) => [m.id, m]))
+  const epics = issues.filter((i) => i.is_epic)
 
   const filteredIssues = issues.filter((i) => {
     if (statusFilter && i.status !== statusFilter) return false
@@ -320,7 +322,7 @@ export function IssueList({ title, issues, focusId }: Props) {
                   className={`group flex cursor-pointer items-center gap-3 border-b border-border/20 px-6 py-2.5 transition-colors hover:bg-accent/30 ${
                     selectedIds.has(issue.id) ? "bg-accent/20" : ""
                   }`}
-                  onClick={(e) => { if ((e.target as HTMLElement).closest("[data-pr-link], [data-team-btn], [data-milestone-btn], [data-assignee-btn]")) return; requireAuth(() => setDetailIssueId(issue.id)) }}
+                  onClick={(e) => { if ((e.target as HTMLElement).closest("[data-pr-link], [data-team-btn], [data-milestone-btn], [data-assignee-btn], [data-link-btn]")) return; requireAuth(() => setDetailIssueId(issue.id)) }}
                 >
                   <div onClick={(e) => e.stopPropagation()}>
                     <Checkbox
@@ -358,7 +360,46 @@ export function IssueList({ title, issues, focusId }: Props) {
                         {pr.count > 1 && <span className="text-sm font-medium">{pr.count}</span>}
                       </a>
                     )
-                  })()}</span>
+                  })()}                  </span>
+                  {!issue.is_epic && (
+                    <Popover open={openLinkPopover === issue.id} onOpenChange={(v) => setOpenLinkPopover(v ? issue.id : null)}>
+                      <PopoverTrigger
+                        render={
+                          <button
+                            data-link-btn
+                            onClick={(e) => e.stopPropagation()}
+                            className={cn("flex size-7 shrink-0 items-center justify-center rounded border border-transparent transition-colors hover:border-border/30 hover:bg-accent", issue.parent_epic_id ? "text-purple-400" : "text-transparent group-hover:text-muted-foreground/50")}
+                          >
+                            <Link className="size-3.5" />
+                          </button>
+                        }
+                      />
+                      <PopoverContent className="w-48 p-1" align="end">
+                        {issue.parent_epic_id && (
+                          <button
+                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent"
+                            onClick={(e) => { e.stopPropagation(); requireAuth(() => updateIssue(issue.id, { parent_epic_id: null })); setOpenLinkPopover(null) }}
+                          >
+                            <Circle className="size-3 text-muted-foreground/40" />
+                            Unlink from epic
+                          </button>
+                        )}
+                        {epics.map((epic) => (
+                          <button
+                            key={epic.id}
+                            className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-accent", issue.parent_epic_id === epic.id ? "text-purple-400" : "text-muted-foreground")}
+                            onClick={(e) => { e.stopPropagation(); requireAuth(() => updateIssue(issue.id, { parent_epic_id: epic.id })); setOpenLinkPopover(null) }}
+                          >
+                            <Layers className="size-3.5 shrink-0 text-purple-400" />
+                            <span className="truncate">{epic.title}</span>
+                          </button>
+                        ))}
+                        {epics.length === 0 && (
+                          <span className="block px-2 py-1.5 text-xs text-muted-foreground/50">No epics yet</span>
+                        )}
+                      </PopoverContent>
+                    </Popover>
+                  )}
                   <Popover open={openTeamPopover === issue.id} onOpenChange={(v) => setOpenTeamPopover(v ? issue.id : null)}>
                     <PopoverTrigger
                       render={

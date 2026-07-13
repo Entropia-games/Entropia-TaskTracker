@@ -37,6 +37,7 @@ export type Database = {
           team: Database["public"]["Enums"]["issue_team"] | null
           is_epic: boolean
           parent_epic_id: number | null
+          milestone_id: number | null
           due_date: string | null
           assignee_id: string | null
           created_by: string | null
@@ -52,6 +53,7 @@ export type Database = {
           team?: Database["public"]["Enums"]["issue_team"] | null
           is_epic?: boolean
           parent_epic_id?: number | null
+          milestone_id?: number | null
           due_date?: string | null
           assignee_id?: string | null
           created_by?: string | null
@@ -67,6 +69,7 @@ export type Database = {
           team?: Database["public"]["Enums"]["issue_team"] | null
           is_epic?: boolean
           parent_epic_id?: number | null
+          milestone_id?: number | null
           due_date?: string | null
           assignee_id?: string | null
           created_by?: string | null
@@ -102,15 +105,35 @@ export type Database = {
         }
         Relationships: []
       }
+      milestones: {
+        Row: {
+          id: number
+          name: string
+          description: string | null
+          target_date: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          name: string
+          description?: string | null
+          target_date?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: number
+          name?: string
+          description?: string | null
+          target_date?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: Record<string, never>
     Functions: {
       get_email_by_nickname: {
         Args: { nickname: string }
-        Returns: string
-      }
-      create_local_user: {
-        Args: { nickname: string; password: string }
         Returns: string
       }
     }

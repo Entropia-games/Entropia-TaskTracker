@@ -76,11 +76,12 @@ type Props = {
 }
 
 export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetail, parentIssue }: Props) {
-  const { updateIssue, issues } = useIssues()
+  const { updateIssue, issues, milestones } = useIssues()
   const [status, setStatus] = useState<IssueStatus>("backlog")
   const [priority, setPriority] = useState<IssuePriority>("none")
   const [team, setTeam] = useState<IssueTeam | null>(null)
   const [assigneeId, setAssigneeId] = useState<string | null>(null)
+  const [milestoneId, setMilestoneId] = useState<number | null>(null)
   const [isEpic, setIsEpic] = useState(false)
   const [childIssues, setChildIssues] = useState<Issue[]>([])
   const [allEpics, setAllEpics] = useState<Issue[]>([])
@@ -104,6 +105,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
       setPriority(issue.priority)
       setTeam(issue.team)
       setAssigneeId(issue.assignee_id)
+      setMilestoneId(issue.milestone_id)
       setIsEpic(issue.is_epic)
       setParentEpicId(issue.parent_epic_id)
     }
@@ -163,6 +165,11 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
   const handleAssigneeChange = (id: string | null) => {
     setAssigneeId(id)
     updateIssue(issue.id, { assignee_id: id })
+  }
+
+  const handleMilestoneChange = (id: number | null) => {
+    setMilestoneId(id)
+    updateIssue(issue.id, { milestone_id: id })
   }
 
   const handleEpicToggle = () => {
@@ -267,6 +274,20 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
                   <SelectItem value="Sound">Sound</SelectItem>
                 </SelectContent>
               </Select>
+
+              {milestones.length > 0 && (
+                <Select value={milestoneId?.toString() ?? "none"} onValueChange={(v) => handleMilestoneChange(v === "none" ? null : Number(v))}>
+                  <SelectTrigger className={cn("h-7 gap-1.5 border border-transparent bg-transparent px-2 text-xs hover:border-border/30 hover:bg-accent data-open:bg-accent", milestoneId ? "text-foreground" : "text-muted-foreground")}>
+                    <SelectValue placeholder="Milestone" />
+                  </SelectTrigger>
+                  <SelectContent align="start" className="min-w-40">
+                    <SelectItem value="none">No milestone</SelectItem>
+                    {milestones.map((m) => (
+                      <SelectItem key={m.id} value={m.id.toString()}>{m.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
 
               {issue.due_date && (
                 <div className="flex items-center gap-1.5 rounded-md border border-transparent px-2 py-1 hover:border-border/30">

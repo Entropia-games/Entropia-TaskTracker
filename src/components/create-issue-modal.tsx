@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
-import { useIssues, type IssueStatus, type IssuePriority, type IssueTeam } from "@/lib/issues-context"
+import { useIssues, type IssueStatus, type IssuePriority, type IssueTeam, type Milestone } from "@/lib/issues-context"
 import { getSupabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth-context"
 import type { Database } from "@/lib/database.types"
@@ -96,7 +96,9 @@ export function CreateIssueModal() {
   const [team, setTeam] = useState<IssueTeam | null>(null)
   const [isEpic, setIsEpic] = useState(false)
   const [assigneeId, setAssigneeId] = useState<string | null>(null)
+  const [milestoneId, setMilestoneId] = useState<number | null>(null)
   const [users, setUsers] = useState<Database["public"]["Tables"]["users"]["Row"][]>([])
+  const [milestones, setMilestones] = useState<Milestone[]>([])
   const [isMac, setIsMac] = useState(false)
 
   useEffect(() => {
@@ -108,6 +110,10 @@ export function CreateIssueModal() {
     getSupabase().from("users").select("*").then(({ data }) => {
       if (data) setUsers(data)
     })
+    getSupabase().from("milestones").select("*").order("created_at", { ascending: false }).then(({ data }) => {
+      if (data) setMilestones(data)
+    })
+    setMilestoneId(null)
   }, [open])
 
   const activeStatus = STATUS_OPTIONS.find((s) => s.value === status)
@@ -124,6 +130,7 @@ export function CreateIssueModal() {
       priority,
       team,
       is_epic: isEpic,
+      milestone_id: milestoneId,
       due_date: dueDate ? dueDate.toISOString() : null,
       assignee_id: assigneeId,
     })
@@ -132,6 +139,7 @@ export function CreateIssueModal() {
     setStatus("todo")
     setPriority("none")
     setTeam(null)
+    setMilestoneId(null)
     setDueDate(undefined)
     setAssigneeId(null)
     setIsEpic(false)
@@ -289,6 +297,19 @@ export function CreateIssueModal() {
                   <SelectItem value="Sound">Sound</SelectItem>
                 </SelectContent>
               </Select>
+              {milestones.length > 0 && (
+                <Select value={milestoneId?.toString() ?? "none"} onValueChange={(v) => setMilestoneId(v === "none" ? null : Number(v))}>
+                  <SelectTrigger className={cn("h-7 gap-1.5 border-0 bg-transparent px-2 text-xs hover:bg-accent data-open:bg-accent", milestoneId ? "text-foreground" : "text-muted-foreground")}>
+                    <SelectValue placeholder="Milestone" />
+                  </SelectTrigger>
+                  <SelectContent align="start" className="min-w-40">
+                    <SelectItem value="none">No milestone</SelectItem>
+                    {milestones.map((m) => (
+                      <SelectItem key={m.id} value={m.id.toString()}>{m.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               <span className="mx-1 h-4 w-px bg-border/50" />
               <Popover>
                 <PopoverTrigger

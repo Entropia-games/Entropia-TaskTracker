@@ -1,98 +1,133 @@
 "use client"
 
+import { useState } from "react"
 import { useIssues, type IssueStatus, type IssuePriority, type IssueTeam } from "@/lib/issues-context"
-import { Circle, CircleDot, CircleCheck, CircleOff, ArrowUp, ArrowDown, Minus, AlertCircle, Layers } from "lucide-react"
+import { Circle, CircleDot, CircleCheck, CircleOff, ArrowUp, ArrowDown, Minus, AlertCircle, Layers, Plus, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const statusLabels: Record<IssueStatus, string> = {
-  backlog: "Backlog",
-  todo: "Todo",
-  in_progress: "In Progress",
-  done: "Done",
-  canceled: "Canceled",
+  backlog: "Backlog", todo: "Todo", in_progress: "In Progress", done: "Done", canceled: "Canceled",
 }
 
 const statusColors: Record<IssueStatus, string> = {
-  backlog: "text-muted-foreground/40",
-  todo: "text-muted-foreground",
-  in_progress: "text-yellow-400",
-  done: "text-green-400",
-  canceled: "text-muted-foreground/40",
+  backlog: "text-muted-foreground/40", todo: "text-muted-foreground", in_progress: "text-yellow-400", done: "text-green-400", canceled: "text-muted-foreground/40",
 }
 
 const statusIcons: Record<IssueStatus, typeof Circle> = {
-  backlog: CircleOff,
-  todo: Circle,
-  in_progress: CircleDot,
-  done: CircleCheck,
-  canceled: CircleOff,
+  backlog: CircleOff, todo: Circle, in_progress: CircleDot, done: CircleCheck, canceled: CircleOff,
 }
 
 const priorityLabels: Record<IssuePriority, string> = {
-  none: "No Priority",
-  low: "Low",
-  medium: "Medium",
-  high: "High",
-  urgent: "Urgent",
+  none: "No Priority", low: "Low", medium: "Medium", high: "High", urgent: "Urgent",
 }
 
 const priorityIcons: Record<IssuePriority, typeof Minus> = {
-  none: Minus,
-  low: ArrowDown,
-  medium: Minus,
-  high: ArrowUp,
-  urgent: AlertCircle,
+  none: Minus, low: ArrowDown, medium: Minus, high: ArrowUp, urgent: AlertCircle,
 }
 
 const priorityColors: Record<IssuePriority, string> = {
-  none: "text-muted-foreground/30",
-  low: "text-muted-foreground",
-  medium: "text-blue-400",
-  high: "text-orange-400",
-  urgent: "text-red-400",
+  none: "text-muted-foreground/30", low: "text-muted-foreground", medium: "text-blue-400", high: "text-orange-400", urgent: "text-red-400",
 }
 
 const teamColors: Record<string, string> = {
-  DEV: "text-blue-400",
-  ART: "text-red-400",
-  QA: "text-white/80",
-  GD: "text-yellow-400",
-  Sound: "text-orange-400",
+  DEV: "text-blue-400", ART: "text-red-400", QA: "text-white/80", GD: "text-yellow-400", Sound: "text-orange-400",
 }
 
 const teams: IssueTeam[] = ["ART", "DEV", "QA", "GD", "Sound"]
 
 export default function StatisticsPage() {
-  const { issues } = useIssues()
+  const { issues, milestones, createMilestone } = useIssues()
+  const [selectedMilestoneId, setSelectedMilestoneId] = useState<number | null>(null)
+  const [creating, setCreating] = useState(false)
+  const [newName, setNewName] = useState("")
 
-  const total = issues.length
-  const doneCount = issues.filter((i) => i.status === "done").length
+  const selectedMilestone = milestones.find((m) => m.id === selectedMilestoneId)
+
+  const filteredIssues = selectedMilestoneId
+    ? issues.filter((i) => i.milestone_id === selectedMilestoneId)
+    : issues
+
+  const total = filteredIssues.length
+  const doneCount = filteredIssues.filter((i) => i.status === "done").length
   const pct = total > 0 ? Math.round((doneCount / total) * 100) : 0
 
   const statusCounts = {} as Record<IssueStatus, number>
   for (const s of ["backlog", "todo", "in_progress", "done", "canceled"] as IssueStatus[]) {
-    statusCounts[s] = issues.filter((i) => i.status === s).length
+    statusCounts[s] = filteredIssues.filter((i) => i.status === s).length
   }
 
   const priorityCounts = {} as Record<IssuePriority, number>
   for (const p of ["none", "low", "medium", "high", "urgent"] as IssuePriority[]) {
-    priorityCounts[p] = issues.filter((i) => i.priority === p).length
+    priorityCounts[p] = filteredIssues.filter((i) => i.priority === p).length
   }
 
   const teamCounts = {} as Record<string, number>
   for (const t of teams) {
-    teamCounts[t] = issues.filter((i) => i.team === t).length
+    teamCounts[t] = filteredIssues.filter((i) => i.team === t).length
   }
 
-  const epicCount = issues.filter((i) => i.is_epic).length
+  const epicCount = filteredIssues.filter((i) => i.is_epic).length
+
+  const handleCreate = async () => {
+    if (!newName.trim()) return
+    await createMilestone(newName.trim())
+    setNewName("")
+    setCreating(false)
+  }
 
   return (
     <div className="flex flex-1 flex-col">
-      <div className="border-b border-border/50 px-6 py-3">
+      <div className="flex items-center justify-between border-b border-border/50 px-6 py-3">
         <h1 className="text-base font-medium">Statistics</h1>
+        <div className="flex items-center gap-2">
+          {creating ? (
+            <div className="flex items-center gap-2">
+              <input
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") handleCreate() }}
+                placeholder="Milestone name..."
+                className="h-7 rounded-md border border-border/30 bg-transparent px-2 text-xs outline-none ring-0 w-40"
+                autoFocus
+              />
+              <button onClick={handleCreate} className="text-xs text-muted-foreground hover:text-foreground px-1">Save</button>
+              <button onClick={() => { setCreating(false); setNewName("") }}><X className="size-3 text-muted-foreground/50" /></button>
+            </div>
+          ) : (
+            <button onClick={() => setCreating(true)} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+              <Plus className="size-3.5" /> Milestone
+            </button>
+          )}
+        </div>
       </div>
       <div className="flex-1 overflow-auto px-6 py-5">
         <div className="mx-auto max-w-lg space-y-6">
+
+          {/* Milestone selector */}
+          <div className="flex items-center gap-2">
+            <select
+              value={selectedMilestoneId ?? ""}
+              onChange={(e) => setSelectedMilestoneId(e.target.value ? Number(e.target.value) : null)}
+              className="flex-1 rounded-lg border border-border/30 bg-transparent px-3 py-2 text-sm outline-none ring-0"
+            >
+              <option value="">All issues</option>
+              {milestones.map((m) => (
+                <option key={m.id} value={m.id}>{m.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {selectedMilestone && (
+            <div className="rounded-lg border border-border/30 px-4 py-3 space-y-1">
+              <h2 className="text-sm font-medium">{selectedMilestone.name}</h2>
+              {selectedMilestone.description && (
+                <p className="text-xs text-muted-foreground/60">{selectedMilestone.description}</p>
+              )}
+              {selectedMilestone.target_date && (
+                <p className="text-xs text-muted-foreground/40">Target: {selectedMilestone.target_date}</p>
+              )}
+            </div>
+          )}
 
           {/* Overall */}
           <div className="space-y-2">
@@ -109,7 +144,7 @@ export default function StatisticsPage() {
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-lg border border-border/30 px-4 py-3">
               <span className="text-2xl font-semibold">{total}</span>
-              <p className="text-sm text-muted-foreground/60 mt-0.5">Total issues</p>
+              <p className="text-sm text-muted-foreground/60 mt-0.5">Issues</p>
             </div>
             <div className="rounded-lg border border-border/30 px-4 py-3">
               <span className="text-2xl font-semibold flex items-center gap-2">

@@ -106,7 +106,7 @@ create table if not exists public.issues (
   parent_epic_id bigint references public.issues(id) on delete set null,
   due_date       date,
   assignee_id    uuid references public.users(id) on delete set null,
-  created_by     uuid not null references public.users(id) on delete cascade,
+  created_by     text,
   created_at     timestamptz not null default now(),
   updated_at     timestamptz not null default now()
 );
@@ -143,7 +143,8 @@ begin
   if not exists (
     select 1 from pg_policies where schemaname = 'public' and tablename = 'issues' and policyname = 'Users can create issues'
   ) then
-    create policy "Users can create issues" on public.issues for insert with check (auth.uid() = created_by);
+    drop policy if exists "Users can create issues" on public.issues;
+    create policy "Users can create issues" on public.issues for insert with check (auth.role() = 'authenticated');
   end if;
 end;
 $$;

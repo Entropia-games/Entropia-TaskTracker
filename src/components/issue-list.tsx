@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import {
   Popover,
   PopoverContent,
@@ -61,6 +62,7 @@ export function IssueList({ title, issues, focusId }: Props) {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [detailIssue, setDetailIssue] = useState<Issue | null>(null)
   const [detailParentIssue, setDetailParentIssue] = useState<Issue | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [statusFilter, setStatusFilter] = useState<IssueStatus | null>(null)
   const [priorityFilter, setPriorityFilter] = useState<IssuePriority | null>(null)
   const [teamFilter, setTeamFilter] = useState<IssueTeam | null>(null)
@@ -126,10 +128,15 @@ export function IssueList({ title, issues, focusId }: Props) {
   }
 
   const handleDelete = () => {
+    if (selectedIds.size === 0) return
+    setConfirmDelete(true)
+  }
+
+  const confirmDeleteAction = () => {
     const ids = Array.from(selectedIds)
-    if (ids.length === 0) return
     deleteIssues(ids)
     setSelectedIds(new Set())
+    setConfirmDelete(false)
   }
 
   const grouped = (["backlog", "todo", "in_progress", "done"] as IssueStatus[])
@@ -408,6 +415,15 @@ export function IssueList({ title, issues, focusId }: Props) {
         onOpenDetail={(target) => { setDetailParentIssue(target.is_epic ? null : detailIssue); setDetailIssue(target) }}
         parentIssue={detailParentIssue}
       />
+      <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <DialogContent className="sm:max-w-xs">
+          <DialogTitle className="text-sm font-medium">Delete {selectedIds.size} {selectedIds.size === 1 ? "issue" : "issues"}?</DialogTitle>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" size="sm" onClick={() => setConfirmDelete(false)}>Cancel</Button>
+            <Button variant="destructive" size="sm" onClick={confirmDeleteAction}>Delete</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

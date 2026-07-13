@@ -138,7 +138,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
   if (!issue) return null
 
   const userMap = new Map(users.map((u) => [u.id, u]))
-  const creator = issue.created_by ? userMap.get(issue.created_by) : null
+  const creatorName = issue.created_by
 
   const activeStatus = STATUS_OPTIONS.find((s) => s.value === status)
   const activePriority = PRIORITY_OPTIONS.find((p) => p.value === priority)
@@ -348,7 +348,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
             </div>
 
             <div className="mt-3 flex flex-wrap items-center gap-4 text-[11px] text-muted-foreground/60">
-              {creator && <span>Created by {creator.name}</span>}
+              {creatorName && <span>Created by {creatorName}</span>}
               <span>{format(new Date(issue.created_at), "MMM d, yyyy · HH:mm")}</span>
               <button
                 onClick={handleEpicToggle}

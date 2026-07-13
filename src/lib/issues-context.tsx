@@ -35,7 +35,7 @@ type IssuesContext = {
 const IssuesContext = createContext<IssuesContext | null>(null)
 
 export function IssuesProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth()
+  const { user, username } = useAuth()
   const [issues, setIssues] = useState<Issue[]>([])
   const [milestones, setMilestones] = useState<Milestone[]>([])
   const [loading, setLoading] = useState(true)
@@ -71,7 +71,7 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
           milestone_id: input.milestone_id ?? null,
           due_date: input.due_date,
           assignee_id: input.assignee_id ?? null,
-          created_by: user.id,
+          created_by: username ?? user.email?.split("@")[0] ?? "Unknown",
         })
       .select()
       .single()
@@ -126,9 +126,12 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
 
   const deleteMilestone = useCallback(async (id: number) => {
     if (!user) return
+    const { error: clearError } = await getSupabase().from("issues").update({ milestone_id: null }).eq("milestone_id", id)
+    if (clearError) { console.error("Failed to clear milestone on issues", JSON.stringify(clearError)); return }
     const { error } = await getSupabase().from("milestones").delete().eq("id", id)
     if (error) { console.error("Failed to delete milestone", JSON.stringify(error)); return }
     setMilestones((prev) => prev.filter((m) => m.id !== id))
+    setIssues((prev) => prev.map((i) => i.milestone_id === id ? { ...i, milestone_id: null } : i))
   }, [user])
 
   return (

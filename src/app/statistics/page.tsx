@@ -3,6 +3,8 @@
 import { useState } from "react"
 import { useIssues, type IssueStatus, type IssuePriority, type IssueTeam } from "@/lib/issues-context"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
 import { Circle, ChevronDown, CircleDot, CircleCheck, CircleOff, ArrowUp, ArrowDown, Minus, AlertCircle, Layers, Plus, X, Diamond } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -37,11 +39,12 @@ const teamColors: Record<string, string> = {
 const teams: IssueTeam[] = ["ART", "DEV", "QA", "GD", "Sound"]
 
 export default function StatisticsPage() {
-  const { issues, milestones, createMilestone } = useIssues()
+  const { issues, milestones, createMilestone, deleteMilestone } = useIssues()
   const [selectedMilestoneId, setSelectedMilestoneId] = useState<number | null>(null)
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState("")
   const [milestonePopoverOpen, setMilestonePopoverOpen] = useState(false)
+  const [milestoneToDelete, setMilestoneToDelete] = useState<number | null>(null)
 
   const selectedMilestone = milestones.find((m) => m.id === selectedMilestoneId)
 
@@ -125,14 +128,21 @@ export default function StatisticsPage() {
                     All issues
                   </button>
                   {milestones.map((m) => (
-                    <button
-                      key={m.id}
-                      className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", selectedMilestoneId === m.id ? "text-foreground" : "text-muted-foreground")}
-                      onClick={() => { setSelectedMilestoneId(m.id); setMilestonePopoverOpen(false) }}
-                    >
-                      <Diamond className="size-3 text-red-400/60 shrink-0" />
-                      {m.name}
-                    </button>
+                    <div key={m.id} className="flex items-center">
+                      <button
+                        className={cn("flex flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", selectedMilestoneId === m.id ? "text-foreground" : "text-muted-foreground")}
+                        onClick={() => { setSelectedMilestoneId(m.id); setMilestonePopoverOpen(false) }}
+                      >
+                        <Diamond className="size-3 text-red-400/60 shrink-0" />
+                        {m.name}
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setMilestoneToDelete(m.id) }}
+                        className="mr-1 rounded p-1 text-muted-foreground/40 hover:text-red-400 hover:bg-accent"
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </div>
                   ))}
               </PopoverContent>
             </Popover>
@@ -242,6 +252,15 @@ export default function StatisticsPage() {
 
         </div>
       </div>
+      <Dialog open={milestoneToDelete !== null} onOpenChange={(v) => { if (!v) setMilestoneToDelete(null) }}>
+        <DialogContent className="sm:max-w-xs">
+          <DialogTitle className="text-sm font-medium">Delete milestone?</DialogTitle>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" size="sm" onClick={() => setMilestoneToDelete(null)}>Cancel</Button>
+            <Button variant="destructive" size="sm" onClick={() => { if (milestoneToDelete !== null) { deleteMilestone(milestoneToDelete); if (selectedMilestoneId === milestoneToDelete) setSelectedMilestoneId(null) } setMilestoneToDelete(null) }}>Delete</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

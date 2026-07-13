@@ -1,8 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import type { Issue, IssueStatus, IssuePriority, IssueTeam } from "@/lib/issues-context"
-import { linkify } from "@/lib/utils"
 import { useIssues } from "@/lib/issues-context"
 import type { Database } from "@/lib/database.types"
 import {
@@ -86,6 +85,17 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
   const [childIssues, setChildIssues] = useState<Issue[]>([])
   const [allEpics, setAllEpics] = useState<Issue[]>([])
   const [linkedPRs, setLinkedPRs] = useState<Database["public"]["Tables"]["issue_links"]["Row"][]>([])
+  const [editTitle, setEditTitle] = useState("")
+  const [editDescription, setEditDescription] = useState("")
+  const titleRef = useRef<HTMLInputElement>(null)
+  const descRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    if (issue) {
+      setEditTitle(issue.title)
+      setEditDescription(issue.description ?? "")
+    }
+  }, [issue])
   const [parentEpicId, setParentEpicId] = useState<number | null>(null)
 
   useEffect(() => {
@@ -187,18 +197,23 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
               <span className="text-muted-foreground/20">·</span>
               <span className={cn(activeStatus?.color)}>{activeStatus?.label}</span>
             </div>
-            <h2 className="text-lg font-medium">{issue.title}</h2>
-            {issue.description && (
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                {linkify(issue.description).map((part) =>
-                  part.type === "link" ? (
-                    <a key={part.key} href={part.url} target="_blank" rel="noreferrer" className="text-blue-400 hover:underline">{part.url}</a>
-                  ) : (
-                    part.text
-                  )
-                )}
-              </p>
-            )}
+            <input
+              ref={titleRef}
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              onBlur={() => { if (editTitle !== issue.title) updateIssue(issue.id, { title: editTitle }) }}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.currentTarget.blur() } }}
+              className="w-full border-none bg-transparent p-0 text-lg font-medium outline-none ring-0"
+            />
+            <textarea
+              ref={descRef}
+              value={editDescription}
+              onChange={(e) => setEditDescription(e.target.value)}
+              onBlur={() => { if (editDescription !== (issue.description ?? "")) updateIssue(issue.id, { description: editDescription || null }) }}
+              placeholder="Add description..."
+              rows={3}
+              className="w-full resize-none border-none bg-transparent p-0 text-sm text-muted-foreground outline-none ring-0 placeholder:text-muted-foreground/30"
+            />
           </div>
 
           <div className="!mt-0 !rounded-none !border-t !border-border/50 px-5 py-4">

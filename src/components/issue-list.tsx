@@ -63,7 +63,8 @@ export function IssueList({ title, issues, focusId }: Props) {
   const { deleteIssues, updateIssue, currentProject, milestones: projectMilestones } = useIssues()
   const { user } = useAuth()
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
-  const [detailIssue, setDetailIssue] = useState<Issue | null>(null)
+  const [detailIssueId, setDetailIssueId] = useState<number | null>(null)
+  const detailIssue = issues.find((i) => i.id === detailIssueId) ?? null
   const [detailParentIssue, setDetailParentIssue] = useState<Issue | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [statusFilter, setStatusFilter] = useState<IssueStatus | null>(null)
@@ -87,7 +88,7 @@ export function IssueList({ title, issues, focusId }: Props) {
   useEffect(() => {
     if (focusId) {
       const found = issues.find((i) => i.id === focusId)
-      if (found) setDetailIssue(found)
+      if (found) setDetailIssueId(found.id)
     }
   }, [focusId, issues])
 
@@ -319,7 +320,7 @@ export function IssueList({ title, issues, focusId }: Props) {
                   className={`group flex cursor-pointer items-center gap-3 border-b border-border/20 px-6 py-2.5 transition-colors hover:bg-accent/30 ${
                     selectedIds.has(issue.id) ? "bg-accent/20" : ""
                   }`}
-                  onClick={(e) => { if ((e.target as HTMLElement).closest("[data-pr-link], [data-team-btn], [data-milestone-btn], [data-assignee-btn]")) return; setDetailIssue(issue) }}
+                  onClick={(e) => { if ((e.target as HTMLElement).closest("[data-pr-link], [data-team-btn], [data-milestone-btn], [data-assignee-btn]")) return; setDetailIssueId(issue.id) }}
                 >
                   <div onClick={(e) => e.stopPropagation()}>
                     <Checkbox
@@ -508,8 +509,8 @@ export function IssueList({ title, issues, focusId }: Props) {
         issue={detailIssue}
         users={users}
         open={detailIssue !== null}
-        onOpenChange={(v) => { if (!v) { setDetailIssue(null); setDetailParentIssue(null) } }}
-        onOpenDetail={(target) => { setDetailParentIssue(target.is_epic ? null : detailIssue); setDetailIssue(target) }}
+        onOpenChange={(v) => { if (!v) { setDetailIssueId(null); setDetailParentIssue(null) } }}
+        onOpenDetail={(target) => { setDetailParentIssue(target.is_epic ? null : detailIssue); setDetailIssueId(target.id) }}
         parentIssue={detailParentIssue}
       />
       <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>

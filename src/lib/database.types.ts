@@ -27,6 +27,27 @@ export type Database = {
         }
         Relationships: []
       }
+      projects: {
+        Row: {
+          id: number
+          name: string
+          code: string
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          name: string
+          code: string
+          created_at?: string
+        }
+        Update: {
+          id?: number
+          name?: string
+          code?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
       issues: {
         Row: {
           id: number
@@ -41,6 +62,7 @@ export type Database = {
           due_date: string | null
           assignee_id: string | null
           created_by: string | null
+          project_id: number | null
           created_at: string
           updated_at: string
         }
@@ -57,6 +79,7 @@ export type Database = {
           due_date?: string | null
           assignee_id?: string | null
           created_by?: string | null
+          project_id?: number | null
           created_at?: string
           updated_at?: string
         }
@@ -73,6 +96,7 @@ export type Database = {
           due_date?: string | null
           assignee_id?: string | null
           created_by?: string | null
+          project_id?: number | null
           created_at?: string
           updated_at?: string
         }
@@ -111,6 +135,7 @@ export type Database = {
           name: string
           description: string | null
           target_date: string | null
+          project_id: number | null
           created_at: string
         }
         Insert: {
@@ -118,6 +143,7 @@ export type Database = {
           name: string
           description?: string | null
           target_date?: string | null
+          project_id?: number | null
           created_at?: string
         }
         Update: {
@@ -125,6 +151,7 @@ export type Database = {
           name?: string
           description?: string | null
           target_date?: string | null
+          project_id?: number | null
           created_at?: string
         }
         Relationships: []

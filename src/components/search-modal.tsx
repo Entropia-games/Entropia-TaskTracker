@@ -6,7 +6,7 @@ import { Search, Circle, Layers } from "lucide-react"
 import { getSupabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
-import type { Issue, IssuePriority, IssueTeam, IssueStatus } from "@/lib/issues-context"
+import { useIssues, type Issue, type IssuePriority, type IssueTeam, type IssueStatus } from "@/lib/issues-context"
 import type { Database } from "@/lib/database.types"
 
 type Props = {
@@ -35,6 +35,7 @@ export function SearchModal({ open, onOpenChange }: Props) {
   const [results, setResults] = useState<Issue[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
+  const { currentProject } = useIssues()
 
   useEffect(() => {
     if (!open) { setQuery(""); setResults([]); return }
@@ -42,12 +43,13 @@ export function SearchModal({ open, onOpenChange }: Props) {
   }, [open])
 
   useEffect(() => {
-    if (!query.trim()) { setResults([]); return }
+    if (!query.trim() || !currentProject) { setResults([]); return }
     const q = `%${query.trim()}%`
     const timer = setTimeout(() => {
       getSupabase()
         .from("issues")
         .select("*")
+        .eq("project_id", currentProject.id)
         .ilike("title", q)
         .order("id", { ascending: false })
         .limit(10)
@@ -56,7 +58,7 @@ export function SearchModal({ open, onOpenChange }: Props) {
         })
     }, 200)
     return () => clearTimeout(timer)
-  }, [query])
+  }, [query, currentProject])
 
   const handleSelect = (issue: Issue) => {
     router.push(`/?issue=${issue.id}`)
@@ -93,7 +95,7 @@ export function SearchModal({ open, onOpenChange }: Props) {
                   return <PIcon className={cn("size-3.5 shrink-0", priorityColors[issue.priority])} />
                 })()}
                 {issue.is_epic && <Layers className="size-3.5 shrink-0 text-purple-400" />}
-                <span className="text-xs text-muted-foreground/50 font-mono shrink-0">{issue.id}</span>
+                <span className="text-xs text-muted-foreground/50 font-mono shrink-0">{currentProject?.code ?? "?"}-{issue.id}</span>
                 <span className="flex-1 truncate">{issue.title}</span>
                 {issue.team && (
                   <span className={cn("shrink-0 text-[10px] font-medium", teamColors[issue.team])}>{issue.team}</span>

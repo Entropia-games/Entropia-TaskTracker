@@ -58,7 +58,7 @@ type Props = {
 }
 
 export function IssueList({ title, issues, focusId }: Props) {
-  const { deleteIssues } = useIssues()
+  const { deleteIssues, currentProject } = useIssues()
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [detailIssue, setDetailIssue] = useState<Issue | null>(null)
   const [detailParentIssue, setDetailParentIssue] = useState<Issue | null>(null)
@@ -332,7 +332,7 @@ export function IssueList({ title, issues, focusId }: Props) {
                   })()}
                   <span className="flex w-5 shrink-0 items-center justify-center">{issue.is_epic && <Layers className="size-4 text-purple-400" />}</span>
                   <span className="min-w-[4rem] text-sm text-muted-foreground/60 font-mono">
-                    {issue.id}
+                    {currentProject?.code ?? "?"}-{issue.id}
                   </span>
                   <span className="flex-1 truncate text-sm">{issue.title}</span>
                   <span className="flex w-5 shrink-0 items-center justify-center">{linkedPRMap.has(issue.id) && (() => {

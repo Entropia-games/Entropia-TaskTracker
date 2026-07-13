@@ -24,9 +24,12 @@ import {
   Search,
   LogOut,
   LogIn,
+  ChevronDown,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
+import { useIssues } from "@/lib/issues-context"
 import { AuthDialog } from "@/components/auth-dialog"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 
@@ -54,6 +57,8 @@ const navItems: NavItem[] = [
 
 export function AppSidebar() {
   const { user, username, signOut } = useAuth()
+  const { projects, currentProject, setCurrentProject } = useIssues()
+  const [projectPopoverOpen, setProjectPopoverOpen] = useState(false)
   const [authOpen, setAuthOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const router = useRouter()
@@ -74,14 +79,34 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="px-3 py-3">
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-semibold tracking-tight group-data-[collapsible=icon]:hidden">
-            lin
-          </span>
-          <span className="flex size-5 items-center justify-center rounded bg-sidebar-accent text-[10px] font-medium text-sidebar-accent-foreground">
-            L
-          </span>
-        </div>
+        <Popover open={projectPopoverOpen} onOpenChange={setProjectPopoverOpen}>
+          <PopoverTrigger
+            render={
+              <button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium hover:bg-accent transition-colors">
+                <span className="flex size-5 items-center justify-center rounded bg-sidebar-accent text-[10px] font-semibold text-sidebar-accent-foreground shrink-0">
+                  {currentProject?.code?.[0] ?? "P"}
+                </span>
+                <span className="flex-1 truncate text-left group-data-[collapsible=icon]:hidden">
+                  {currentProject?.name ?? "Projects"}
+                </span>
+                <ChevronDown className="size-3 text-muted-foreground group-data-[collapsible=icon]:hidden" />
+              </button>
+            }
+          />
+          <PopoverContent className="w-48 p-1" align="start" sideOffset={4}>
+            {projects.map((p) => (
+              <button
+                key={p.id}
+                className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", currentProject?.id === p.id ? "text-foreground font-medium" : "text-muted-foreground")}
+                onClick={() => { setCurrentProject(p); setProjectPopoverOpen(false) }}
+              >
+                <span className="flex size-5 items-center justify-center rounded bg-sidebar-accent text-[10px] font-semibold text-sidebar-accent-foreground">{p.code[0]}</span>
+                <span className="text-xs font-mono text-muted-foreground/60">{p.code}</span>
+                <span className="flex-1 truncate">{p.name}</span>
+              </button>
+            ))}
+          </PopoverContent>
+        </Popover>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>

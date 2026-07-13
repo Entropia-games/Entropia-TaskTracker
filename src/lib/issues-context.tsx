@@ -6,6 +6,7 @@ import {
   useState,
   useCallback,
   useEffect,
+  useMemo,
   type ReactNode,
 } from "react"
 import { getSupabase } from "@/lib/supabase"
@@ -17,12 +18,16 @@ export type IssuePriority = Database["public"]["Enums"]["issue_priority"]
 export type IssueTeam = Database["public"]["Enums"]["issue_team"]
 export type Issue = Database["public"]["Tables"]["issues"]["Row"]
 export type Milestone = Database["public"]["Tables"]["milestones"]["Row"]
+export type Project = Database["public"]["Tables"]["projects"]["Row"]
 
 type NewIssueInput = Database["public"]["Tables"]["issues"]["Insert"]
 
 type IssuesContext = {
   issues: Issue[]
   milestones: Milestone[]
+  projects: Project[]
+  currentProject: Project | null
+  setCurrentProject: (p: Project | null) => void
   addIssue: (input: NewIssueInput) => Promise<void>
   updateIssue: (id: number, changes: Partial<Issue>) => Promise<void>
   deleteIssues: (ids: number[]) => Promise<void>
@@ -34,29 +39,57 @@ type IssuesContext = {
 
 const IssuesContext = createContext<IssuesContext | null>(null)
 
+const PROJECT_STORAGE_KEY = "lin_current_project_id"
+
 export function IssuesProvider({ children }: { children: ReactNode }) {
   const { user, username } = useAuth()
   const [issues, setIssues] = useState<Issue[]>([])
   const [milestones, setMilestones] = useState<Milestone[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
+  const [currentProject, setCurrentProject] = useState<Project | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (!user) return
     const sb = getSupabase()
+    sb.from("projects").select("*").order("id").then(({ data }) => {
+      if (data) {
+        setProjects(data)
+        const storedId = localStorage.getItem(PROJECT_STORAGE_KEY)
+        const saved = storedId ? data.find((p) => p.id === Number(storedId)) : null
+        setCurrentProject(saved ?? data[0] ?? null)
+      }
+    })
+  }, [user])
+
+  useEffect(() => {
+    if (!user || !currentProject) return
+    const sb = getSupabase()
     sb.from("issues")
       .select("*")
+      .eq("project_id", currentProject.id)
       .order("created_at", { ascending: false })
       .then(({ data }) => {
         if (data) setIssues(data)
         setLoading(false)
       })
-    sb.from("milestones").select("*").order("created_at", { ascending: false }).then(({ data }) => {
-      if (data) setMilestones(data)
-    })
-  }, [user])
+    sb.from("milestones")
+      .select("*")
+      .eq("project_id", currentProject.id)
+      .order("created_at", { ascending: false })
+      .then(({ data }) => {
+        if (data) setMilestones(data)
+      })
+  }, [user, currentProject])
+
+  const setCurrentProjectAndSave = useCallback((p: Project | null) => {
+    setCurrentProject(p)
+    if (p) localStorage.setItem(PROJECT_STORAGE_KEY, String(p.id))
+    else localStorage.removeItem(PROJECT_STORAGE_KEY)
+  }, [])
 
   const addIssue = useCallback(async (input: NewIssueInput) => {
-    if (!user) return
+    if (!user || !currentProject) return
     const sb = getSupabase()
     const creatorName = username ?? (await sb.from("users").select("name").eq("id", user.id).single()).data?.name ?? "Unknown"
     const { data, error } = await sb
@@ -73,6 +106,7 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
           due_date: input.due_date,
           assignee_id: input.assignee_id ?? null,
           created_by: creatorName,
+          project_id: currentProject.id,
         })
       .select()
       .single()
@@ -83,7 +117,7 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
     }
 
     setIssues((prev) => [data, ...prev])
-  }, [user, username])
+  }, [user, username, currentProject])
 
   const updateIssue = useCallback(async (id: number, changes: Partial<Issue>) => {
     if (!user) return
@@ -112,11 +146,11 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
   }, [user])
 
   const createMilestone = useCallback(async (name: string, description?: string, target_date?: string) => {
-    if (!user) return
-    const { data, error } = await getSupabase().from("milestones").insert({ name, description, target_date }).select().single()
+    if (!user || !currentProject) return
+    const { data, error } = await getSupabase().from("milestones").insert({ name, description, target_date, project_id: currentProject.id }).select().single()
     if (error || !data) { console.error("Failed to create milestone", JSON.stringify(error)); return }
     setMilestones((prev) => [data, ...prev])
-  }, [user])
+  }, [user, currentProject])
 
   const updateMilestone = useCallback(async (id: number, changes: Partial<Milestone>) => {
     if (!user) return
@@ -136,7 +170,7 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
   }, [user])
 
   return (
-    <IssuesContext.Provider value={{ issues, milestones, addIssue, updateIssue, deleteIssues, createMilestone, updateMilestone, deleteMilestone, loading }}>
+    <IssuesContext.Provider value={{ issues, milestones, projects, currentProject, setCurrentProject: setCurrentProjectAndSave, addIssue, updateIssue, deleteIssues, createMilestone, updateMilestone, deleteMilestone, loading }}>
       {children}
     </IssuesContext.Provider>
   )

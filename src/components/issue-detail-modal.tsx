@@ -189,6 +189,9 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
   const handleEpicToggle = () => {
     const next = !isEpic
     setIsEpic(next)
+    if (!next) {
+      getSupabase().from("issues").update({ parent_epic_id: null }).eq("parent_epic_id", issue.id).then()
+    }
     updateIssue(issue.id, { is_epic: next })
   }
 

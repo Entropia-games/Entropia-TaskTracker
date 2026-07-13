@@ -242,10 +242,10 @@ export function IssueList({ title, issues, focusId }: Props) {
           return (
             <div key={group.status}>
               <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-border/30 bg-background px-6 py-2">
-                <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   {statusLabels[group.status]}
                 </span>
-                <span className="text-[11px] text-muted-foreground/50">{group.issues.length}</span>
+                <span className="text-xs text-muted-foreground/50">{group.issues.length}</span>
               </div>
               {group.issues.map((issue) => (
                 <div
@@ -259,15 +259,15 @@ export function IssueList({ title, issues, focusId }: Props) {
                     <Checkbox
                       checked={selectedIds.has(issue.id)}
                       onCheckedChange={() => toggleSelect(issue.id)}
-                      className={`size-3.5 ${selectedIds.has(issue.id) ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+                      className={`size-4 ${selectedIds.has(issue.id) ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
                     />
                   </div>
                   {(() => {
                     const PIcon = priorityIcons[issue.priority]
-                    return <PIcon className={`size-3.5 shrink-0 ${priorityColors[issue.priority]}`} />
+                    return <PIcon className={`size-4 shrink-0 ${priorityColors[issue.priority]}`} />
                   })()}
-                  <span className="flex w-5 shrink-0 items-center justify-center">{issue.is_epic && <Layers className="size-3.5 text-purple-400" />}</span>
-                  <span className="min-w-[4rem] text-xs text-muted-foreground/60 font-mono">
+                  <span className="flex w-5 shrink-0 items-center justify-center">{issue.is_epic && <Layers className="size-4 text-purple-400" />}</span>
+                  <span className="min-w-[4rem] text-sm text-muted-foreground/60 font-mono">
                     {issue.id}
                   </span>
                   <span className="flex-1 truncate text-sm">{issue.title}</span>
@@ -287,21 +287,21 @@ export function IssueList({ title, issues, focusId }: Props) {
                           "text-green-400/70 hover:text-green-400",
                         )}
                       >
-                        <GitPullRequest className="size-3.5" />
-                        {pr.count > 1 && <span className="text-[10px] font-medium">{pr.count}</span>}
+                        <GitPullRequest className="size-4" />
+                        {pr.count > 1 && <span className="text-xs font-medium">{pr.count}</span>}
                       </a>
                     )
                   })()}</span>
                   {issue.team && (
-                    <span className={cn("shrink-0 rounded border border-border/30 px-1.5 py-0.5 text-xs font-semibold", teamColors[issue.team] ?? "text-muted-foreground/70")}>{issue.team}</span>
+                    <span className={cn("shrink-0 rounded border border-border/30 px-1.5 py-0.5 text-sm font-semibold", teamColors[issue.team] ?? "text-muted-foreground/70")}>{issue.team}</span>
                   )}
                   {issue.assignee_id && userMap.has(issue.assignee_id) && (
                     <div className="flex w-36 shrink-0 items-center justify-end gap-1.5">
-                      <span className="text-[13px] text-muted-foreground truncate">
+                      <span className="text-sm text-muted-foreground truncate">
                         {userMap.get(issue.assignee_id)?.name ?? userMap.get(issue.assignee_id)?.email}
                       </span>
-                      <Avatar className="size-5">
-                        <AvatarFallback className="text-[9px]">
+                      <Avatar className="size-6">
+                        <AvatarFallback className="text-[11px]">
                           {(userMap.get(issue.assignee_id)?.name ?? "?")[0].toUpperCase()}
                         </AvatarFallback>
                       </Avatar>

@@ -107,7 +107,13 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
       setEditDescription(issue.description ?? "")
     }
   }, [issue])
-  useEffect(() => { if (editingDescription) descRef.current?.focus() }, [editingDescription])
+  useEffect(() => {
+    if (editingDescription && descRef.current) {
+      descRef.current.style.height = "auto"
+      descRef.current.style.height = descRef.current.scrollHeight + "px"
+      descRef.current.focus()
+    }
+  }, [editingDescription])
   const [parentEpicId, setParentEpicId] = useState<number | null>(null)
 
   useEffect(() => {
@@ -282,11 +288,15 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
                 <textarea
                   ref={descRef}
                   value={editDescription}
-                  onChange={(e) => setEditDescription(e.target.value)}
+                  onChange={(e) => {
+                    setEditDescription(e.target.value)
+                    e.target.style.height = "auto"
+                    e.target.style.height = e.target.scrollHeight + "px"
+                  }}
                   onBlur={() => { setEditingDescription(false); if (editDescription !== (issue.description ?? "")) updateIssue(issue.id, { description: editDescription || null }) }}
                   placeholder="Add description..."
                   rows={3}
-                  className="w-full resize-none border-none bg-transparent p-0 text-sm text-muted-foreground outline-none ring-0 placeholder:text-muted-foreground/30"
+                  className="w-full resize-none overflow-hidden border-none bg-transparent p-0 text-sm text-muted-foreground outline-none ring-0 placeholder:text-muted-foreground/30"
                 />
               ) : (
                 <div

@@ -1,0 +1,374 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import type { Issue, IssueStatus, IssuePriority, IssueTeam } from "@/lib/issues-context"
+import { useIssues } from "@/lib/issues-context"
+import type { Database } from "@/lib/database.types"
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import {
+  Circle,
+  CircleDot,
+  CircleCheck,
+  CircleOff,
+  ArrowUp,
+  ArrowDown,
+  Minus,
+  AlertCircle,
+  CalendarIcon,
+  Layers,
+  Plus,
+  Link,
+  FileText,
+} from "lucide-react"
+import { format } from "date-fns"
+import { cn } from "@/lib/utils"
+import { getSupabase } from "@/lib/supabase"
+
+const STATUS_OPTIONS: { value: IssueStatus; label: string; icon: typeof Circle; color: string }[] = [
+  { value: "backlog",     label: "Backlog",     icon: CircleOff,   color: "text-muted-foreground/40" },
+  { value: "todo",        label: "Todo",        icon: Circle,      color: "text-muted-foreground" },
+  { value: "in_progress", label: "In Progress", icon: CircleDot,   color: "text-yellow-400" },
+  { value: "done",        label: "Done",        icon: CircleCheck, color: "text-green-400" },
+  { value: "canceled",    label: "Canceled",    icon: CircleOff,   color: "text-muted-foreground/40" },
+]
+
+const PRIORITY_OPTIONS: { value: IssuePriority; label: string; icon: typeof Minus; color: string }[] = [
+  { value: "none",   label: "No Priority", icon: Minus,      color: "text-muted-foreground/40" },
+  { value: "low",    label: "Low",         icon: ArrowDown,  color: "text-muted-foreground" },
+  { value: "medium", label: "Medium",      icon: Minus,      color: "text-blue-400" },
+  { value: "high",   label: "High",        icon: ArrowUp,    color: "text-orange-400" },
+  { value: "urgent", label: "Urgent",      icon: AlertCircle, color: "text-red-400" },
+]
+
+const teamColors: Record<string, string> = {
+  DEV:   "text-blue-400",
+  ART:   "text-red-400",
+  QA:    "text-white/80",
+  GD:    "text-yellow-400",
+  Sound: "text-orange-400",
+}
+
+type Props = {
+  issue: Issue | null
+  users: Database["public"]["Tables"]["users"]["Row"][]
+  open: boolean
+  onOpenChange: (v: boolean) => void
+  onOpenDetail?: (issue: Issue) => void
+  parentIssue?: Issue | null
+}
+
+export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetail, parentIssue }: Props) {
+  const { updateIssue, issues } = useIssues()
+  const [status, setStatus] = useState<IssueStatus>("backlog")
+  const [priority, setPriority] = useState<IssuePriority>("none")
+  const [team, setTeam] = useState<IssueTeam | null>(null)
+  const [assigneeId, setAssigneeId] = useState<string | null>(null)
+  const [isEpic, setIsEpic] = useState(false)
+  const [childIssues, setChildIssues] = useState<Issue[]>([])
+  const [allEpics, setAllEpics] = useState<Issue[]>([])
+  const [parentEpicId, setParentEpicId] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (issue) {
+      setStatus(issue.status)
+      setPriority(issue.priority)
+      setTeam(issue.team)
+      setAssigneeId(issue.assignee_id)
+      setIsEpic(issue.is_epic)
+      setParentEpicId(issue.parent_epic_id)
+    }
+  }, [issue])
+
+  useEffect(() => {
+    if (!issue) return
+    if (issue.is_epic) {
+      getSupabase().from("issues").select("*").eq("parent_epic_id", issue.id).then(({ data }) => {
+        if (data) setChildIssues(data as Issue[])
+      })
+    }
+  }, [issue])
+
+  useEffect(() => {
+    if (!issue || issue.is_epic || !open) return
+    getSupabase().from("issues").select("id,title").eq("is_epic", true).then(({ data }) => {
+      if (data) setAllEpics(data as Issue[])
+    })
+  }, [issue, open])
+
+  if (!issue) return null
+
+  const userMap = new Map(users.map((u) => [u.id, u]))
+  const creator = issue.created_by ? userMap.get(issue.created_by) : null
+
+  const activeStatus = STATUS_OPTIONS.find((s) => s.value === status)
+  const activePriority = PRIORITY_OPTIONS.find((p) => p.value === priority)
+  const StatusIcon = activeStatus?.icon ?? Circle
+  const PriorityIcon = activePriority?.icon ?? Minus
+
+  const doneCount = childIssues.filter((c) => c.status === "done").length
+  const progress = childIssues.length > 0 ? Math.round((doneCount / childIssues.length) * 100) : 0
+
+  const handleStatusChange = (v: IssueStatus) => {
+    setStatus(v)
+    updateIssue(issue.id, { status: v })
+  }
+
+  const handlePriorityChange = (v: IssuePriority) => {
+    setPriority(v)
+    updateIssue(issue.id, { priority: v })
+  }
+
+  const handleTeamChange = (v: IssueTeam | null) => {
+    setTeam(v)
+    updateIssue(issue.id, { team: v })
+  }
+
+  const handleAssigneeChange = (id: string | null) => {
+    setAssigneeId(id)
+    updateIssue(issue.id, { assignee_id: id })
+  }
+
+  const handleEpicToggle = () => {
+    const next = !isEpic
+    setIsEpic(next)
+    updateIssue(issue.id, { is_epic: next })
+  }
+
+  const handleParentEpicChange = (id: number | null) => {
+    setParentEpicId(id)
+    updateIssue(issue.id, { parent_epic_id: id })
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="!max-w-xl !rounded-xl !border-0 !p-0 sm:!max-w-xl" showCloseButton={false}>
+        <DialogTitle className="sr-only">Issue #{issue.id}</DialogTitle>
+        <div className="flex flex-col gap-0">
+          <div className="flex flex-col gap-4 px-5 pb-6 pt-6">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground/60 font-mono">
+              {parentIssue && (
+                <button
+                  onClick={() => { onOpenDetail?.(parentIssue) }}
+                  className="flex items-center gap-1 rounded px-1 py-0.5 text-muted-foreground/50 hover:bg-accent hover:text-foreground transition-colors"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                  Back
+                </button>
+              )}
+              {issue.is_epic && <Layers className="size-3.5 text-purple-400" />}
+              <span>{issue.id}</span>
+              <span className="text-muted-foreground/20">·</span>
+              <span className={cn(activeStatus?.color)}>{activeStatus?.label}</span>
+            </div>
+            <h2 className="text-lg font-medium">{issue.title}</h2>
+            {issue.description && (
+              <p className="text-sm text-muted-foreground whitespace-pre-wrap">{issue.description}</p>
+            )}
+          </div>
+
+          <div className="!mt-0 !rounded-none !border-t !border-border/50 px-5 py-4">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Select value={status} onValueChange={(v) => handleStatusChange(v as IssueStatus)}>
+                <SelectTrigger className="h-7 gap-1.5 border border-transparent bg-transparent px-2 text-xs text-muted-foreground hover:border-border/30 hover:bg-accent data-open:bg-accent">
+                  <StatusIcon className={cn("size-3.5", activeStatus?.color)} />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent align="start" className="min-w-40">
+                  {STATUS_OPTIONS.map((opt) => {
+                    const Icon = opt.icon
+                    return (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        <Icon className={cn("size-3.5", opt.color)} />
+                        {opt.label}
+                      </SelectItem>
+                    )
+                  })}
+                </SelectContent>
+              </Select>
+
+              <Select value={priority} onValueChange={(v) => handlePriorityChange(v as IssuePriority)}>
+                <SelectTrigger className="h-7 gap-1.5 border border-transparent bg-transparent px-2 text-xs text-muted-foreground hover:border-border/30 hover:bg-accent data-open:bg-accent">
+                  <PriorityIcon className={cn("size-3.5", activePriority?.color)} />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent align="start" className="min-w-40">
+                  {PRIORITY_OPTIONS.map((opt) => {
+                    const Icon = opt.icon
+                    return (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        <Icon className={cn("size-3.5", opt.color)} />
+                        {opt.label}
+                      </SelectItem>
+                    )
+                  })}
+                </SelectContent>
+              </Select>
+
+              <Select value={team ?? "none"} onValueChange={(v) => handleTeamChange(v === "none" ? null : v as IssueTeam)}>
+                <SelectTrigger className={cn("h-7 gap-1.5 border border-transparent bg-transparent px-2 text-xs hover:border-border/30 hover:bg-accent data-open:bg-accent", team ? teamColors[team] : "text-muted-foreground")}>
+                  <SelectValue placeholder="Team" />
+                </SelectTrigger>
+                <SelectContent align="start" className="min-w-32">
+                  <SelectItem value="none">No team</SelectItem>
+                  <SelectItem value="ART">ART</SelectItem>
+                  <SelectItem value="DEV">DEV</SelectItem>
+                  <SelectItem value="QA">QA</SelectItem>
+                  <SelectItem value="GD">GD</SelectItem>
+                  <SelectItem value="Sound">Sound</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {issue.due_date && (
+                <div className="flex items-center gap-1.5 rounded-md border border-transparent px-2 py-1 hover:border-border/30">
+                  <CalendarIcon className="size-3.5 text-muted-foreground/60" />
+                  <span className="text-xs text-muted-foreground">{format(new Date(issue.due_date), "MMM d, yyyy")}</span>
+                </div>
+              )}
+
+              <Popover>
+                <PopoverTrigger
+                  render={
+                    <button
+                      className={cn(
+                        "flex h-7 cursor-default items-center gap-1.5 border border-transparent px-2 text-xs text-muted-foreground hover:border-border/30 hover:bg-accent",
+                        !assigneeId && "opacity-60"
+                      )}
+                    >
+                      {assigneeId ? (
+                        <>
+                          <Avatar className="size-4">
+                            <AvatarFallback className="text-[8px]">
+                              {(userMap.get(assigneeId)?.name ?? "?")[0].toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          {userMap.get(assigneeId)?.name ?? "Unknown"}
+                        </>
+                      ) : (
+                        "Unassigned"
+                      )}
+                    </button>
+                  }
+                />
+                <PopoverContent className="w-48 p-1" align="start">
+                  <button
+                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent"
+                    onClick={() => handleAssigneeChange(null)}
+                  >
+                    <span className="flex size-4 items-center justify-center rounded-full bg-muted-foreground/20 text-[9px]">?</span>
+                    Unassigned
+                  </button>
+                  {users.map((u) => (
+                    <button
+                      key={u.id}
+                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-accent"
+                      onClick={() => handleAssigneeChange(u.id)}
+                    >
+                      <span className="flex size-4 items-center justify-center rounded-full bg-muted-foreground/30 text-[9px] font-medium text-foreground">
+                        {(u.name ?? u.email[0])[0].toUpperCase()}
+                      </span>
+                      {u.name ?? u.email}
+                    </button>
+                  ))}
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center gap-4 text-[11px] text-muted-foreground/60">
+              {creator && <span>Created by {creator.name}</span>}
+              <span>{format(new Date(issue.created_at), "MMM d, yyyy · HH:mm")}</span>
+              <button
+                onClick={handleEpicToggle}
+                className={cn("flex items-center gap-1 rounded px-1.5 py-0.5 transition-colors hover:bg-accent", isEpic ? "text-purple-400" : "text-muted-foreground/60")}
+              >
+                <Layers className="size-3.5" />
+                <span className="text-[11px]">{isEpic ? "Epic" : "Mark as epic"}</span>
+              </button>
+              {!isEpic && (
+                <Popover>
+                  <PopoverTrigger
+                    render={
+                      <button className="flex items-center gap-1 rounded px-1.5 py-0.5 text-muted-foreground/60 transition-colors hover:bg-accent">
+                        <Link className="size-3.5" />
+                        <span className="text-[11px]">{parentEpicId ? "Linked to epic" : "Link to epic"}</span>
+                      </button>
+                    }
+                  />
+                  <PopoverContent className="w-56 p-1" align="start">
+                    {parentEpicId && (
+                      <button
+                        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent"
+                        onClick={() => handleParentEpicChange(null)}
+                      >
+                        Remove from epic
+                      </button>
+                    )}
+                    {allEpics.map((e) => (
+                      <button
+                        key={e.id}
+                        className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-accent", parentEpicId === e.id ? "text-purple-400" : "text-muted-foreground")}
+                        onClick={() => handleParentEpicChange(e.id)}
+                      >
+                        <Layers className="size-3.5" />
+                        <span className="truncate">{e.title}</span>
+                      </button>
+                    ))}
+                    {allEpics.length === 0 && (
+                      <span className="block px-2 py-1.5 text-xs text-muted-foreground/50">No epics yet</span>
+                    )}
+                  </PopoverContent>
+                </Popover>
+              )}
+            </div>
+
+            {isEpic && childIssues.length > 0 && (
+              <div className="mt-4 space-y-3 border-t border-border/30 pt-4">
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-1.5 rounded-full bg-border/50 overflow-hidden">
+                    <div className="h-full rounded-full bg-green-400 transition-all" style={{ width: `${progress}%` }} />
+                  </div>
+                  <span className="text-[11px] text-muted-foreground/60 shrink-0">{doneCount}/{childIssues.length} ({progress}%)</span>
+                </div>
+                <div className="space-y-0.5">
+                  {childIssues.map((child) => {
+                    const sColor = STATUS_OPTIONS.find((s) => s.value === child.status)?.color
+                    return (
+                      <div
+                        key={child.id}
+                        className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent/50"
+                        onClick={() => onOpenDetail?.(child)}
+                      >
+                        <Circle className={cn("size-3 shrink-0 fill-current", sColor ?? "text-muted-foreground/40")} />
+                        <span className="text-xs text-muted-foreground/40 font-mono">{child.id}</span>
+                        <span className="flex-1 truncate">{child.title}</span>
+                        {child.assignee_id && userMap.has(child.assignee_id) && (
+                          <span className="shrink-0 text-xs text-muted-foreground/50">{userMap.get(child.assignee_id)?.name}</span>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}

@@ -1,0 +1,97 @@
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
+
+export type Database = {
+  public: {
+    Tables: {
+      users: {
+        Row: {
+          id: string
+          email: string
+          name: string | null
+          avatar_url: string | null
+          created_at: string
+        }
+        Insert: {
+          id: string
+          email: string
+          name?: string | null
+          avatar_url?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          email?: string
+          name?: string | null
+          avatar_url?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      issues: {
+        Row: {
+          id: number
+          title: string
+          description: string | null
+          status: Database["public"]["Enums"]["issue_status"]
+          priority: Database["public"]["Enums"]["issue_priority"]
+          team: Database["public"]["Enums"]["issue_team"] | null
+          is_epic: boolean
+          parent_epic_id: number | null
+          due_date: string | null
+          assignee_id: string | null
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          title: string
+          description?: string | null
+          status?: Database["public"]["Enums"]["issue_status"]
+          priority?: Database["public"]["Enums"]["issue_priority"]
+          team?: Database["public"]["Enums"]["issue_team"] | null
+          is_epic?: boolean
+          parent_epic_id?: number | null
+          due_date?: string | null
+          assignee_id?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          title?: string
+          description?: string | null
+          status?: Database["public"]["Enums"]["issue_status"]
+          priority?: Database["public"]["Enums"]["issue_priority"]
+          team?: Database["public"]["Enums"]["issue_team"] | null
+          is_epic?: boolean
+          parent_epic_id?: number | null
+          due_date?: string | null
+          assignee_id?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+    }
+    Views: Record<string, never>
+    Functions: {
+      get_email_by_nickname: {
+        Args: { nickname: string }
+        Returns: string
+      }
+      create_local_user: {
+        Args: { nickname: string; password: string }
+        Returns: string
+      }
+    }
+    Enums: {
+      issue_status: "backlog" | "todo" | "in_progress" | "done" | "canceled"
+      issue_priority: "none" | "low" | "medium" | "high" | "urgent"
+      issue_team: "ART" | "DEV" | "QA" | "GD" | "Sound"
+    }
+    CompositeTypes: Record<string, never>
+  }
+}

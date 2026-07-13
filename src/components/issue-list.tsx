@@ -263,21 +263,21 @@ export function IssueList({ title, issues }: Props) {
                     const isMerged = pr.firstState === "merged"
                     const isClosed = pr.firstState === "closed"
                     return (
-                      <span
-                        role="button"
-                        tabIndex={0}
-                        onClick={(e) => { e.stopPropagation(); window.open(pr.firstUrl, "_blank") }}
-                        onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); window.open(pr.firstUrl, "_blank") } }}
+                      <a
+                        href={pr.firstUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
                         className={cn(
-                          "flex cursor-pointer items-center gap-0.5 transition-colors",
+                          "group/link flex items-center gap-0.5 transition-colors",
                           isMerged ? "text-purple-400/70 hover:text-purple-400" :
                           isClosed ? "text-red-400/70 hover:text-red-400" :
                           "text-green-400/70 hover:text-green-400",
                         )}
                       >
-                        <GitPullRequest className="pointer-events-none size-3.5" />
-                        {pr.count > 1 && <span className="pointer-events-none text-[10px] font-medium">{pr.count}</span>}
-                      </span>
+                        <GitPullRequest className="size-3.5" />
+                        {pr.count > 1 && <span className="text-[10px] font-medium">{pr.count}</span>}
+                      </a>
                     )
                   })()}
                   <span className="min-w-[4rem] text-xs text-muted-foreground/60 font-mono">

@@ -53,9 +53,10 @@ const teamColors: Record<string, string> = {
 type Props = {
   title: string
   issues: Issue[]
+  focusId?: number
 }
 
-export function IssueList({ title, issues }: Props) {
+export function IssueList({ title, issues, focusId }: Props) {
   const { deleteIssues } = useIssues()
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [detailIssue, setDetailIssue] = useState<Issue | null>(null)
@@ -72,6 +73,13 @@ export function IssueList({ title, issues }: Props) {
       if (data) setUsers(data)
     })
   }, [])
+
+  useEffect(() => {
+    if (focusId) {
+      const found = issues.find((i) => i.id === focusId)
+      if (found) setDetailIssue(found)
+    }
+  }, [focusId, issues])
 
   useEffect(() => {
     const ids = issues.map((i) => i.id)

@@ -13,7 +13,8 @@ import {
   SidebarMenuItem,
   SidebarSeparator,
 } from "@/components/ui/sidebar"
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect, useRef } from "react"
+import { SearchModal } from "@/components/search-modal"
 import { useRouter, usePathname } from "next/navigation"
 import {
   List,
@@ -54,8 +55,17 @@ const navItems: NavItem[] = [
 export function AppSidebar() {
   const { user, username, signOut } = useAuth()
   const [authOpen, setAuthOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") { e.preventDefault(); setSearchOpen(true) }
+    }
+    window.addEventListener("keydown", handler)
+    return () => window.removeEventListener("keydown", handler)
+  }, [])
 
   const navigate = useCallback((href: string) => {
     if (href !== "#") router.push(href)
@@ -123,7 +133,7 @@ export function AppSidebar() {
       <SidebarFooter className="border-t border-sidebar-border pb-3">
         <SidebarMenu className="gap-1">
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Search (Ctrl+K)">
+            <SidebarMenuButton tooltip="Search (Ctrl+K)" onClick={() => setSearchOpen(true)}>
               <span className="flex items-center gap-2 text-muted-foreground">
                 <Search className="size-4" />
                 <span className="group-data-[collapsible=icon]:hidden text-sm">Search</span>
@@ -165,6 +175,7 @@ export function AppSidebar() {
           )}
         </SidebarMenu>
         <AuthDialog open={authOpen} onOpenChange={setAuthOpen} />
+        <SearchModal open={searchOpen} onOpenChange={setSearchOpen} />
       </SidebarFooter>
     </Sidebar>
   )

@@ -323,10 +323,14 @@ begin
     where table_schema = 'public' and table_name = 'issues' and column_name = 'attachments' and data_type = 'ARRAY'
   ) then
     alter table public.issues alter column attachments type jsonb
-      using coalesce(
-        (select jsonb_agg(jsonb_build_object('url', a, 'name', null, 'type', null)) from unnest(attachments) a),
-        '[]'::jsonb
-      );
+      using coalesce(to_jsonb(attachments), '[]'::jsonb);
+    update public.issues
+    set attachments = (
+      select coalesce(jsonb_agg(jsonb_build_object('url', v, 'name', null, 'type', null)), '[]'::jsonb)
+      from jsonb_array_elements_text(attachments) as t(v)
+    )
+    where jsonb_array_length(attachments) > 0
+      and jsonb_typeof(attachments->0) = 'string';
     alter table public.issues alter column attachments set default '[]'::jsonb;
   end if;
 end;

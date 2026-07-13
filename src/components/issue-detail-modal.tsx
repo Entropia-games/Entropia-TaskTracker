@@ -9,6 +9,7 @@ import {
   DialogContent,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
   Select,
@@ -91,6 +92,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
   const [editTitle, setEditTitle] = useState("")
   const [editDescription, setEditDescription] = useState("")
   const [editingDescription, setEditingDescription] = useState(false)
+  const [confirmEpicToggle, setConfirmEpicToggle] = useState(false)
   const titleRef = useRef<HTMLInputElement>(null)
   const descRef = useRef<HTMLTextAreaElement>(null)
 
@@ -378,7 +380,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
               {creatorName && <span>Created by {creatorName}</span>}
               <span>{format(new Date(issue.created_at), "MMM d, yyyy · HH:mm")}</span>
               <button
-                onClick={handleEpicToggle}
+                onClick={isEpic ? () => setConfirmEpicToggle(true) : handleEpicToggle}
                 className={cn("flex items-center gap-1 rounded px-1.5 py-0.5 transition-colors hover:bg-accent", isEpic ? "text-purple-400" : "text-muted-foreground/60")}
               >
                 <Layers className="size-3.5" />
@@ -475,6 +477,16 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
           </div>
         </div>
       </DialogContent>
+      <Dialog open={confirmEpicToggle} onOpenChange={setConfirmEpicToggle}>
+        <DialogContent className="sm:max-w-xs">
+          <DialogTitle className="text-sm font-medium">Convert to issue?</DialogTitle>
+          <p className="text-xs text-muted-foreground/60">Child issues will no longer be linked to this epic.</p>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" size="sm" onClick={() => setConfirmEpicToggle(false)}>Cancel</Button>
+            <Button variant="destructive" size="sm" onClick={() => { setConfirmEpicToggle(false); handleEpicToggle() }}>Convert</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   )
 }

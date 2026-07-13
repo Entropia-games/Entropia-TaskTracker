@@ -87,7 +87,7 @@ const PRIORITY_COLORS: Record<IssuePriority, string> = {
 }
 
 export function CreateIssueModal() {
-  const { addIssue } = useIssues()
+  const { addIssue, milestones: projectMilestones } = useIssues()
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
@@ -99,15 +99,11 @@ export function CreateIssueModal() {
   const [assigneeId, setAssigneeId] = useState<string | null>(null)
   const [milestoneId, setMilestoneId] = useState<number | null>(null)
   const [users, setUsers] = useState<Database["public"]["Tables"]["users"]["Row"][]>([])
-  const [milestones, setMilestones] = useState<Milestone[]>([])
 
   useEffect(() => {
     if (!open) return
     getSupabase().from("users").select("*").then(({ data }) => {
       if (data) setUsers(data)
-    })
-    getSupabase().from("milestones").select("*").order("created_at", { ascending: false }).then(({ data }) => {
-      if (data) setMilestones(data)
     })
     setMilestoneId(null)
   }, [open])
@@ -294,15 +290,15 @@ export function CreateIssueModal() {
                   <SelectItem value="Sound"><Circle className="size-3 text-orange-400" />Sound</SelectItem>
                 </SelectContent>
               </Select>
-              {milestones.length > 0 && (
+              {projectMilestones.length > 0 && (
                 <Select value={milestoneId?.toString() ?? "none"} onValueChange={(v) => setMilestoneId(v === "none" ? null : Number(v))}>
                   <SelectTrigger className={cn("h-7 gap-1.5 border-0 bg-transparent px-2 text-xs hover:bg-accent data-open:bg-accent", milestoneId ? "text-foreground" : "text-muted-foreground")}>
                     <Diamond className={cn("size-3 shrink-0", milestoneId ? "text-red-400/60" : "text-muted-foreground/40")} />
-                    <SelectValue>{milestoneId ? milestones.find((m) => m.id === milestoneId)?.name : "No Milestone"}</SelectValue>
+                    <SelectValue>{milestoneId ? projectMilestones.find((m) => m.id === milestoneId)?.name : "No Milestone"}</SelectValue>
                   </SelectTrigger>
                   <SelectContent align="start" className="min-w-40">
                     <SelectItem value="none"><Diamond className="size-3 text-muted-foreground/40" />No Milestone</SelectItem>
-                    {milestones.map((m) => (
+                    {projectMilestones.map((m) => (
                       <SelectItem key={m.id} value={m.id.toString()}><Diamond className="size-3 text-red-400/60" />{m.name}</SelectItem>
                     ))}
                   </SelectContent>

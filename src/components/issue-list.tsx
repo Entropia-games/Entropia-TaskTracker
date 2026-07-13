@@ -58,7 +58,7 @@ type Props = {
 }
 
 export function IssueList({ title, issues, focusId }: Props) {
-  const { deleteIssues, currentProject } = useIssues()
+  const { deleteIssues, currentProject, milestones: projectMilestones } = useIssues()
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [detailIssue, setDetailIssue] = useState<Issue | null>(null)
   const [detailParentIssue, setDetailParentIssue] = useState<Issue | null>(null)
@@ -69,16 +69,12 @@ export function IssueList({ title, issues, focusId }: Props) {
   const [milestoneFilter, setMilestoneFilter] = useState<number | null>(null)
   const [showDone, setShowDone] = useState(true)
   const [users, setUsers] = useState<Database["public"]["Tables"]["users"]["Row"][]>([])
-  const [milestones, setMilestones] = useState<Milestone[]>([])
   const [linkedPRMap, setLinkedPRMap] = useState<Map<number, { count: number; firstUrl: string; firstState: string }>>(new Map())
   const rowClickTarget = useRef<number | null>(null)
 
   useEffect(() => {
     getSupabase().from("users").select("*").then(({ data }) => {
       if (data) setUsers(data)
-    })
-    getSupabase().from("milestones").select("*").order("created_at", { ascending: false }).then(({ data }) => {
-      if (data) setMilestones(data)
     })
   }, [])
 
@@ -108,7 +104,7 @@ export function IssueList({ title, issues, focusId }: Props) {
   }, [issues])
 
   const userMap = new Map(users.map((u) => [u.id, u]))
-  const milestoneMap = new Map(milestones.map((m) => [m.id, m]))
+  const milestoneMap = new Map(projectMilestones.map((m) => [m.id, m]))
 
   const filteredIssues = issues.filter((i) => {
     if (statusFilter && i.status !== statusFilter) return false
@@ -264,13 +260,13 @@ export function IssueList({ title, issues, focusId }: Props) {
               ))}
             </PopoverContent>
           </Popover>
-          {milestones.length > 0 && (
+          {projectMilestones.length > 0 && (
             <Popover>
               <PopoverTrigger
                 render={
                   <button className={cn("flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm hover:bg-accent", milestoneFilter ? "text-foreground" : "text-muted-foreground")}>
                     <Diamond className={cn("size-3", milestoneFilter ? "text-red-400/60" : "text-muted-foreground/40")} />
-                    Milestone{milestoneFilter ? `: ${milestones.find((m) => m.id === milestoneFilter)?.name}` : ""}
+                    Milestone{milestoneFilter ? `: ${projectMilestones.find((m) => m.id === milestoneFilter)?.name}` : ""}
                     <ChevronDown className="size-3" />
                   </button>
                 }
@@ -282,7 +278,7 @@ export function IssueList({ title, issues, focusId }: Props) {
                 >
                   All
                 </button>
-                {milestones.map((m) => (
+                {projectMilestones.map((m) => (
                   <button
                     key={m.id}
                     className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", milestoneFilter === m.id ? "text-foreground" : "text-muted-foreground")}

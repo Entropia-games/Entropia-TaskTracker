@@ -42,23 +42,28 @@ export async function POST(req: Request) {
   const prTitle = pr.title
   const prState = pr.merged ? "merged" : pr.state
 
-  const match = prTitle.match(/#(\d+)/)
-  if (!match) return NextResponse.json({ ok: true })
-
-  const issueId = Number(match[1])
-
   const sb = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } },
   )
 
-  const { data: existing } = await sb.from("issue_links").select("id").eq("issue_id", issueId).eq("pr_url", prUrl).maybeSingle()
+  const match = prTitle.match(/#(\d+)/)
+  const issueId = match ? Number(match[1]) : null
 
-  if (existing) {
-    await sb.from("issue_links").update({ pr_state: prState, pr_title: prTitle }).eq("id", existing.id)
-  } else {
-    await sb.from("issue_links").insert({ issue_id: issueId, pr_url: prUrl, pr_title: prTitle, pr_state: prState })
+  const { data: existing } = await sb.from("issue_links").select("id, issue_id").eq("pr_url", prUrl).maybeSingle()
+
+  if (existing && existing.issue_id !== issueId) {
+    await sb.from("issue_links").delete().eq("id", existing.id)
+  }
+
+  if (issueId) {
+    const { data: existingLink } = await sb.from("issue_links").select("id").eq("issue_id", issueId).eq("pr_url", prUrl).maybeSingle()
+    if (existingLink) {
+      await sb.from("issue_links").update({ pr_state: prState, pr_title: prTitle }).eq("id", existingLink.id)
+    } else {
+      await sb.from("issue_links").insert({ issue_id: issueId, pr_url: prUrl, pr_title: prTitle, pr_state: prState })
+    }
   }
 
   return NextResponse.json({ ok: true })

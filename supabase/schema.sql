@@ -306,6 +306,15 @@ begin
 end;
 $$;
 
+-- Add attachments (image URLs) to issues
+do $$
+begin
+  if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'issues' and column_name = 'attachments') then
+    alter table public.issues add column attachments text[] not null default '{}';
+  end if;
+end;
+$$;
+
 -- Indexes
 create index if not exists idx_issues_status on public.issues(status);
 create index if not exists idx_issues_priority on public.issues(priority);

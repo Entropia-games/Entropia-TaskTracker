@@ -41,6 +41,7 @@ import {
   ExternalLink,
   Diamond,
   Image,
+  X,
 } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
@@ -182,14 +183,21 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
     try {
       const [res] = await uploadFiles("image", { files: [file] })
       if (res?.serverData?.url) {
-        const imgMd = `![image](${res.serverData.url})`
-        setEditDescription((prev) => prev + (prev ? "\n" : "") + imgMd)
+        const next = [...(issue.attachments ?? []), res.serverData.url]
+        updateIssue(issue.id, { attachments: next })
       }
     } catch (err) {
       console.error("Upload failed", err)
     }
     setUploading(false)
     if (imageInputRef.current) imageInputRef.current.value = ""
+  }
+
+  const removeAttachment = async (url: string) => {
+    const next = (issue.attachments ?? []).filter((u) => u !== url)
+    updateIssue(issue.id, { attachments: next })
+    fetch("/api/delete-images", { method: "POST", body: JSON.stringify({ urls: [url] }) })
+      .catch((e) => console.error("Failed to delete image", e))
   }
 
   const activeStatus = STATUS_OPTIONS.find((s) => s.value === status)
@@ -269,8 +277,8 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
               onKeyDown={(e) => { if (e.key === "Enter") { e.currentTarget.blur() } }}
               className="w-full border-none bg-transparent p-0 text-lg font-medium outline-none ring-0"
             />
-            {editingDescription ? (
-              <div className="relative">
+            <div>
+              {editingDescription ? (
                 <textarea
                   ref={descRef}
                   value={editDescription}
@@ -280,23 +288,40 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
                   rows={3}
                   className="w-full resize-none border-none bg-transparent p-0 text-sm text-muted-foreground outline-none ring-0 placeholder:text-muted-foreground/30"
                 />
-                <button
-                  onClick={() => imageInputRef.current?.click()}
-                  disabled={uploading}
-                  className="absolute bottom-1 right-1 rounded p-1 text-muted-foreground/40 hover:text-muted-foreground hover:bg-accent transition-colors"
+              ) : (
+                <div
+                  className="w-full cursor-text whitespace-pre-wrap text-sm text-muted-foreground outline-none ring-0"
+                  onClick={() => { setEditDescription(issue.description ?? ""); setEditingDescription(true) }}
                 >
-                  <Image className="size-4" />
-                </button>
-                <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-              </div>
-            ) : (
-              <div
-                className="w-full cursor-text whitespace-pre-wrap text-sm text-muted-foreground outline-none ring-0"
-                onClick={() => { setEditDescription(issue.description ?? ""); setEditingDescription(true) }}
+                  {issue.description ? linkifyText(issue.description) : <span className="text-muted-foreground/30">Add description...</span>}
+                </div>
+              )}
+              <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+              {(issue.attachments ?? []).length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {issue.attachments!.map((url) => (
+                    <div key={url} className="group relative">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={url} alt="" className="h-24 w-auto rounded border border-border/50 object-cover" />
+                      <button
+                        onClick={() => removeAttachment(url)}
+                        className="absolute right-1 top-1 rounded bg-black/60 p-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button
+                onClick={() => imageInputRef.current?.click()}
+                disabled={uploading}
+                className="mt-2 inline-flex items-center gap-1.5 rounded px-2 py-1 text-xs text-muted-foreground/50 hover:text-muted-foreground hover:bg-accent transition-colors"
               >
-                {issue.description ? linkifyText(issue.description) : <span className="text-muted-foreground/30">Add description...</span>}
-              </div>
-            )}
+                <Image className="size-3.5" />
+                {uploading ? "Uploading..." : "Add image"}
+              </button>
+            </div>
           </div>
 
           <div className="!mt-0 !rounded-none !border-t !border-border/50 px-5 py-4">

@@ -137,7 +137,7 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
 
     const { data: issues } = await getSupabase()
       .from("issues")
-      .select("description")
+      .select("description, attachments")
       .in("id", ids)
     if (issues) {
       const urls: string[] = []
@@ -149,6 +149,7 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
             urls.push(m[1])
           }
         }
+        if (iss.attachments) urls.push(...iss.attachments)
       }
       if (urls.length > 0) {
         fetch("/api/delete-images", { method: "POST", body: JSON.stringify({ urls }) })

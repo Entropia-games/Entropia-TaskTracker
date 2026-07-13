@@ -308,7 +308,7 @@ export function IssueList({ title, issues, focusId }: Props) {
           return (
             <div key={group.status}>
               <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-border/30 bg-background px-6 py-2">
-                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                <span className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
                   {statusLabels[group.status]}
                 </span>
                 <span className="text-xs text-muted-foreground/50">{group.issues.length}</span>
@@ -354,7 +354,7 @@ export function IssueList({ title, issues, focusId }: Props) {
                         )}
                       >
                         <GitPullRequest className="size-4" />
-                        {pr.count > 1 && <span className="text-xs font-medium">{pr.count}</span>}
+                        {pr.count > 1 && <span className="text-sm font-medium">{pr.count}</span>}
                       </a>
                     )
                   })()}</span>
@@ -364,7 +364,7 @@ export function IssueList({ title, issues, focusId }: Props) {
                         <button
                           data-team-btn
                           onClick={(e) => e.stopPropagation()}
-                          className={cn("flex w-16 shrink-0 items-center justify-center rounded border px-1 py-0.5 text-xs font-medium transition-colors", issue.team ? (cn("border-border/30", teamColors[issue.team] ?? "text-muted-foreground/70")) : "border-dashed border-transparent group-hover:border-border/30 text-transparent group-hover:text-muted-foreground/40 hover:border-border/60 hover:text-muted-foreground/70")}
+                          className={cn("flex w-16 shrink-0 items-center justify-center rounded border px-1 py-0.5 text-sm font-medium transition-colors", issue.team ? (cn("border-border/30", teamColors[issue.team] ?? "text-muted-foreground/70")) : "border-dashed border-transparent group-hover:border-border/30 text-transparent group-hover:text-muted-foreground/40 hover:border-border/60 hover:text-muted-foreground/70")}
                         >
                           {issue.team ?? <><Plus className="size-3 mr-0.5" />Team</>}
                         </button>
@@ -396,7 +396,7 @@ export function IssueList({ title, issues, focusId }: Props) {
                         <button
                           data-milestone-btn
                           onClick={(e) => e.stopPropagation()}
-                          className={cn("flex w-28 shrink-0 items-center gap-1 rounded border px-1 py-0.5 text-xs font-medium transition-colors", issue.milestone_id ? (cn("border-border/30 text-red-400/60 [&_svg]:text-red-400/60")) : "border-dashed border-transparent group-hover:border-border/30 text-transparent group-hover:text-muted-foreground/40 hover:border-border/60 hover:text-muted-foreground/70")}
+                          className={cn("flex w-28 shrink-0 items-center gap-1 rounded border px-1 py-0.5 text-sm font-medium transition-colors", issue.milestone_id ? (cn("border-border/30 text-red-400/60 [&_svg]:text-red-400/60")) : "border-dashed border-transparent group-hover:border-border/30 text-transparent group-hover:text-muted-foreground/40 hover:border-border/60 hover:text-muted-foreground/70")}
                         >
                           {issue.milestone_id && milestoneMap.has(issue.milestone_id) ? (
                             <><Diamond className="size-3.5 shrink-0" /><span className="truncate">{milestoneMap.get(issue.milestone_id)!.name}</span></>
@@ -432,7 +432,7 @@ export function IssueList({ title, issues, focusId }: Props) {
                         <button
                           data-assignee-btn
                           onClick={(e) => e.stopPropagation()}
-                          className={cn("flex w-36 shrink-0 items-center justify-end gap-1.5 rounded border px-1 py-0.5 text-xs font-medium transition-colors", issue.assignee_id && userMap.has(issue.assignee_id) ? "border-border/30" : "border-dashed border-transparent group-hover:border-border/30 text-transparent group-hover:text-muted-foreground/40 hover:border-border/60 hover:text-muted-foreground/70")}
+                          className={cn("flex w-36 shrink-0 items-center justify-end gap-1.5 rounded border px-1 py-0.5 text-sm font-medium transition-colors", issue.assignee_id && userMap.has(issue.assignee_id) ? "border-border/30" : "border-dashed border-transparent group-hover:border-border/30 text-transparent group-hover:text-muted-foreground/40 hover:border-border/60 hover:text-muted-foreground/70")}
                         >
                           {issue.assignee_id && userMap.has(issue.assignee_id) ? (
                             <>

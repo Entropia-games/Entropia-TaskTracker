@@ -276,10 +276,12 @@ export function IssueList({ title, issues, focusId }: Props) {
                     const isMerged = pr.firstState === "merged"
                     const isClosed = pr.firstState === "closed"
                     return (
-                      <span data-pr-link
-                        onClick={() => window.open(pr.firstUrl, "_blank") }
+                      <a data-pr-link
+                        href={pr.firstUrl}
+                        target="_blank"
+                        rel="noreferrer"
                         className={cn(
-                          "flex shrink-0 cursor-pointer items-center gap-0.5 transition-colors",
+                          "flex shrink-0 items-center gap-0.5 transition-colors",
                           isMerged ? "text-purple-400/70 hover:text-purple-400" :
                           isClosed ? "text-red-400/70 hover:text-red-400" :
                           "text-green-400/70 hover:text-green-400",
@@ -287,7 +289,7 @@ export function IssueList({ title, issues, focusId }: Props) {
                       >
                         <GitPullRequest className="size-3.5" />
                         {pr.count > 1 && <span className="text-[10px] font-medium">{pr.count}</span>}
-                      </span>
+                      </a>
                     )
                   })()}
                   {issue.team && (

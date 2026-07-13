@@ -64,6 +64,7 @@ export function IssueList({ title, issues, focusId }: Props) {
   const [statusFilter, setStatusFilter] = useState<IssueStatus | null>(null)
   const [priorityFilter, setPriorityFilter] = useState<IssuePriority | null>(null)
   const [teamFilter, setTeamFilter] = useState<IssueTeam | null>(null)
+  const [showDone, setShowDone] = useState(true)
   const [users, setUsers] = useState<Database["public"]["Tables"]["users"]["Row"][]>([])
   const [linkedPRMap, setLinkedPRMap] = useState<Map<number, { count: number; firstUrl: string; firstState: string }>>(new Map())
   const rowClickTarget = useRef<number | null>(null)
@@ -124,10 +125,12 @@ export function IssueList({ title, issues, focusId }: Props) {
     setSelectedIds(new Set())
   }
 
-  const grouped = (["backlog", "todo", "in_progress", "done"] as IssueStatus[]).map((status) => ({
-    status,
-    issues: filteredIssues.filter((i) => i.status === status),
-  }))
+  const grouped = (["backlog", "todo", "in_progress", "done"] as IssueStatus[])
+    .filter((s) => showDone || s !== "done")
+    .map((status) => ({
+      status,
+      issues: filteredIssues.filter((i) => i.status === status),
+    }))
 
   return (
     <div className="flex flex-1 flex-col">
@@ -139,6 +142,22 @@ export function IssueList({ title, issues, focusId }: Props) {
           </Badge>
         </div>
         <div className="flex items-center gap-2">
+          <span className="flex items-center gap-2 text-sm text-muted-foreground">
+            Enable Done
+            <button
+              onClick={() => setShowDone((v) => !v)}
+              className={cn(
+                "relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border border-border/30 transition-colors",
+                showDone ? "bg-green-500/20 border-green-500/40" : "bg-muted/30",
+              )}
+            >
+              <span className={cn(
+                "inline-block size-3.5 rounded-full transition-transform",
+                showDone ? "translate-x-[18px] bg-green-400" : "translate-x-[2px] bg-muted-foreground/50",
+              )} />
+            </button>
+          </span>
+          <span className="mx-1 h-4 w-px bg-border" />
           <Popover>
             <PopoverTrigger
               render={

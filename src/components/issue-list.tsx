@@ -10,7 +10,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import {   Circle, ChevronDown, Trash2, X, ArrowUp, ArrowDown, Minus, AlertCircle, CircleDot, CircleCheck, CircleOff, Layers, GitPullRequest, Diamond, Plus, Link } from "lucide-react"
+import {   Circle, ChevronDown, Trash2, X, ArrowUp, ArrowDown, Minus, AlertCircle, CircleDot, CircleCheck, CircleOff, Layers, GitPullRequest, Diamond, Plus, Link, List, LayoutGrid, Loader2 } from "lucide-react"
 import { CreateIssueModal } from "@/components/create-issue-modal"
 import { IssueDetailModal } from "@/components/issue-detail-modal"
 import { useIssues, type Issue, type IssueStatus, type IssuePriority, type IssueTeam, type Milestone } from "@/lib/issues-context"
@@ -26,6 +26,14 @@ const statusLabels: Record<IssueStatus, string> = {
   in_progress: "In Progress",
   done: "Done",
   canceled: "Canceled",
+}
+
+const statusMeta: Record<IssueStatus, { icon: typeof Circle; color: string }> = {
+  backlog: { icon: CircleOff, color: "text-muted-foreground/40" },
+  todo: { icon: Circle, color: "text-muted-foreground" },
+  in_progress: { icon: CircleDot, color: "text-yellow-400" },
+  done: { icon: CircleCheck, color: "text-green-400" },
+  canceled: { icon: CircleOff, color: "text-muted-foreground/40" },
 }
 
 const priorityIcons: Record<IssuePriority, typeof Minus> = {
@@ -72,6 +80,16 @@ export function IssueList({ title, issues, focusId }: Props) {
   const [teamFilter, setTeamFilter] = useState<IssueTeam | null>(null)
   const [milestoneFilter, setMilestoneFilter] = useState<number | null>(null)
   const [assigneeFilter, setAssigneeFilter] = useState<string | null>(null)
+  const [view, setView] = useState<"list" | "board">("list")
+  const [viewLoading, setViewLoading] = useState(false)
+  const switchView = (next: "list" | "board") => {
+    if (next === view) return
+    setView(next)
+    setViewLoading(true)
+    window.setTimeout(() => {
+      setViewLoading(false)
+    }, 220)
+  }
   const [openTeamPopover, setOpenTeamPopover] = useState<number | null>(null)
   const [openMilestonePopover, setOpenMilestonePopover] = useState<number | null>(null)
   const [openAssigneePopover, setOpenAssigneePopover] = useState<number | null>(null)
@@ -159,7 +177,7 @@ export function IssueList({ title, issues, focusId }: Props) {
     }))
 
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="relative flex flex-1 flex-col">
       <div className="flex items-center justify-between border-b border-border/50 px-6 py-3">
         <div className="flex items-center gap-3">
           <h1 className="text-sm font-medium">{title}</h1>
@@ -348,30 +366,280 @@ export function IssueList({ title, issues, focusId }: Props) {
               ))}
             </PopoverContent>
           </Popover>
+          <div className="flex items-center rounded-md border border-border/30 p-0.5">
+            <button
+              onClick={() => switchView("list")}
+              className={cn("flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors", view === "list" ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground")}
+            >
+              <List className="size-3.5" />
+              List
+            </button>
+            <button
+              onClick={() => switchView("board")}
+              className={cn("flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors", view === "board" ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground")}
+            >
+              <LayoutGrid className="size-3.5" />
+              Board
+            </button>
+          </div>
           <span className="mx-1 h-4 w-px bg-border" />
           <CreateIssueModal />
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto">
+      <div className={cn("flex-1 overflow-auto", view === "board" ? "flex gap-4 p-6" : "")}>
         {grouped.map((group) => {
           if (group.issues.length === 0) return null
           return (
-            <div key={group.status}>
-              <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-border/30 bg-background px-6 py-2">
+            <div key={group.status} className={cn(view === "board" && "flex w-72 shrink-0 flex-col gap-2")}>
+              <div className={cn("flex items-center gap-2", view === "board" ? "px-1" : "sticky top-0 z-10 border-b border-border/30 bg-background px-6 py-2")}>
                 <span className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
                   {statusLabels[group.status]}
                 </span>
                 <span className="text-xs text-muted-foreground/50">{group.issues.length}</span>
               </div>
               {group.issues.map((issue) => (
-                <div
-                  key={issue.id}
-                  className={`group flex cursor-pointer items-center gap-3 border-b border-border/20 px-6 py-2.5 transition-colors hover:bg-accent/30 ${
-                    selectedIds.has(issue.id) ? "bg-accent/20" : ""
-                  }`}
-                  onClick={(e) => { if ((e.target as HTMLElement).closest("[data-pr-link], [data-team-btn], [data-milestone-btn], [data-assignee-btn], [data-link-btn], [data-priority-btn]")) return; requireAuth(() => setDetailIssueId(issue.id)) }}
-                >
+                view === "board" ? (
+                  <div
+                    key={issue.id}
+                    className={cn(
+                      "group relative flex flex-col gap-2 cursor-pointer rounded-md border border-border/60 bg-muted/40 p-2.5 transition-colors hover:border-border hover:bg-muted/60",
+                      selectedIds.has(issue.id) && "border-border bg-muted/70",
+                    )}
+                    onClick={(e) => { if ((e.target as HTMLElement).closest("[data-pr-link], [data-team-btn], [data-milestone-btn], [data-assignee-btn], [data-link-btn], [data-priority-btn]")) return; requireAuth(() => setDetailIssueId(issue.id)) }}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex min-w-0 items-center gap-1.5 text-sm font-mono text-muted-foreground/60">
+                        {issue.is_epic && <Layers className="size-3.5 shrink-0 text-purple-400" />}
+                        <span className="truncate">{currentProject?.code ?? "?"}-{issue.display_id}</span>
+                      </div>
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={selectedIds.has(issue.id)}
+                          onCheckedChange={() => toggleSelect(issue.id)}
+                          className={`size-4 ${selectedIds.has(issue.id) ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {(() => { const S = statusMeta[issue.status]; const SIcon = S.icon; return <SIcon className={cn("size-3.5 shrink-0", S.color)} /> })()}
+                      <span className="min-w-0 flex-1 truncate text-sm">{issue.title}</span>
+                    </div>
+                    <div className="flex items-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:thin]">
+                      <Popover open={openPriorityPopover === issue.id} onOpenChange={(v) => setOpenPriorityPopover(v ? issue.id : null)}>
+                        <PopoverTrigger
+                          render={
+                            <button
+                              data-priority-btn
+                              onClick={(e) => e.stopPropagation()}
+                              className="flex size-4 shrink-0 items-center justify-center rounded hover:bg-accent"
+                            >
+                              {(() => {
+                                const PIcon = priorityIcons[issue.priority]
+                                return <PIcon className={`size-4 shrink-0 ${priorityColors[issue.priority]}`} />
+                              })()}
+                            </button>
+                          }
+                        />
+                        <PopoverContent className="w-36 p-1" align="start">
+                          {(["none", "low", "medium", "high", "urgent"] as IssuePriority[]).map((p) => {
+                            const PIcon = priorityIcons[p]
+                            return (
+                              <button
+                                key={p}
+                                className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-accent", issue.priority === p ? "text-foreground" : "text-muted-foreground")}
+                                onClick={(e) => { e.stopPropagation(); requireAuth(() => updateIssue(issue.id, { priority: p })); setOpenPriorityPopover(null) }}
+                              >
+                                <PIcon className={cn("size-3.5", priorityColors[p])} />
+                                <span className="capitalize">{p}</span>
+                              </button>
+                            )
+                          })}
+                        </PopoverContent>
+                      </Popover>
+                      <span className="flex w-5 shrink-0 items-center justify-center">{linkedPRMap.has(issue.id) && (() => {
+                        const pr = linkedPRMap.get(issue.id)!
+                        const isMerged = pr.firstState === "merged"
+                        const isClosed = pr.firstState === "closed"
+                        return (
+                          <a data-pr-link
+                            href={pr.firstUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className={cn(
+                              "flex shrink-0 items-center gap-0.5 transition-colors",
+                              isMerged ? "text-purple-400/70 hover:text-purple-400" :
+                              isClosed ? "text-red-400/70 hover:text-red-400" :
+                              "text-green-400/70 hover:text-green-400",
+                            )}
+                          >
+                            <GitPullRequest className="size-4" />
+                            {pr.count > 1 && <span className="text-sm font-medium">{pr.count}</span>}
+                          </a>
+                        )
+                      })()}                  </span>
+                      {!issue.is_epic && (
+                        <Popover open={openLinkPopover === issue.id} onOpenChange={(v) => setOpenLinkPopover(v ? issue.id : null)}>
+                          <PopoverTrigger
+                            render={
+                              <button
+                                data-link-btn
+                                onClick={(e) => e.stopPropagation()}
+                                className={cn("flex size-7 shrink-0 items-center justify-center rounded border border-transparent transition-colors hover:border-border/30 hover:bg-accent", issue.parent_epic_id ? "text-purple-400" : "text-transparent group-hover:text-muted-foreground/50")}
+                              >
+                                <Link className="size-3.5" />
+                              </button>
+                            }
+                          />
+                          <PopoverContent className="w-48 p-1" align="end">
+                            {issue.parent_epic_id && (
+                              <button
+                                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent"
+                                onClick={(e) => { e.stopPropagation(); requireAuth(() => updateIssue(issue.id, { parent_epic_id: null })); setOpenLinkPopover(null) }}
+                              >
+                                <Circle className="size-3 text-muted-foreground/40" />
+                                Unlink from epic
+                              </button>
+                            )}
+                            {epics.map((epic) => (
+                              <button
+                                key={epic.id}
+                                className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-accent", issue.parent_epic_id === epic.id ? "text-purple-400" : "text-muted-foreground")}
+                                onClick={(e) => { e.stopPropagation(); requireAuth(() => updateIssue(issue.id, { parent_epic_id: epic.id })); setOpenLinkPopover(null) }}
+                              >
+                                <Layers className="size-3.5 shrink-0 text-purple-400" />
+                                <span className="truncate">{epic.title}</span>
+                              </button>
+                            ))}
+                            {epics.length === 0 && (
+                              <span className="block px-2 py-1.5 text-xs text-muted-foreground/50">No epics yet</span>
+                            )}
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                      <Popover open={openTeamPopover === issue.id} onOpenChange={(v) => setOpenTeamPopover(v ? issue.id : null)}>
+                        <PopoverTrigger
+                          render={
+                            <button
+                              data-team-btn
+                              onClick={(e) => e.stopPropagation()}
+                              className={cn("flex w-16 shrink-0 items-center justify-center rounded border px-1 py-0.5 text-sm font-medium transition-colors", issue.team ? (cn("border-border/30", teamColors[issue.team] ?? "text-muted-foreground/70")) : "border-dashed border-transparent group-hover:border-border/30 text-transparent group-hover:text-muted-foreground/40 hover:border-border/60 hover:text-muted-foreground/70")}
+                            >
+                              {issue.team ?? <><Plus className="size-3 mr-0.5" />Team</>}
+                            </button>
+                          }
+                        />
+                        <PopoverContent className="w-32 p-1" align="start">
+                          <button
+                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent"
+                              onClick={(e) => { e.stopPropagation(); requireAuth(() => updateIssue(issue.id, { team: null })); setOpenTeamPopover(null) }}
+                          >
+                            <Circle className="size-3 text-muted-foreground/40" />
+                            No Team
+                          </button>
+                          {(["3D", "Concept", "DEV", "QA", "GD", "Sound"] as IssueTeam[]).map((t) => (
+                            <button
+                              key={t}
+                              className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", issue.team === t ? "text-foreground" : "text-muted-foreground")}
+                              onClick={(e) => { e.stopPropagation(); requireAuth(() => updateIssue(issue.id, { team: t })); setOpenTeamPopover(null) }}
+                            >
+                              <Circle className={cn("size-3", teamColors[t])} />
+                              {t}
+                            </button>
+                          ))}
+                        </PopoverContent>
+                      </Popover>
+                      <Popover open={openMilestonePopover === issue.id} onOpenChange={(v) => setOpenMilestonePopover(v ? issue.id : null)}>
+                        <PopoverTrigger
+                          render={
+                            <button
+                              data-milestone-btn
+                              onClick={(e) => e.stopPropagation()}
+                              className={cn("flex w-28 shrink-0 items-center gap-1 rounded border px-1 py-0.5 text-sm font-medium transition-colors", issue.milestone_id ? (cn("border-border/30 text-red-400/60 [&_svg]:text-red-400/60")) : "border-dashed border-transparent group-hover:border-border/30 text-transparent group-hover:text-muted-foreground/40 hover:border-border/60 hover:text-muted-foreground/70")}
+                            >
+                              {issue.milestone_id && milestoneMap.has(issue.milestone_id) ? (
+                                <><Diamond className="size-3.5 shrink-0" /><span className="truncate">{milestoneMap.get(issue.milestone_id)!.name}</span></>
+                              ) : (
+                                <><Plus className="size-3 mr-0.5 shrink-0" />Milestone</>
+                              )}
+                            </button>
+                          }
+                        />
+                        <PopoverContent className="w-40 p-1" align="start">
+                          <button
+                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent"
+                              onClick={(e) => { e.stopPropagation(); requireAuth(() => updateIssue(issue.id, { milestone_id: null })); setOpenMilestonePopover(null) }}
+                          >
+                            <Diamond className="size-3 text-muted-foreground/40" />
+                            No Milestone
+                          </button>
+                          {projectMilestones.map((m) => (
+                            <button
+                              key={m.id}
+                              className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", issue.milestone_id === m.id ? "text-foreground" : "text-muted-foreground")}
+                              onClick={(e) => { e.stopPropagation(); requireAuth(() => updateIssue(issue.id, { milestone_id: m.id })); setOpenMilestonePopover(null) }}
+                            >
+                              <Diamond className="size-3 text-red-400/60 shrink-0" />
+                              {m.name}
+                            </button>
+                          ))}
+                        </PopoverContent>
+                      </Popover>
+                      <Popover open={openAssigneePopover === issue.id} onOpenChange={(v) => setOpenAssigneePopover(v ? issue.id : null)}>
+                        <PopoverTrigger
+                          render={
+                            <button
+                              data-assignee-btn
+                              onClick={(e) => e.stopPropagation()}
+                              className={cn("flex w-36 shrink-0 items-center justify-end gap-1.5 rounded border px-1 py-0.5 text-sm font-medium transition-colors", issue.assignee_id && userMap.has(issue.assignee_id) ? "border-border/30" : "border-dashed border-transparent group-hover:border-border/30 text-transparent group-hover:text-muted-foreground/40 hover:border-border/60 hover:text-muted-foreground/70")}
+                            >
+                              {issue.assignee_id && userMap.has(issue.assignee_id) ? (
+                                <>
+                                  <span className="text-sm text-muted-foreground truncate">
+                                    {userMap.get(issue.assignee_id)?.name ?? userMap.get(issue.assignee_id)?.email}
+                                  </span>
+                                  <Avatar className="size-6">
+                                    <AvatarFallback className="text-[11px]">
+                                      {(userMap.get(issue.assignee_id)?.name ?? "?")[0].toUpperCase()}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                </>
+                              ) : (
+                                <><Plus className="size-3 mr-0.5 shrink-0" />Assignee</>
+                              )}
+                            </button>
+                          }
+                        />
+                        <PopoverContent className="w-36 p-1" align="end">
+                          <button
+                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent"
+                              onClick={(e) => { e.stopPropagation(); requireAuth(() => updateIssue(issue.id, { assignee_id: null })); setOpenAssigneePopover(null) }}
+                          >
+                            <Circle className="size-3 text-muted-foreground/40" />
+                            No Assignee
+                          </button>
+                          {users.map((u) => (
+                            <button
+                              key={u.id}
+                              className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", issue.assignee_id === u.id ? "text-foreground" : "text-muted-foreground")}
+                              onClick={(e) => { e.stopPropagation(); requireAuth(() => updateIssue(issue.id, { assignee_id: u.id })); setOpenAssigneePopover(null) }}
+                            >
+                              <Avatar className="size-5">
+                                <AvatarFallback className="text-[9px]">{(u.name ?? u.email)[0].toUpperCase()}</AvatarFallback>
+                              </Avatar>
+                              {u.name ?? u.email}
+                            </button>
+                          ))}
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    key={issue.id}
+                    className={cn("group flex cursor-pointer items-center gap-3 border-b border-border/20 px-6 py-2.5 transition-colors hover:bg-accent/30", selectedIds.has(issue.id) && "bg-accent/20")}
+                    onClick={(e) => { if ((e.target as HTMLElement).closest("[data-pr-link], [data-team-btn], [data-milestone-btn], [data-assignee-btn], [data-link-btn], [data-priority-btn]")) return; requireAuth(() => setDetailIssueId(issue.id)) }}
+                  >
                   <div onClick={(e) => e.stopPropagation()}>
                     <Checkbox
                       checked={selectedIds.has(issue.id)}
@@ -414,7 +682,7 @@ export function IssueList({ title, issues, focusId }: Props) {
                   <span className={cn("min-w-[4rem] text-sm font-mono", issue.status === "done" || issue.status === "canceled" ? "text-muted-foreground/30 line-through" : "text-muted-foreground/60")}>
                     {currentProject?.code ?? "?"}-{issue.display_id}
                   </span>
-                  <span className="flex-1 truncate text-sm">{issue.title}</span>
+                  <span className="min-w-0 flex-1 truncate text-sm">{issue.title}</span>
                   <span className="flex w-5 shrink-0 items-center justify-center">{linkedPRMap.has(issue.id) && (() => {
                     const pr = linkedPRMap.get(issue.id)!
                     const isMerged = pr.firstState === "merged"
@@ -591,6 +859,7 @@ export function IssueList({ title, issues, focusId }: Props) {
                     </PopoverContent>
                   </Popover>
                 </div>
+                )
               ))}
             </div>
           )
@@ -638,6 +907,11 @@ export function IssueList({ title, issues, focusId }: Props) {
           </div>
         </DialogContent>
       </Dialog>
+      {viewLoading && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/60 backdrop-blur-[1px]">
+          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        </div>
+      )}
     </div>
   )
 }

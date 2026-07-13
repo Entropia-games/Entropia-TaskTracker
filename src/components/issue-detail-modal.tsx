@@ -191,6 +191,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
     setIsEpic(next)
     if (!next) {
       getSupabase().from("issues").update({ parent_epic_id: null }).eq("parent_epic_id", issue.id).then()
+      issues.filter((i) => i.parent_epic_id === issue.id).forEach((child) => updateIssue(child.id, { parent_epic_id: null }))
     }
     updateIssue(issue.id, { is_epic: next })
   }

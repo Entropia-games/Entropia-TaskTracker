@@ -10,10 +10,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { Circle, ChevronDown, Trash2, X, ArrowUp, ArrowDown, Minus, AlertCircle, CircleDot, CircleCheck, CircleOff, Layers, GitPullRequest, Diamond } from "lucide-react"
+import { Circle, ChevronDown, Trash2, X, ArrowUp, ArrowDown, Minus, AlertCircle, CircleDot, CircleCheck, CircleOff, Layers, GitPullRequest, Diamond, Plus } from "lucide-react"
 import { CreateIssueModal } from "@/components/create-issue-modal"
 import { IssueDetailModal } from "@/components/issue-detail-modal"
 import { useIssues, type Issue, type IssueStatus, type IssuePriority, type IssueTeam, type Milestone } from "@/lib/issues-context"
+import { useAuth } from "@/lib/auth-context"
 import { getSupabase } from "@/lib/supabase"
 import type { Database } from "@/lib/database.types"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -59,7 +60,8 @@ type Props = {
 }
 
 export function IssueList({ title, issues, focusId }: Props) {
-  const { deleteIssues, currentProject, milestones: projectMilestones } = useIssues()
+  const { deleteIssues, updateIssue, currentProject, milestones: projectMilestones } = useIssues()
+  const { user } = useAuth()
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [detailIssue, setDetailIssue] = useState<Issue | null>(null)
   const [detailParentIssue, setDetailParentIssue] = useState<Issue | null>(null)
@@ -68,6 +70,9 @@ export function IssueList({ title, issues, focusId }: Props) {
   const [priorityFilter, setPriorityFilter] = useState<IssuePriority | null>(null)
   const [teamFilter, setTeamFilter] = useState<IssueTeam | null>(null)
   const [milestoneFilter, setMilestoneFilter] = useState<number | null>(null)
+  const [openTeamPopover, setOpenTeamPopover] = useState<number | null>(null)
+  const [openMilestonePopover, setOpenMilestonePopover] = useState<number | null>(null)
+  const [openAssigneePopover, setOpenAssigneePopover] = useState<number | null>(null)
   const [showDone, setShowDone] = useState(true)
   const [users, setUsers] = useState<Database["public"]["Tables"]["users"]["Row"][]>([])
   const [linkedPRMap, setLinkedPRMap] = useState<Map<number, { count: number; firstUrl: string; firstState: string }>>(new Map())
@@ -314,7 +319,7 @@ export function IssueList({ title, issues, focusId }: Props) {
                   className={`group flex cursor-pointer items-center gap-3 border-b border-border/20 px-6 py-2.5 transition-colors hover:bg-accent/30 ${
                     selectedIds.has(issue.id) ? "bg-accent/20" : ""
                   }`}
-                  onClick={(e) => { if ((e.target as HTMLElement).closest("[data-pr-link]")) return; setDetailIssue(issue) }}
+                  onClick={(e) => { if ((e.target as HTMLElement).closest("[data-pr-link], [data-team-btn], [data-milestone-btn], [data-assignee-btn]")) return; setDetailIssue(issue) }}
                 >
                   <div onClick={(e) => e.stopPropagation()}>
                     <Checkbox
@@ -353,26 +358,121 @@ export function IssueList({ title, issues, focusId }: Props) {
                       </a>
                     )
                   })()}</span>
-                  {issue.team && (
-                    <span className={cn("flex w-14 shrink-0 items-center justify-center rounded border border-border/30 px-1 py-0.5 text-sm font-semibold", teamColors[issue.team] ?? "text-muted-foreground/70")}>{issue.team}</span>
-                  )}
-                  <span className="flex w-28 shrink-0 items-center gap-1 text-base text-red-400/60">
-                    {issue.milestone_id && milestoneMap.has(issue.milestone_id) && (
-                      <><Diamond className="size-3.5 shrink-0" /><span className="truncate">{milestoneMap.get(issue.milestone_id)!.name}</span></>
-                    )}
-                  </span>
-                  {issue.assignee_id && userMap.has(issue.assignee_id) && (
-                    <div className="flex w-36 shrink-0 items-center justify-end gap-1.5">
-                      <span className="text-sm text-muted-foreground truncate">
-                        {userMap.get(issue.assignee_id)?.name ?? userMap.get(issue.assignee_id)?.email}
-                      </span>
-                      <Avatar className="size-6">
-                        <AvatarFallback className="text-[11px]">
-                          {(userMap.get(issue.assignee_id)?.name ?? "?")[0].toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                    </div>
-                  )}
+                  <Popover open={openTeamPopover === issue.id} onOpenChange={(v) => setOpenTeamPopover(v ? issue.id : null)}>
+                    <PopoverTrigger
+                      render={
+                        <button
+                          data-team-btn
+                          onClick={(e) => e.stopPropagation()}
+                          className={cn("flex w-16 shrink-0 items-center justify-center rounded border px-1 py-0.5 text-xs font-medium transition-colors", issue.team ? (cn("border-border/30", teamColors[issue.team] ?? "text-muted-foreground/70")) : "border-dashed border-transparent group-hover:border-border/30 text-transparent group-hover:text-muted-foreground/40 hover:border-border/60 hover:text-muted-foreground/70")}
+                        >
+                          {issue.team ?? <><Plus className="size-3 mr-0.5" />Team</>}
+                        </button>
+                      }
+                    />
+                    <PopoverContent className="w-32 p-1" align="start">
+                      <button
+                        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent"
+                        onClick={(e) => { e.stopPropagation(); updateIssue(issue.id, { team: null }); setOpenTeamPopover(null) }}
+                      >
+                        <Circle className="size-3 text-muted-foreground/40" />
+                        No Team
+                      </button>
+                      {(["3D", "Concept", "DEV", "QA", "GD", "Sound"] as IssueTeam[]).map((t) => (
+                        <button
+                          key={t}
+                          className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", issue.team === t ? "text-foreground" : "text-muted-foreground")}
+                          onClick={(e) => { e.stopPropagation(); updateIssue(issue.id, { team: t }); setOpenTeamPopover(null) }}
+                        >
+                          <Circle className={cn("size-3", teamColors[t])} />
+                          {t}
+                        </button>
+                      ))}
+                    </PopoverContent>
+                  </Popover>
+                  <Popover open={openMilestonePopover === issue.id} onOpenChange={(v) => setOpenMilestonePopover(v ? issue.id : null)}>
+                    <PopoverTrigger
+                      render={
+                        <button
+                          data-milestone-btn
+                          onClick={(e) => e.stopPropagation()}
+                          className={cn("flex w-28 shrink-0 items-center gap-1 rounded border px-1 py-0.5 text-xs font-medium transition-colors", issue.milestone_id ? (cn("border-border/30 text-red-400/60 [&_svg]:text-red-400/60")) : "border-dashed border-transparent group-hover:border-border/30 text-transparent group-hover:text-muted-foreground/40 hover:border-border/60 hover:text-muted-foreground/70")}
+                        >
+                          {issue.milestone_id && milestoneMap.has(issue.milestone_id) ? (
+                            <><Diamond className="size-3.5 shrink-0" /><span className="truncate">{milestoneMap.get(issue.milestone_id)!.name}</span></>
+                          ) : (
+                            <><Plus className="size-3 mr-0.5 shrink-0" />Milestone</>
+                          )}
+                        </button>
+                      }
+                    />
+                    <PopoverContent className="w-40 p-1" align="start">
+                      <button
+                        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent"
+                        onClick={(e) => { e.stopPropagation(); updateIssue(issue.id, { milestone_id: null }); setOpenMilestonePopover(null) }}
+                      >
+                        <Diamond className="size-3 text-muted-foreground/40" />
+                        No Milestone
+                      </button>
+                      {projectMilestones.map((m) => (
+                        <button
+                          key={m.id}
+                          className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", issue.milestone_id === m.id ? "text-foreground" : "text-muted-foreground")}
+                          onClick={(e) => { e.stopPropagation(); updateIssue(issue.id, { milestone_id: m.id }); setOpenMilestonePopover(null) }}
+                        >
+                          <Diamond className="size-3 text-red-400/60 shrink-0" />
+                          {m.name}
+                        </button>
+                      ))}
+                    </PopoverContent>
+                  </Popover>
+                  <Popover open={openAssigneePopover === issue.id} onOpenChange={(v) => setOpenAssigneePopover(v ? issue.id : null)}>
+                    <PopoverTrigger
+                      render={
+                        <button
+                          data-assignee-btn
+                          onClick={(e) => e.stopPropagation()}
+                          className={cn("flex w-36 shrink-0 items-center justify-end gap-1.5 rounded border px-1 py-0.5 text-xs font-medium transition-colors", issue.assignee_id && userMap.has(issue.assignee_id) ? "border-border/30" : "border-dashed border-transparent group-hover:border-border/30 text-transparent group-hover:text-muted-foreground/40 hover:border-border/60 hover:text-muted-foreground/70")}
+                        >
+                          {issue.assignee_id && userMap.has(issue.assignee_id) ? (
+                            <>
+                              <span className="text-sm text-muted-foreground truncate">
+                                {userMap.get(issue.assignee_id)?.name ?? userMap.get(issue.assignee_id)?.email}
+                              </span>
+                              <Avatar className="size-6">
+                                <AvatarFallback className="text-[11px]">
+                                  {(userMap.get(issue.assignee_id)?.name ?? "?")[0].toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                            </>
+                          ) : (
+                            <><Plus className="size-3 mr-0.5 shrink-0" />Assignee</>
+                          )}
+                        </button>
+                      }
+                    />
+                    <PopoverContent className="w-36 p-1" align="end">
+                      <button
+                        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent"
+                        onClick={(e) => { e.stopPropagation(); updateIssue(issue.id, { assignee_id: null }); setOpenAssigneePopover(null) }}
+                      >
+                        <Circle className="size-3 text-muted-foreground/40" />
+                        No Assignee
+                      </button>
+                      {users.map((u) => (
+                        <button
+                          key={u.id}
+                          className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", issue.assignee_id === u.id ? "text-foreground" : "text-muted-foreground")}
+                          onClick={(e) => { e.stopPropagation(); updateIssue(issue.id, { assignee_id: u.id }); setOpenAssigneePopover(null) }}
+                        >
+                          <Avatar className="size-5">
+                            <AvatarFallback className="text-[9px]">{(u.name ?? u.email)[0].toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                          {u.name ?? u.email}
+                        </button>
+                      ))}
+                    </PopoverContent>
+                  </Popover>
                 </div>
               ))}
             </div>

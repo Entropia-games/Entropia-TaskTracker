@@ -91,7 +91,7 @@ const PRIORITY_COLORS: Record<IssuePriority, string> = {
 }
 
 export function CreateIssueModal() {
-  const { addIssue, milestones: projectMilestones } = useIssues()
+  const { addIssue, milestones: projectMilestones, issues } = useIssues()
   const { requireAuth } = useAuthGate()
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState("")
@@ -103,6 +103,7 @@ export function CreateIssueModal() {
   const [isEpic, setIsEpic] = useState(false)
   const [assigneeId, setAssigneeId] = useState<string | null>(null)
   const [milestoneId, setMilestoneId] = useState<number | null>(null)
+  const [parentEpicId, setParentEpicId] = useState<number | null>(null)
   const [users, setUsers] = useState<Database["public"]["Tables"]["users"]["Row"][]>([])
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [uploading, setUploading] = useState(false)
@@ -150,6 +151,7 @@ export function CreateIssueModal() {
 
   const activeStatus = STATUS_OPTIONS.find((s) => s.value === status)
   const activePriority = PRIORITY_OPTIONS.find((p) => p.value === priority)
+  const epics = issues.filter((i) => i.is_epic)
   const StatusIcon = activeStatus?.icon ?? Circle
   const PriorityIcon = activePriority?.icon ?? Minus
 
@@ -163,6 +165,7 @@ export function CreateIssueModal() {
       team,
       is_epic: isEpic,
       milestone_id: milestoneId,
+      parent_epic_id: parentEpicId,
       due_date: dueDate ? dueDate.toISOString() : null,
       assignee_id: assigneeId,
       attachments,
@@ -173,6 +176,7 @@ export function CreateIssueModal() {
     setPriority("none")
     setTeam(null)
     setMilestoneId(null)
+    setParentEpicId(null)
     setDueDate(undefined)
     setAssigneeId(null)
     setIsEpic(false)
@@ -212,6 +216,7 @@ export function CreateIssueModal() {
         setPriority("none")
         setTeam(null)
         setIsEpic(false)
+        setParentEpicId(null)
         setDueDate(undefined)
         discardAttachments()
       }
@@ -404,6 +409,40 @@ export function CreateIssueModal() {
                     ))}
                   </SelectContent>
                 </Select>
+              )}
+              {!isEpic && (
+                <Popover>
+                  <PopoverTrigger
+                    render={
+                      <button className={cn("flex h-7 cursor-default items-center gap-1.5 border-0 px-2 text-xs hover:bg-accent", parentEpicId ? "text-purple-400" : "text-muted-foreground")}>
+                        <Layers className="size-3.5" />
+                        {parentEpicId ? (epics.find((e) => e.id === parentEpicId)?.title ?? "Epic") : "No Epic"}
+                      </button>
+                    }
+                  />
+                  <PopoverContent className="w-56 p-1" align="start">
+                    <button
+                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent"
+                      onClick={() => setParentEpicId(null)}
+                    >
+                      <Circle className="size-3 text-muted-foreground/40" />
+                      No Epic
+                    </button>
+                    {epics.map((e) => (
+                      <button
+                        key={e.id}
+                        className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-accent", parentEpicId === e.id ? "text-purple-400" : "text-muted-foreground")}
+                        onClick={() => setParentEpicId(e.id)}
+                      >
+                        <Layers className="size-3.5 shrink-0 text-purple-400" />
+                        <span className="truncate">{e.title}</span>
+                      </button>
+                    ))}
+                    {epics.length === 0 && (
+                      <span className="block px-2 py-1.5 text-xs text-muted-foreground/50">No epics yet</span>
+                    )}
+                  </PopoverContent>
+                </Popover>
               )}
               <span className="mx-1 h-4 w-px bg-border/50" />
               <Popover>

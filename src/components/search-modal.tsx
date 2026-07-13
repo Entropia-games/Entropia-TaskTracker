@@ -95,7 +95,7 @@ export function SearchModal({ open, onOpenChange }: Props) {
                   return <PIcon className={cn("size-3.5 shrink-0", priorityColors[issue.priority])} />
                 })()}
                 {issue.is_epic && <Layers className="size-3.5 shrink-0 text-purple-400" />}
-                <span className="text-xs text-muted-foreground/50 font-mono shrink-0">{currentProject?.code ?? "?"}-{issue.id}</span>
+                <span className="text-xs text-muted-foreground/50 font-mono shrink-0">{currentProject?.code ?? "?"}-{issue.display_id}</span>
                 <span className="flex-1 truncate">{issue.title}</span>
                 {issue.team && (
                   <span className={cn("shrink-0 text-[10px] font-medium", teamColors[issue.team])}>{issue.team}</span>

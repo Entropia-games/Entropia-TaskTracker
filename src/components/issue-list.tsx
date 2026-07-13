@@ -328,7 +328,7 @@ export function IssueList({ title, issues, focusId }: Props) {
                   })()}
                   <span className="flex w-5 shrink-0 items-center justify-center">{issue.is_epic && <Layers className="size-4 text-purple-400" />}</span>
                   <span className="min-w-[4rem] text-sm text-muted-foreground/60 font-mono">
-                    {currentProject?.code ?? "?"}-{issue.id}
+                    {currentProject?.code ?? "?"}-{issue.display_id}
                   </span>
                   <span className="flex-1 truncate text-sm">{issue.title}</span>
                   <span className="flex w-5 shrink-0 items-center justify-center">{linkedPRMap.has(issue.id) && (() => {

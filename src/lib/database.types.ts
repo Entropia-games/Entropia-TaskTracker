@@ -63,6 +63,7 @@ export type Database = {
           assignee_id: string | null
           created_by: string | null
           project_id: number | null
+          display_id: number | null
           created_at: string
           updated_at: string
         }
@@ -80,6 +81,7 @@ export type Database = {
           assignee_id?: string | null
           created_by?: string | null
           project_id?: number | null
+          display_id?: number | null
           created_at?: string
           updated_at?: string
         }
@@ -97,6 +99,7 @@ export type Database = {
           assignee_id?: string | null
           created_by?: string | null
           project_id?: number | null
+          display_id?: number | null
           created_at?: string
           updated_at?: string
         }

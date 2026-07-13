@@ -199,7 +199,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="!max-w-xl !rounded-xl !border-0 !p-0 sm:!max-w-xl" showCloseButton={false}>
-        <DialogTitle className="sr-only">{currentProject?.code ?? "?"}-{issue.id}</DialogTitle>
+        <DialogTitle className="sr-only">{currentProject?.code ?? "?"}-{issue.display_id}</DialogTitle>
         <div className="flex flex-col gap-0">
           <div className="flex flex-col gap-4 px-5 pb-6 pt-6">
             <div className="flex items-center gap-2 text-xs text-muted-foreground/60 font-mono">
@@ -213,7 +213,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
                 </button>
               )}
               {issue.is_epic && <Layers className="size-3.5 text-purple-400" />}
-              <span>{currentProject?.code ?? "?"}-{issue.id}</span>
+              <span>{currentProject?.code ?? "?"}-{issue.display_id}</span>
               <span className="text-muted-foreground/20">·</span>
               <span className={cn(activeStatus?.color)}>{activeStatus?.label}</span>
             </div>

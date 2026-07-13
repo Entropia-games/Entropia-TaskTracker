@@ -168,6 +168,24 @@ begin
 end;
 $$;
 
+-- Per-project sequential issue number
+alter table public.issues add column if not exists display_id integer;
+
+create or replace function public.set_display_id()
+returns trigger as $$
+begin
+  new.display_id = coalesce((select max(display_id) from public.issues where project_id = new.project_id), 0) + 1;
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists issues_set_display_id on public.issues;
+create trigger issues_set_display_id
+  before insert on public.issues
+  for each row
+  when (new.display_id is null)
+  execute function public.set_display_id();
+
 alter table public.issues enable row level security;
 
 -- Row Level Security: users can see all issues, update only ones they created or are assigned

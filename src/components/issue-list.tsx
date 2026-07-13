@@ -266,12 +266,12 @@ export function IssueList({ title, issues, focusId }: Props) {
                     const PIcon = priorityIcons[issue.priority]
                     return <PIcon className={`size-3.5 shrink-0 ${priorityColors[issue.priority]}`} />
                   })()}
-                  {issue.is_epic && <Layers className="size-3.5 shrink-0 text-purple-400" />}
+                  <span className="flex w-5 shrink-0 items-center justify-center">{issue.is_epic && <Layers className="size-3.5 text-purple-400" />}</span>
                   <span className="min-w-[4rem] text-xs text-muted-foreground/60 font-mono">
                     {issue.id}
                   </span>
                   <span className="flex-1 truncate text-sm">{issue.title}</span>
-                  {linkedPRMap.has(issue.id) && (() => {
+                  <span className="flex w-5 shrink-0 items-center justify-center">{linkedPRMap.has(issue.id) && (() => {
                     const pr = linkedPRMap.get(issue.id)!
                     const isMerged = pr.firstState === "merged"
                     const isClosed = pr.firstState === "closed"
@@ -291,7 +291,7 @@ export function IssueList({ title, issues, focusId }: Props) {
                         {pr.count > 1 && <span className="text-[10px] font-medium">{pr.count}</span>}
                       </a>
                     )
-                  })()}
+                  })()}</span>
                   {issue.team && (
                     <span className={cn("shrink-0 rounded border border-border/30 px-1.5 py-0.5 text-xs font-semibold", teamColors[issue.team] ?? "text-muted-foreground/70")}>{issue.team}</span>
                   )}

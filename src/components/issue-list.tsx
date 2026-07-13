@@ -253,7 +253,7 @@ export function IssueList({ title, issues, focusId }: Props) {
                   className={`group flex cursor-pointer items-center gap-3 border-b border-border/20 px-6 py-2.5 transition-colors hover:bg-accent/30 ${
                     selectedIds.has(issue.id) ? "bg-accent/20" : ""
                   }`}
-                  onClick={() => setDetailIssue(issue)}
+                  onClick={(e) => { if ((e.target as HTMLElement).closest("[data-pr-link]")) return; setDetailIssue(issue) }}
                 >
                   <div onClick={(e) => e.stopPropagation()}>
                     <Checkbox
@@ -276,8 +276,8 @@ export function IssueList({ title, issues, focusId }: Props) {
                     const isMerged = pr.firstState === "merged"
                     const isClosed = pr.firstState === "closed"
                     return (
-                      <span
-                        onClick={(e) => { e.stopPropagation(); window.open(pr.firstUrl, "_blank") }}
+                      <span data-pr-link
+                        onClick={() => window.open(pr.firstUrl, "_blank") }
                         className={cn(
                           "flex shrink-0 cursor-pointer items-center gap-0.5 transition-colors",
                           isMerged ? "text-purple-400/70 hover:text-purple-400" :

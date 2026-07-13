@@ -71,7 +71,7 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
           milestone_id: input.milestone_id ?? null,
           due_date: input.due_date,
           assignee_id: input.assignee_id ?? null,
-          created_by: username ?? user.email?.split("@")[0] ?? "Unknown",
+          created_by: username ?? "Unknown",
         })
       .select()
       .single()

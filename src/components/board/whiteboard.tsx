@@ -78,6 +78,9 @@ export function Whiteboard({ boardId, me }: { boardId: string; me: Me }) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [penColor, setPenColor] = useState(me.color)
   const [menu, setMenu] = useState<Point | null>(null)
+  const [stickerMode, setStickerMode] = useState(false)
+  const [stickerColor, setStickerColor] = useState(CARD_COLORS[0])
+  const [focusId, setFocusId] = useState<string | null>(null)
   const penSize = 4
 
   const makeImageItem = (src: string, key: string, x: number, y: number): ImageItem => ({
@@ -256,7 +259,7 @@ export function Whiteboard({ boardId, me }: { boardId: string; me: Me }) {
   }
 
   const onPointerDown = (e: React.PointerEvent) => {
-    if (e.button !== 0) return
+    if (e.button !== 0 || stickerMode) return
     const id = crypto.randomUUID()
     drawingRef.current = { id, color: penColor, size: penSize }
     ;(e.target as Element).setPointerCapture?.(e.pointerId)
@@ -282,20 +285,26 @@ export function Whiteboard({ boardId, me }: { boardId: string; me: Me }) {
     sendCursor(getPoint(e))
   }
 
-  const addCardNow = () => {
-    const cont = containerRef.current
-    if (!cont) return
+  const addStickerAt = (x: number, y: number) => {
     const c: Card = {
       id: crypto.randomUUID(),
-      x: cont.clientWidth / 2 - 110,
-      y: cont.clientHeight / 2 - 70,
+      x: x - 110,
+      y: y - 70,
       w: 220,
       h: 140,
       text: "",
-      color: CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)],
+      color: stickerColor,
       author: me.id,
     }
     addCard(c)
+    setFocusId(c.id)
+  }
+
+  const onCanvasClick = (e: React.MouseEvent) => {
+    if (!stickerMode) return
+    const rect = containerRef.current?.getBoundingClientRect()
+    if (!rect) return
+    addStickerAt(e.clientX - rect.left, e.clientY - rect.top)
   }
 
   return (
@@ -316,11 +325,30 @@ export function Whiteboard({ boardId, me }: { boardId: string; me: Me }) {
           ))}
         </div>
         <button
-          onClick={addCardNow}
-          className="rounded bg-neutral-700 px-3 py-1 text-neutral-100 hover:bg-neutral-600"
+          onClick={() => setStickerMode((v) => !v)}
+          className={`rounded px-3 py-1 ${
+            stickerMode
+              ? "bg-yellow-500 text-black hover:bg-yellow-400"
+              : "bg-neutral-700 text-neutral-100 hover:bg-neutral-600"
+          }`}
         >
-          + Card
+          Sticker
         </button>
+        {stickerMode && (
+          <div className="flex items-center gap-1">
+            {CARD_COLORS.map((c) => (
+              <button
+                key={c}
+                onClick={() => setStickerColor(c)}
+                className={`h-5 w-5 rounded-full border-2 ${
+                  stickerColor === c ? "border-white" : "border-transparent"
+                }`}
+                style={{ backgroundColor: c }}
+                aria-label={`sticker ${c}`}
+              />
+            ))}
+          </div>
+        )}
         <button
           onClick={clearBoard}
           className="rounded bg-red-900/60 px-3 py-1 text-red-100 hover:bg-red-800/60"
@@ -342,11 +370,12 @@ export function Whiteboard({ boardId, me }: { boardId: string; me: Me }) {
       >
         <canvas
           ref={canvasRef}
-          className="absolute inset-0 touch-none"
+          className={`absolute inset-0 touch-none ${stickerMode ? "cursor-copy" : ""}`}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMoveCanvas}
           onPointerUp={onPointerUp}
           onPointerLeave={onPointerUp}
+          onClick={onCanvasClick}
         />
 
         {images.map((img) => (
@@ -364,6 +393,7 @@ export function Whiteboard({ boardId, me }: { boardId: string; me: Me }) {
           <BoardCard
             key={card.id}
             card={card}
+            focusId={focusId}
             onMove={moveCard}
             onCommit={commitCardMove}
             onUpdate={updateCard}
@@ -532,19 +562,26 @@ function BoardImage({
 
 function BoardCard({
   card,
+  focusId,
   onMove,
   onCommit,
   onUpdate,
   onDelete,
 }: {
   card: Card
+  focusId?: string | null
   onMove: (id: string, x: number, y: number) => void
   onCommit: (id: string) => void
   onUpdate: (id: string, patch: Partial<Pick<Card, "text" | "color">>) => void
   onDelete: (id: string) => void
 }) {
   const dragging = useRef(false)
+  const taRef = useRef<HTMLTextAreaElement>(null)
   const [{ x, y }, api] = useSpring(() => ({ x: card.x, y: card.y }))
+
+  useEffect(() => {
+    if (focusId && focusId === card.id) taRef.current?.focus()
+  }, [focusId, card.id])
 
   useEffect(() => {
     if (!dragging.current) api.start({ x: card.x, y: card.y })
@@ -595,6 +632,7 @@ function BoardCard({
         </button>
       </div>
       <textarea
+        ref={taRef}
         value={card.text}
         onPointerDown={stop}
         onChange={(e) => onUpdate(card.id, { text: e.target.value })}

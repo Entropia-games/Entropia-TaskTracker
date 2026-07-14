@@ -34,6 +34,8 @@ type IssuesContext = {
   projects: Project[]
   currentProject: Project | null
   setCurrentProject: (p: Project | null) => void
+  myRole: string | null
+  hasMemberships: boolean
   addIssue: (input: NewIssueInput) => Promise<void>
   updateIssue: (id: number, changes: Partial<Issue>) => Promise<void>
   deleteIssues: (ids: number[]) => Promise<void>
@@ -53,6 +55,9 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
   const [milestones, setMilestones] = useState<Milestone[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [currentProject, setCurrentProject] = useState<Project | null>(null)
+  const [memberRoles, setMemberRoles] = useState<Record<number, string>>({})
+  const [hasMemberships, setHasMemberships] = useState(false)
+  const [myRole, setMyRole] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -68,9 +73,13 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
       // you explicitly restrict them by inserting project_members rows.
       const { data: mem } = await sb
         .from("project_members")
-        .select("project_id")
+        .select("project_id, role")
         .eq("user_id", user.id)
       const ids = (mem ?? []).map((m) => m.project_id)
+      const rolesById: Record<number, string> = {}
+      for (const m of mem ?? []) rolesById[m.project_id] = m.role
+      setMemberRoles(rolesById)
+      setHasMemberships(ids.length > 0)
       if (ids.length > 0) {
         const idSet = new Set(ids)
         rows = rows.filter((p) => idSet.has(p.id))
@@ -82,6 +91,11 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
       setCurrentProject(saved ?? rows[0] ?? null)
     })()
   }, [user])
+
+  useEffect(() => {
+    if (!currentProject) { setMyRole(null); return }
+    setMyRole(memberRoles[currentProject.id] ?? null)
+  }, [currentProject, memberRoles])
 
   useEffect(() => {
     if (!user) return
@@ -221,7 +235,7 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
   }, [user])
 
   return (
-    <IssuesContext.Provider value={{ issues, milestones, projects, currentProject, setCurrentProject: setCurrentProjectAndSave, addIssue, updateIssue, deleteIssues, createMilestone, updateMilestone, deleteMilestone, loading }}>
+    <IssuesContext.Provider value={{ issues, milestones, projects, currentProject, setCurrentProject: setCurrentProjectAndSave, myRole, hasMemberships, addIssue, updateIssue, deleteIssues, createMilestone, updateMilestone, deleteMilestone, loading }}>
       {children}
     </IssuesContext.Provider>
   )

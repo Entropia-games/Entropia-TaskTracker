@@ -65,7 +65,7 @@ const navItems: NavItem[] = [
 export function AppSidebar() {
   const { user, username, displayName, signOut } = useAuth()
   const { requireAuth } = useAuthGate()
-  const { projects, currentProject, setCurrentProject } = useIssues()
+  const { projects, currentProject, setCurrentProject, myRole, hasMemberships } = useIssues()
   const [projectPopoverOpen, setProjectPopoverOpen] = useState(false)
   const [authOpen, setAuthOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -83,6 +83,10 @@ export function AppSidebar() {
   const navigate = useCallback((href: string) => {
     if (href !== "#") router.push(href)
   }, [router])
+
+  const visibleNavItems = navItems.filter(
+    (item) => item.href !== "/desk" || myRole === "admin" || !hasMemberships
+  )
 
   return (
     <Sidebar collapsible="icon">
@@ -120,7 +124,7 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => (
+              {visibleNavItems.map((item) => (
                 <SidebarMenuItem key={item.label}>
                   <SidebarMenuButton
                     tooltip={item.label}

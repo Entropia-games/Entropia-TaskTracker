@@ -40,7 +40,7 @@ export function ToastViewport() {
       {items.map((t) => (
         <div
           key={t.id}
-          className="pointer-events-auto max-w-xs rounded-lg border border-border/40 bg-zinc-900/95 px-4 py-2.5 text-sm text-foreground shadow-lg"
+          className="pointer-events-auto max-w-xs rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2.5 text-sm text-red-300 shadow-lg"
         >
           {t.message}
         </div>

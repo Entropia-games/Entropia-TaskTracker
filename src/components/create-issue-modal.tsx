@@ -23,6 +23,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
+import { UserDisplayName } from "@/components/ui/display-name"
 import { useIssues, type IssueStatus, type IssuePriority, type IssueTeam, type Milestone, type Attachment } from "@/lib/issues-context"
 import { useAuth } from "@/lib/auth-context"
 import { getSupabase } from "@/lib/supabase"
@@ -437,7 +438,9 @@ export function CreateIssueModal() {
                           : "?"}
                       </span>
                       {assigneeId
-                        ? users.find((u) => u.id === assigneeId)?.name ?? "Unknown"
+                          ? <>
+  <UserDisplayName name={users.find((u) => u.id === assigneeId)?.name} email={users.find((u) => u.id === assigneeId)?.email ?? ""} displayName={users.find((u) => u.id === assigneeId)?.display_name} />
+</>
                         : "Unassigned"}
                     </button>
                   }
@@ -459,7 +462,7 @@ export function CreateIssueModal() {
                       <span className="flex size-4 items-center justify-center rounded-full bg-muted-foreground/30 text-[9px] font-medium text-foreground">
                         {(u.name ?? u.email[0])[0].toUpperCase()}
                       </span>
-                      {u.name ?? u.email}
+                      <UserDisplayName name={u.name} email={u.email} displayName={u.display_name} />
                     </button>
                   ))}
                 </PopoverContent>

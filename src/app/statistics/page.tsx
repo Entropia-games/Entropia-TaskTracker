@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Circle, ChevronDown, CircleDot, CircleCheck, CircleOff, ArrowUp, ArrowDown, Minus, AlertCircle, Layers, Plus, X, Diamond } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { UserDisplayName } from "@/components/ui/display-name"
 import { startOfWeek, startOfMonth } from "date-fns"
 
 const statusLabels: Record<IssueStatus, string> = {
@@ -177,7 +178,9 @@ function CompletedPanel({
                 {assigneeFilter === "__none__"
                   ? "Unassigned"
                   : assigneeFilter
-                    ? (users.find((u) => u.id === assigneeFilter)?.name ?? "Assignee")
+                    ? <>
+  <UserDisplayName name={users.find((u) => u.id === assigneeFilter)?.name} email={users.find((u) => u.id === assigneeFilter)?.email ?? ""} displayName={users.find((u) => u.id === assigneeFilter)?.display_name} />
+</>
                     : "Assignee"}
                 <ChevronDown className="size-3" />
               </button>
@@ -194,7 +197,7 @@ function CompletedPanel({
                 <span className="flex size-4 items-center justify-center rounded-full bg-muted-foreground/30 text-[9px] font-medium text-foreground">
                   {(u.name ?? u.email[0])[0].toUpperCase()}
                 </span>
-                {u.name ?? u.email}
+                <UserDisplayName name={u.name} email={u.email} displayName={u.display_name} />
               </button>
             ))}
           </PopoverContent>
@@ -213,7 +216,7 @@ function CompletedPanel({
                 <span className={cn("w-14 shrink-0 text-[11px]", i.team ? teamColors[i.team] : "text-muted-foreground/30")}>{i.team ?? "—"}</span>
                 {i.assignee_id && userMap.has(i.assignee_id) && (
                   <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground/60">
-                    <span className="truncate max-w-[100px]">{userMap.get(i.assignee_id)?.name ?? "?"}</span>
+                    <span className="truncate max-w-[100px]"><UserDisplayName name={userMap.get(i.assignee_id)?.name} email={userMap.get(i.assignee_id)?.email ?? ""} displayName={userMap.get(i.assignee_id)?.display_name} /></span>
                     <Avatar className="size-4">
                       <AvatarFallback className="text-[8px]">{(userMap.get(i.assignee_id)?.name ?? "?")[0].toUpperCase()}</AvatarFallback>
                     </Avatar>

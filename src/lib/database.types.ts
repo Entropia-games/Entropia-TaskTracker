@@ -8,6 +8,7 @@ export type Database = {
           id: string
           email: string
           name: string | null
+          display_name: string | null
           avatar_url: string | null
           created_at: string
         }
@@ -15,6 +16,7 @@ export type Database = {
           id: string
           email: string
           name?: string | null
+          display_name?: string | null
           avatar_url?: string | null
           created_at?: string
         }
@@ -22,6 +24,7 @@ export type Database = {
           id?: string
           email?: string
           name?: string | null
+          display_name?: string | null
           avatar_url?: string | null
           created_at?: string
         }

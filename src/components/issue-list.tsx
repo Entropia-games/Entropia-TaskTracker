@@ -36,6 +36,7 @@ import { useAuthGate } from "@/lib/auth-gate-context"
 import { getSupabase } from "@/lib/supabase"
 import type { Database } from "@/lib/database.types"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { UserDisplayName } from "@/components/ui/display-name"
 import { cn } from "@/lib/utils"
 
 const statusLabels: Record<IssueStatus, string> = {
@@ -483,7 +484,9 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                   {assigneeFilter === "__none__"
                     ? "Unassigned"
                     : assigneeFilter
-                      ? (users.find((u) => u.id === assigneeFilter)?.name ?? "Assignee")
+                      ? <>
+  <UserDisplayName name={users.find((u) => u.id === assigneeFilter)?.name} email={users.find((u) => u.id === assigneeFilter)?.email ?? ""} displayName={users.find((u) => u.id === assigneeFilter)?.display_name} />
+</>
                       : "Assignee"}
                   <ChevronDown className="size-3" />
                 </button>
@@ -512,7 +515,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                   <span className="flex size-4 items-center justify-center rounded-full bg-muted-foreground/30 text-[9px] font-medium text-foreground">
                     {(u.name ?? u.email[0])[0].toUpperCase()}
                   </span>
-                  {u.name ?? u.email}
+                  <UserDisplayName name={u.name} email={u.email} displayName={u.display_name} />
                 </button>
               ))}
             </PopoverContent>
@@ -755,7 +758,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                                       {issue.assignee_id && userMap.has(issue.assignee_id) ? (
                                         <>
                                           <span className="text-sm text-muted-foreground truncate">
-                                            {userMap.get(issue.assignee_id)?.name ?? userMap.get(issue.assignee_id)?.email}
+                                            <UserDisplayName name={userMap.get(issue.assignee_id)?.name} email={userMap.get(issue.assignee_id)?.email ?? ""} displayName={userMap.get(issue.assignee_id)?.display_name} />
                                           </span>
                                           <Avatar className="size-6">
                                             <AvatarFallback className="text-[11px]">
@@ -786,7 +789,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                                       <Avatar className="size-5">
                                         <AvatarFallback className="text-[9px]">{(u.name ?? u.email)[0].toUpperCase()}</AvatarFallback>
                                       </Avatar>
-                                      {u.name ?? u.email}
+                                      <UserDisplayName name={u.name} email={u.email} displayName={u.display_name} />
                                     </button>
                                   ))}
                                 </PopoverContent>
@@ -1014,7 +1017,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                             {issue.assignee_id && userMap.has(issue.assignee_id) ? (
                               <>
                                 <span className="text-sm text-muted-foreground truncate">
-                                  {userMap.get(issue.assignee_id)?.name ?? userMap.get(issue.assignee_id)?.email}
+                                  <UserDisplayName name={userMap.get(issue.assignee_id)?.name} email={userMap.get(issue.assignee_id)?.email ?? ""} displayName={userMap.get(issue.assignee_id)?.display_name} />
                                 </span>
                                 <Avatar className="size-6">
                                   <AvatarFallback className="text-[11px]">
@@ -1045,7 +1048,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                             <Avatar className="size-5">
                               <AvatarFallback className="text-[9px]">{(u.name ?? u.email)[0].toUpperCase()}</AvatarFallback>
                             </Avatar>
-                            {u.name ?? u.email}
+                            <UserDisplayName name={u.name} email={u.email} displayName={u.display_name} />
                           </button>
                         ))}
                       </PopoverContent>

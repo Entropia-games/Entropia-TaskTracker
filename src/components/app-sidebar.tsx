@@ -28,6 +28,7 @@ import {
   ChevronDown,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
+import { DisplayName } from "@/components/ui/display-name"
 import { useAuthGate } from "@/lib/auth-gate-context"
 import { useIssues } from "@/lib/issues-context"
 import { AuthDialog } from "@/components/auth-dialog"
@@ -60,7 +61,7 @@ const navItems: NavItem[] = [
 ]
 
 export function AppSidebar() {
-  const { user, username, signOut } = useAuth()
+  const { user, username, displayName, signOut } = useAuth()
   const { requireAuth } = useAuthGate()
   const { projects, currentProject, setCurrentProject } = useIssues()
   const [projectPopoverOpen, setProjectPopoverOpen] = useState(false)
@@ -187,7 +188,7 @@ export function AppSidebar() {
                     </AvatarFallback>
                   </Avatar>
                   <span className="flex-1 truncate group-data-[collapsible=icon]:hidden text-sm">
-                    {username}
+                    {username}<DisplayName value={displayName} />
                   </span>
                   <LogOut className="size-3.5 group-data-[collapsible=icon]:hidden" />
                 </span>

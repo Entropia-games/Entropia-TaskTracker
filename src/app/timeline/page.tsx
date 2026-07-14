@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
+import { UserDisplayName } from "@/components/ui/display-name"
 import { format, differenceInDays, addDays, startOfDay, min as dateMin, max as dateMax } from "date-fns"
 import { Plus, X, Layers, Search, GripVertical, ChevronDown, Circle, CircleOff, CircleDot, CircleCheck, Diamond, ArrowDown, ArrowUp, Minus, AlertCircle } from "lucide-react"
 import {
@@ -160,7 +161,7 @@ function SortableTimelineRow({
         ) : (
           issue.assignee_id && userMap.has(issue.assignee_id) && (
             <div className="flex shrink-0 items-center gap-1.5">
-              <span className="max-w-[110px] truncate text-xs text-muted-foreground">{(userMap.get(issue.assignee_id)?.name ?? userMap.get(issue.assignee_id)?.email) ?? "?"}</span>
+              <span className="max-w-[110px] truncate text-xs text-muted-foreground"><UserDisplayName name={userMap.get(issue.assignee_id)?.name} email={userMap.get(issue.assignee_id)?.email ?? ""} displayName={userMap.get(issue.assignee_id)?.display_name} /></span>
               <Avatar className="size-6 shrink-0">
                 <AvatarFallback className="text-[10px]">{(userMap.get(issue.assignee_id)?.name ?? "?")[0].toUpperCase()}</AvatarFallback>
               </Avatar>
@@ -539,7 +540,9 @@ export default function TimelinePage() {
                   {assigneeFilter === "__none__"
                     ? "Unassigned"
                     : assigneeFilter
-                      ? (users.find((u) => u.id === assigneeFilter)?.name ?? "Assignee")
+                      ? <>
+  <UserDisplayName name={users.find((u) => u.id === assigneeFilter)?.name} email={users.find((u) => u.id === assigneeFilter)?.email ?? ""} displayName={users.find((u) => u.id === assigneeFilter)?.display_name} />
+</>
                       : "Assignee"}
                   <ChevronDown className="size-3" />
                 </button>
@@ -556,7 +559,7 @@ export default function TimelinePage() {
                   <span className="flex size-4 items-center justify-center rounded-full bg-muted-foreground/30 text-[9px] font-medium text-foreground">
                     {(u.name ?? u.email[0])[0].toUpperCase()}
                   </span>
-                  {u.name ?? u.email}
+                  <UserDisplayName name={u.name} email={u.email} displayName={u.display_name} />
                 </button>
               ))}
             </PopoverContent>

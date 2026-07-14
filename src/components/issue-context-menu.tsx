@@ -18,6 +18,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useIssues, type Issue, type IssueStatus, type IssuePriority, type IssueTeam } from "@/lib/issues-context"
 import type { Database } from "@/lib/database.types"
 import { cn } from "@/lib/utils"
+import { UserDisplayName } from "@/components/ui/display-name"
 
 type AppUser = Database["public"]["Tables"]["users"]["Row"]
 
@@ -240,7 +241,7 @@ export function IssueContextMenu({ issue, users, x, y, onChange, onClose }: Prop
                     <Avatar className="size-4">
                       <AvatarFallback className="text-[9px]">{(u.name ?? u.email)[0].toUpperCase()}</AvatarFallback>
                     </Avatar>
-                    {u.name ?? u.email}
+                    <UserDisplayName name={u.name} email={u.email} displayName={u.display_name} />
                   </button>
                 ))}
               </>

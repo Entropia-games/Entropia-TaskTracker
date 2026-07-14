@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { UserDisplayName } from "@/components/ui/display-name"
 import {
   Select,
   SelectContent,
@@ -558,7 +559,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
                               {(userMap.get(assigneeId)?.name ?? "?")[0].toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
-                          {userMap.get(assigneeId)?.name ?? "Unknown"}
+                          <UserDisplayName name={userMap.get(assigneeId)?.name} email={userMap.get(assigneeId)?.email ?? ""} displayName={userMap.get(assigneeId)?.display_name} />
                         </>
                       ) : (
                         "Unassigned"
@@ -583,7 +584,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
                       <span className="flex size-4 items-center justify-center rounded-full bg-muted-foreground/30 text-[9px] font-medium text-foreground">
                         {(u.name ?? u.email[0])[0].toUpperCase()}
                       </span>
-                      {u.name ?? u.email}
+                      <UserDisplayName name={u.name} email={u.email} displayName={u.display_name} />
                     </button>
                   ))}
                 </PopoverContent>

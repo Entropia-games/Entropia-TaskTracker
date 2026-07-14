@@ -15,6 +15,7 @@ import type { Database } from "@/lib/database.types"
 type AuthContext = {
   user: AuthUser | null
   username: string | null
+  displayName: string | null
   loading: boolean
   signIn: (nickname: string, password: string) => Promise<string | null>
   signOut: () => Promise<void>
@@ -33,13 +34,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await getSupabase().from("users").upsert(payload)
     const { data: profile } = await getSupabase()
       .from("users")
-      .select("name")
+      .select("name, display_name")
       .eq("id", u.id)
       .single()
-    return profile?.name ?? null
+    return { name: profile?.name ?? null, displayName: profile?.display_name ?? null }
   }, [])
 
   const [username, setUsername] = useState<string | null>(null)
+  const [displayName, setDisplayName] = useState<string | null>(null)
 
   useEffect(() => {
     const sb = getSupabase()
@@ -47,8 +49,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const u = data.session?.user ?? null
       setUser(u)
       if (u) {
-        const name = await ensureProfile(u)
+        const { name, displayName: dn } = await ensureProfile(u)
         setUsername(name)
+        setDisplayName(dn)
       }
       setLoading(false)
     })
@@ -57,10 +60,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const u = session?.user ?? null
       setUser(u)
       if (u) {
-        const name = await ensureProfile(u)
+        const { name, displayName: dn } = await ensureProfile(u)
         setUsername(name)
+        setDisplayName(dn)
       } else {
         setUsername(null)
+        setDisplayName(null)
       }
     })
 
@@ -88,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, username, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, username, displayName, loading, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   )

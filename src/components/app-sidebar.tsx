@@ -21,6 +21,7 @@ import {
   CircleDot,
   LayoutGrid,
   BarChart3,
+  Timeline,
   Search,
   LogOut,
   LogIn,
@@ -55,6 +56,7 @@ const navItems: NavItem[] = [
   { label: "My Issues", icon: CircleDot, href: "/my-issues" },
   { label: "Epics", icon: LayoutGrid, href: "/epics" },
   { label: "Statistics", icon: BarChart3, href: "/statistics" },
+  { label: "Timeline", icon: Timeline, href: "/timeline" },
 ]
 
 export function AppSidebar() {

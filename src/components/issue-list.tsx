@@ -30,6 +30,7 @@ import {
 import {   Circle, ChevronDown, Trash2, X, ArrowUp, ArrowDown, Minus, AlertCircle, CircleDot, CircleCheck, CircleOff, Layers, GitPullRequest, Diamond, Plus, Link, List, LayoutGrid, Loader2 } from "lucide-react"
 import { CreateIssueModal } from "@/components/create-issue-modal"
 import { IssueDetailModal } from "@/components/issue-detail-modal"
+import { IssueContextMenu } from "@/components/issue-context-menu"
 import { useIssues, type Issue, type IssueStatus, type IssuePriority, type IssueTeam, type Milestone } from "@/lib/issues-context"
 import { useAuthGate } from "@/lib/auth-gate-context"
 import { getSupabase } from "@/lib/supabase"
@@ -139,6 +140,13 @@ export function IssueList({ title, issues, focusId }: Props) {
   const [users, setUsers] = useState<Database["public"]["Tables"]["users"]["Row"][]>([])
   const [linkedPRMap, setLinkedPRMap] = useState<Map<number, { count: number; firstUrl: string; firstState: string }>>(new Map())
   const rowClickTarget = useRef<number | null>(null)
+  const [ctxMenu, setCtxMenu] = useState<{ issue: Issue; x: number; y: number } | null>(null)
+
+  const applyCtxChange = (changes: Partial<Issue>) => {
+    if (!ctxMenu) return
+    requireAuth(() => updateIssue(ctxMenu.issue.id, changes))
+    setCtxMenu(null)
+  }
 
   useEffect(() => {
     getSupabase().from("users").select("*").then(({ data }) => {
@@ -489,6 +497,7 @@ export function IssueList({ title, issues, focusId }: Props) {
                               selectedIds.has(issue.id) && "border-border bg-muted/70",
                             )}
                             onClick={(e) => { if ((e.target as HTMLElement).closest("[data-pr-link], [data-team-btn], [data-milestone-btn], [data-assignee-btn], [data-link-btn], [data-priority-btn]")) return; requireAuth(() => setDetailIssueId(issue.id)) }}
+                            onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setCtxMenu({ issue, x: e.clientX, y: e.clientY }) }}
                           >
                             <div className="flex items-center justify-between gap-2">
                               <div className="flex min-w-0 items-center gap-1.5 text-sm font-mono text-muted-foreground/60">
@@ -753,6 +762,7 @@ export function IssueList({ title, issues, focusId }: Props) {
                     key={issue.id}
                     className={cn("group flex cursor-pointer items-center gap-3 border-b border-border/20 px-6 py-2.5 transition-colors hover:bg-accent/30", selectedIds.has(issue.id) && "bg-accent/20")}
                     onClick={(e) => { if ((e.target as HTMLElement).closest("[data-pr-link], [data-team-btn], [data-milestone-btn], [data-assignee-btn], [data-link-btn], [data-priority-btn]")) return; requireAuth(() => setDetailIssueId(issue.id)) }}
+                    onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setCtxMenu({ issue, x: e.clientX, y: e.clientY }) }}
                   >
                     <div onClick={(e) => e.stopPropagation()}>
                       <Checkbox
@@ -1025,6 +1035,16 @@ export function IssueList({ title, issues, focusId }: Props) {
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/60 backdrop-blur-[1px]">
           <Loader2 className="size-6 animate-spin text-muted-foreground" />
         </div>
+      )}
+      {ctxMenu && (
+        <IssueContextMenu
+          issue={ctxMenu.issue}
+          users={users}
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          onChange={applyCtxChange}
+          onClose={() => setCtxMenu(null)}
+        />
       )}
     </div>
   )

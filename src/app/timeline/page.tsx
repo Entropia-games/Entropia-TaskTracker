@@ -187,6 +187,7 @@ export default function TimelinePage() {
   const [addOpen, setAddOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [viewTeam, setViewTeam] = useState(false)
+  const [dayOffset, setDayOffset] = useState(0)
   const [statusFilter, setStatusFilter] = useState<IssueStatus | null>(null)
   const [priorityFilter, setPriorityFilter] = useState<IssuePriority | null>(null)
   const [teamFilter, setTeamFilter] = useState<IssueTeam | null>(null)
@@ -313,14 +314,14 @@ export default function TimelinePage() {
   }, [entries, issueMap, statusFilter, priorityFilter, teamFilter, milestoneFilter, assigneeFilter])
 
   const dateRange = useMemo(() => {
-    const today = startOfDay(new Date())
+    const today = startOfDay(addDays(new Date(), dayOffset))
     if (timelineIssues.length === 0) {
       return { start: today, end: addDays(today, 30), totalDays: 30 }
     }
     const end = dateMax(timelineIssues.map((i) => i.timelineEnd))
     const totalDays = Math.max(differenceInDays(end, today) + 1, 30)
     return { start: today, end, totalDays }
-  }, [timelineIssues])
+  }, [timelineIssues, dayOffset])
 
   const days = useMemo(() => {
     return Array.from({ length: dateRange.totalDays }, (_, i) => addDays(dateRange.start, i))
@@ -559,6 +560,14 @@ export default function TimelinePage() {
                 viewTeam ? "translate-x-[18px] bg-blue-400" : "translate-x-[2px] bg-muted-foreground/50",
               )} />
             </button>
+          </span>
+          <span className={cn("flex items-center gap-1 rounded-md border px-1.5 py-1 text-xs", dayOffset !== 0 ? "border-yellow-500/40 text-yellow-300" : "border-border/30 text-muted-foreground")}>
+            <button onClick={() => setDayOffset((o) => o - 1)} className="px-1 hover:text-foreground" title="Back a day">{"‹"}</button>
+            <span className="font-mono tabular-nums">{format(addDays(startOfDay(new Date()), dayOffset), "MMM d")}{dayOffset !== 0 && <span className="ml-1 opacity-60">+{dayOffset}d</span>}</span>
+            <button onClick={() => setDayOffset((o) => o + 1)} className="px-1 hover:text-foreground" title="Forward a day">{"›"}</button>
+            {dayOffset !== 0 && (
+              <button onClick={() => setDayOffset(0)} className="ml-1 rounded px-1 hover:bg-accent hover:text-foreground" title="Reset to real today">today</button>
+            )}
           </span>
           <Button size="sm" variant="outline" onClick={() => { setSearchQuery(""); setAddOpen(true) }}>
             <Plus className="size-3.5 mr-1" />

@@ -55,6 +55,14 @@ const statusMeta: Record<IssueStatus, { icon: typeof Circle; color: string }> = 
   canceled: { icon: CircleOff, color: "text-muted-foreground/40" },
 }
 
+const statusHeaderBg: Record<IssueStatus, string> = {
+  backlog: "bg-muted-foreground/10",
+  todo: "bg-slate-400/10",
+  in_progress: "bg-yellow-400/15",
+  done: "bg-green-400/15",
+  canceled: "bg-muted-foreground/10",
+}
+
 const priorityIcons: Record<IssuePriority, typeof Minus> = {
   none:   Minus,
   low:    ArrowDown,
@@ -152,6 +160,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
   const [assigneeFilter, setAssigneeFilter] = useState<string | null>(null)
   const [typeFilter, setTypeFilter] = useState<"all" | "issue" | "epic">("all")
   const [sortBy, setSortBy] = useState<SortBy>("newest")
+  const [openFilter, setOpenFilter] = useState<string | null>(null)
   const [view, setView] = useState<"list" | "board">("list")
   const [viewLoading, setViewLoading] = useState(false)
   const switchView = (next: "list" | "board") => {
@@ -302,7 +311,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
           <Badge variant="secondary" className="rounded-sm text-[11px] font-normal">
             {filteredIssues.length}
           </Badge>
-          <Popover>
+          <Popover open={openFilter === "sort"} onOpenChange={(o) => setOpenFilter(o ? "sort" : null)}>
             <PopoverTrigger
               render={
                 <button className={cn("flex items-center gap-1.5 rounded-md px-2 py-1 text-xs hover:bg-accent", sortBy !== "newest" ? "text-foreground" : "text-muted-foreground")}>
@@ -312,7 +321,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                 </button>
               }
             />
-            <PopoverContent className="w-44 p-1" align="start">
+            <PopoverContent className="w-44 p-1" align="start" onClick={() => setOpenFilter(null)}>
               {SORT_OPTIONS.map((o) => (
                 <button key={o.value} className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", sortBy === o.value ? "text-foreground" : "text-muted-foreground")} onClick={() => setSortBy(o.value)}>
                   {o.label}
@@ -339,7 +348,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
           </span>
           <span className="mx-1 h-4 w-px bg-border" />
           {showTypeFilter && (
-          <Popover>
+          <Popover open={openFilter === "type"} onOpenChange={(o) => setOpenFilter(o ? "type" : null)}>
             <PopoverTrigger
               render={
                 <button className={cn("flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm hover:bg-accent", typeFilter !== "all" ? "text-foreground" : "text-muted-foreground")}>
@@ -348,14 +357,14 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                 </button>
               }
             />
-            <PopoverContent className="w-36 p-1" align="end">
+            <PopoverContent className="w-36 p-1" align="end" onClick={() => setOpenFilter(null)}>
               <button className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", typeFilter === "all" ? "text-foreground" : "text-muted-foreground")} onClick={() => setTypeFilter("all")}>All</button>
               <button className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", typeFilter === "issue" ? "text-foreground" : "text-muted-foreground")} onClick={() => setTypeFilter("issue")}>Issues</button>
               <button className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", typeFilter === "epic" ? "text-foreground" : "text-muted-foreground")} onClick={() => setTypeFilter("epic")}>Epics</button>
             </PopoverContent>
           </Popover>
           )}
-          <Popover>
+          <Popover open={openFilter === "status"} onOpenChange={(o) => setOpenFilter(o ? "status" : null)}>
             <PopoverTrigger
               render={
                 <button className={cn("flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm hover:bg-accent", statusFilter ? "text-foreground" : "text-muted-foreground")}>
@@ -364,7 +373,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                 </button>
               }
             />
-            <PopoverContent className="w-40 p-1" align="end">
+            <PopoverContent className="w-40 p-1" align="end" onClick={() => setOpenFilter(null)}>
               <button
                 className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent"
                 onClick={() => setStatusFilter(null)}
@@ -388,7 +397,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
               })}
             </PopoverContent>
           </Popover>
-          <Popover>
+          <Popover open={openFilter === "priority"} onOpenChange={(o) => setOpenFilter(o ? "priority" : null)}>
             <PopoverTrigger
               render={
                 <button className={cn("flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm hover:bg-accent", priorityFilter ? "text-foreground" : "text-muted-foreground")}>
@@ -397,7 +406,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                 </button>
               }
             />
-            <PopoverContent className="w-40 p-1" align="end">
+            <PopoverContent className="w-40 p-1" align="end" onClick={() => setOpenFilter(null)}>
               <button
                 className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent"
                 onClick={() => setPriorityFilter(null)}
@@ -419,7 +428,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
               })}
             </PopoverContent>
           </Popover>
-          <Popover>
+          <Popover open={openFilter === "team"} onOpenChange={(o) => setOpenFilter(o ? "team" : null)}>
             <PopoverTrigger
               render={
                 <button className={cn("flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm hover:bg-accent", teamFilter ? "text-foreground" : "text-muted-foreground")}>
@@ -428,7 +437,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                 </button>
               }
             />
-            <PopoverContent className="w-32 p-1" align="end">
+            <PopoverContent className="w-32 p-1" align="end" onClick={() => setOpenFilter(null)}>
               <button
                 className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent"
                 onClick={() => setTeamFilter(null)}
@@ -448,7 +457,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
             </PopoverContent>
           </Popover>
           {projectMilestones.length > 0 && (
-            <Popover>
+            <Popover open={openFilter === "milestone"} onOpenChange={(o) => setOpenFilter(o ? "milestone" : null)}>
               <PopoverTrigger
                 render={
                   <button className={cn("flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm hover:bg-accent", milestoneFilter ? "text-foreground" : "text-muted-foreground")}>
@@ -458,7 +467,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                   </button>
                 }
               />
-              <PopoverContent className="w-48 p-1" align="end">
+              <PopoverContent className="w-48 p-1" align="end" onClick={() => setOpenFilter(null)}>
                 <button
                   className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent"
                   onClick={() => setMilestoneFilter(null)}
@@ -478,7 +487,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
               </PopoverContent>
             </Popover>
           )}
-          <Popover>
+          <Popover open={openFilter === "assignee"} onOpenChange={(o) => setOpenFilter(o ? "assignee" : null)}>
             <PopoverTrigger
               render={
                 <button className={cn("flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm hover:bg-accent", assigneeFilter ? "text-foreground" : "text-muted-foreground")}>
@@ -493,7 +502,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                 </button>
               }
             />
-            <PopoverContent className="w-48 p-1" align="end">
+            <PopoverContent className="w-48 p-1" align="end" onClick={() => setOpenFilter(null)}>
               <button
                 className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent"
                 onClick={() => setAssigneeFilter(null)}
@@ -551,8 +560,8 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                 const columnIssues = sortedIssues.filter((i) => i.status === status)
                 return (
                   <BoardColumn key={status} status={status}>
-                    <div className="flex items-center gap-2 px-1">
-                      <span className="text-sm font-medium uppercase tracking-wider text-muted-foreground">{statusLabels[status]}</span>
+                    <div className={cn("flex items-center gap-2 rounded-md px-2 py-1", statusHeaderBg[status])}>
+                      <span className={cn("text-sm font-medium uppercase tracking-wider", statusMeta[status].color)}>{statusLabels[status]}</span>
                       <span className="text-xs text-muted-foreground/50">{columnIssues.length}</span>
                     </div>
                     <SortableContext items={columnIssues.map((i) => i.id)} strategy={verticalListSortingStrategy}>
@@ -568,7 +577,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                               "group relative flex flex-col gap-2 cursor-pointer rounded-md border border-border/60 bg-muted/40 p-2.5 transition-colors hover:border-border hover:bg-muted/60",
                               selectedIds.has(issue.id) && "border-border bg-muted/70",
                             )}
-                            onClick={(e) => { if ((e.target as HTMLElement).closest("[data-pr-link], [data-team-btn], [data-milestone-btn], [data-assignee-btn], [data-link-btn], [data-priority-btn]")) return; requireAuth(() => setDetailIssueId(issue.id)) }}
+                            onClick={(e) => { if (openTeamPopover === issue.id || openMilestonePopover === issue.id || openAssigneePopover === issue.id || openLinkPopover === issue.id || openPriorityPopover === issue.id) return; if ((e.target as HTMLElement).closest("[data-pr-link], [data-team-btn], [data-milestone-btn], [data-assignee-btn], [data-link-btn], [data-priority-btn]")) return; requireAuth(() => setDetailIssueId(issue.id)) }}
                             onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setCtxMenu({ issue, x: e.clientX, y: e.clientY }) }}
                           >
                             <div className="flex items-center justify-between gap-2">
@@ -825,15 +834,16 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
             if (group.issues.length === 0) return null
             return (
               <div key={group.status}>
-                <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-border/30 bg-background px-6 py-2">
-                  <span className="text-sm font-medium uppercase tracking-wider text-muted-foreground">{statusLabels[group.status]}</span>
-                  <span className="text-xs text-muted-foreground/50">{group.issues.length}</span>
+                <div className="sticky top-0 z-10 flex items-center gap-2 bg-background px-3 py-2">
+                  <span className={cn("pointer-events-none absolute inset-y-1 left-3 right-3 rounded-lg", statusHeaderBg[group.status])} />
+                  <span className={cn("relative ml-3 text-sm font-medium uppercase tracking-wider", statusMeta[group.status].color)}>{statusLabels[group.status]}</span>
+                  <span className="relative text-xs text-muted-foreground/50">{group.issues.length}</span>
                 </div>
                 {group.issues.map((issue) => (
                   <div
                     key={issue.id}
-                    className={cn("group flex cursor-pointer items-center gap-3 border-b border-border/20 px-6 py-2.5 transition-colors hover:bg-accent/30", selectedIds.has(issue.id) && "bg-accent/20")}
-                    onClick={(e) => { if ((e.target as HTMLElement).closest("[data-pr-link], [data-team-btn], [data-milestone-btn], [data-assignee-btn], [data-link-btn], [data-priority-btn]")) return; requireAuth(() => setDetailIssueId(issue.id)) }}
+                    className={cn("group mx-3 flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-accent/30", selectedIds.has(issue.id) && "bg-accent/20")}
+                    onClick={(e) => { if (openTeamPopover === issue.id || openMilestonePopover === issue.id || openAssigneePopover === issue.id || openLinkPopover === issue.id || openPriorityPopover === issue.id) return; if ((e.target as HTMLElement).closest("[data-pr-link], [data-team-btn], [data-milestone-btn], [data-assignee-btn], [data-link-btn], [data-priority-btn]")) return; requireAuth(() => setDetailIssueId(issue.id)) }}
                     onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setCtxMenu({ issue, x: e.clientX, y: e.clientY }) }}
                   >
                     <div onClick={(e) => e.stopPropagation()}>

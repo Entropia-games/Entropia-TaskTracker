@@ -58,18 +58,34 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user) return
     const sb = getSupabase()
-    sb.from("projects").select("*").order("id").then(({ data }) => {
-      if (data) {
-        setProjects(data)
-        const storedId = localStorage.getItem(PROJECT_STORAGE_KEY)
-        const saved = storedId ? data.find((p) => p.id === Number(storedId)) : null
-        setCurrentProject(saved ?? data[0] ?? null)
+    ;(async () => {
+      const { data } = await sb.from("projects").select("*").order("id")
+      if (!data) return
+      let rows = data as Project[]
+
+      // Scope visible projects to this user's memberships (configured in the DB).
+      // A user with no memberships sees ALL projects — a safe admin default until
+      // you explicitly restrict them by inserting project_members rows.
+      const { data: mem } = await sb
+        .from("project_members")
+        .select("project_id")
+        .eq("user_id", user.id)
+      const ids = (mem ?? []).map((m) => m.project_id)
+      if (ids.length > 0) {
+        const idSet = new Set(ids)
+        rows = rows.filter((p) => idSet.has(p.id))
       }
-    })
+
+      setProjects(rows)
+      const storedId = localStorage.getItem(PROJECT_STORAGE_KEY)
+      const saved = storedId ? rows.find((p) => p.id === Number(storedId)) : null
+      setCurrentProject(saved ?? rows[0] ?? null)
+    })()
   }, [user])
 
   useEffect(() => {
-    if (!user || !currentProject) return
+    if (!user) return
+    if (!currentProject) { setLoading(false); return }
     const sb = getSupabase()
     sb.from("issues")
       .select("*")

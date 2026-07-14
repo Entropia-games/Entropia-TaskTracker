@@ -195,6 +195,33 @@ export type Database = {
         }
         Relationships: []
       }
+      project_members: {
+        Row: {
+          id: number
+          user_id: string
+          project_id: number
+          role: string
+          name: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          user_id: string
+          project_id: number
+          role?: string
+          name?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: number
+          user_id?: string
+          project_id?: number
+          role?: string
+          name?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: Record<string, never>
     Functions: {

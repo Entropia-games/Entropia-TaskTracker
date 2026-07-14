@@ -3,17 +3,56 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useSpring, animated } from "@react-spring/web"
 import { useDrag } from "@use-gesture/react"
+import { uploadFiles } from "@/lib/uploadthing"
 import { useBoard } from "@/lib/board/use-board"
-import type { Card, Me, Point } from "@/lib/board/types"
+import type { Card, ImageItem, Me, Point } from "@/lib/board/types"
 
 const CARD_COLORS = ["#fde68a", "#bfdbfe", "#bbf7d0", "#fbcfe8", "#ddd6fe", "#fed7aa"]
-const PEN_COLORS = ["#111827", "#ef4444", "#f59e0b", "#10b981", "#3b82f6", "#8b5cf6", "#ec4899"]
+const PEN_COLORS = [
+  "#111827",
+  "#ef4444",
+  "#f59e0b",
+  "#10b981",
+  "#3b82f6",
+  "#8b5cf6",
+  "#ec4899",
+  "#14b8a6",
+  "#06b6d4",
+  "#0ea5e9",
+]
+
+async function compressImage(file: File, maxDim = 1600, quality = 0.82): Promise<File> {
+  if (file.type === "image/gif") return file
+  const bitmap = await createImageBitmap(file)
+  const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height))
+  const w = Math.max(1, Math.round(bitmap.width * scale))
+  const h = Math.max(1, Math.round(bitmap.height * scale))
+  const canvas = document.createElement("canvas")
+  canvas.width = w
+  canvas.height = h
+  const ctx = canvas.getContext("2d")
+  if (!ctx) return file
+  ctx.drawImage(bitmap, 0, 0, w, h)
+  const blob = await new Promise<Blob | null>((res) => canvas.toBlob((b) => res(b), "image/jpeg", quality))
+  if (!blob) return file
+  const name = file.name.replace(/\.[^.]+$/, "") + ".jpg"
+  return new File([blob], name, { type: "image/jpeg" })
+}
+
+async function uploadImage(file: File): Promise<{ url: string; key: string }> {
+  const toUpload = file.type === "image/gif" ? file : await compressImage(file)
+  const res = await uploadFiles("image", { files: [toUpload] })
+  const uploaded = res[0]
+  if (!uploaded?.url) throw new Error("upload failed")
+  return { url: uploaded.url, key: uploaded.key ?? "" }
+}
 
 export function Whiteboard({ boardId, me }: { boardId: string; me: Me }) {
   const {
     strokes,
     liveStrokes,
     cards,
+    images,
     cursors,
     ready,
     pushStrokePoint,
@@ -23,6 +62,11 @@ export function Whiteboard({ boardId, me }: { boardId: string; me: Me }) {
     commitCardMove,
     updateCard,
     deleteCard,
+    addImageCard,
+    moveImage,
+    commitImageMove,
+    updateImage,
+    deleteImage,
     sendCursor,
     clearBoard,
   } = useBoard(boardId, me)
@@ -31,9 +75,129 @@ export function Whiteboard({ boardId, me }: { boardId: string; me: Me }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const drawingRef = useRef<{ id: string; color: string; size: number } | null>(null)
   const lastCursorSent = useRef(0)
-
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [penColor, setPenColor] = useState(me.color)
+  const [menu, setMenu] = useState<Point | null>(null)
   const penSize = 4
+
+  const makeImageItem = (src: string, key: string, x: number, y: number): ImageItem => ({
+    id: crypto.randomUUID(),
+    x: x - 120,
+    y: y - 90,
+    w: 240,
+    h: 180,
+    src,
+    key,
+    author: me.id,
+  })
+
+  const center = (): Point => ({
+    x: (containerRef.current?.clientWidth ?? 0) / 2,
+    y: (containerRef.current?.clientHeight ?? 0) / 2,
+  })
+
+  const addFiles = useCallback(
+    async (files: File[], at: Point) => {
+      for (const f of files) {
+        if (!f.type.startsWith("image/")) continue
+        try {
+          const { url, key } = await uploadImage(f)
+          addImageCard(makeImageItem(url, key, at.x, at.y))
+        } catch (err) {
+          console.error("[board] image upload failed:", err)
+        }
+      }
+    },
+    [addImageCard],
+  )
+
+  const addFromClipboard = useCallback(
+    async (at: Point) => {
+      setMenu(null)
+      try {
+        const items = await navigator.clipboard.read()
+        let added = false
+        for (const item of items) {
+          const type = item.types.find((t) => t.startsWith("image/"))
+          if (!type) continue
+          const blob = await item.getType(type)
+          const file = new File([blob], `clipboard-${Date.now()}.png`, { type })
+          const { url, key } = await uploadImage(file)
+          addImageCard(makeImageItem(url, key, at.x, at.y))
+          added = true
+        }
+        if (!added) console.warn("[board] no image found in clipboard")
+      } catch (err) {
+        console.error("[board] clipboard read failed:", err)
+      }
+    },
+    [addImageCard],
+  )
+
+  const onFilePicked = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    e.target.value = ""
+    await addFiles(files, menu ?? center())
+    setMenu(null)
+  }
+
+  const handleDeleteImage = useCallback(
+    async (item: ImageItem) => {
+      if (item.key) {
+        try {
+          await fetch("/api/uploadthing/delete", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ key: item.key }),
+          })
+        } catch (err) {
+          console.error("[board] image delete failed:", err)
+        }
+      }
+      deleteImage(item.id)
+    },
+    [deleteImage],
+  )
+
+  const onDrop = async (e: React.DragEvent) => {
+    e.preventDefault()
+    const rect = containerRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const at = { x: e.clientX - rect.left, y: e.clientY - rect.top }
+    await addFiles(Array.from(e.dataTransfer.files), at)
+  }
+
+  const onDragOver = (e: React.DragEvent) => {
+    if (e.dataTransfer.types.includes("Files")) e.preventDefault()
+  }
+
+  const onContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault()
+    const rect = containerRef.current?.getBoundingClientRect()
+    if (!rect) return
+    setMenu({ x: e.clientX - rect.left, y: e.clientY - rect.top })
+  }
+
+  const onPaste = useCallback(
+    async (files: File[]) => {
+      if (!files.length) return
+      await addFiles(files, menu ?? center())
+    },
+    [addFiles, menu],
+  )
+
+  useEffect(() => {
+    const onWinPaste = (e: ClipboardEvent) => {
+      const t = e.target as HTMLElement | null
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return
+      const files = Array.from(e.clipboardData?.files ?? []).filter((f) => f.type.startsWith("image/"))
+      if (!files.length) return
+      e.preventDefault()
+      onPaste(files)
+    }
+    window.addEventListener("paste", onWinPaste)
+    return () => window.removeEventListener("paste", onWinPaste)
+  }, [onPaste])
 
   const redraw = useCallback(() => {
     const cv = canvasRef.current
@@ -172,6 +336,9 @@ export function Whiteboard({ boardId, me }: { boardId: string; me: Me }) {
         ref={containerRef}
         className="relative flex-1 overflow-hidden bg-neutral-950"
         onPointerMove={onContainerMove}
+        onDragOver={onDragOver}
+        onDrop={onDrop}
+        onContextMenu={onContextMenu}
       >
         <canvas
           ref={canvasRef}
@@ -181,6 +348,17 @@ export function Whiteboard({ boardId, me }: { boardId: string; me: Me }) {
           onPointerUp={onPointerUp}
           onPointerLeave={onPointerUp}
         />
+
+        {images.map((img) => (
+          <BoardImage
+            key={img.id}
+            item={img}
+            onMove={moveImage}
+            onCommit={commitImageMove}
+            onUpdate={updateImage}
+            onDelete={handleDeleteImage}
+          />
+        ))}
 
         {cards.map((card) => (
           <BoardCard
@@ -212,8 +390,143 @@ export function Whiteboard({ boardId, me }: { boardId: string; me: Me }) {
               </span>
             </div>
           ))}
+
+        {menu && (
+          <>
+            <div
+              className="fixed inset-0 z-40"
+              onClick={() => setMenu(null)}
+              onContextMenu={(e) => {
+                e.preventDefault()
+                setMenu(null)
+              }}
+            />
+            <div
+              className="absolute z-50 min-w-44 rounded-lg border border-neutral-700 bg-neutral-900 p-1 text-sm text-neutral-100 shadow-xl"
+              style={{ left: menu.x, top: menu.y }}
+            >
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="block w-full rounded px-2 py-1.5 text-left hover:bg-neutral-800"
+              >
+                Добавить фото с диска
+              </button>
+              <button
+                onClick={() => addFromClipboard(menu)}
+                className="block w-full rounded px-2 py-1.5 text-left hover:bg-neutral-800"
+              >
+                Добавить фото из буфера
+              </button>
+            </div>
+          </>
+        )}
       </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={onFilePicked}
+      />
     </div>
+  )
+}
+
+function BoardImage({
+  item,
+  onMove,
+  onCommit,
+  onUpdate,
+  onDelete,
+}: {
+  item: ImageItem
+  onMove: (id: string, x: number, y: number) => void
+  onCommit: (id: string) => void
+  onUpdate: (id: string, patch: Partial<Pick<ImageItem, "w" | "h">>) => void
+  onDelete: (item: ImageItem) => void
+}) {
+  const dragging = useRef(false)
+  const resizing = useRef(false)
+  const [{ x, y, width, height }, api] = useSpring(() => ({
+    x: item.x,
+    y: item.y,
+    width: item.w,
+    height: item.h,
+  }))
+
+  useEffect(() => {
+    if (!dragging.current) api.start({ x: item.x, y: item.y })
+  }, [item.x, item.y, api])
+
+  useEffect(() => {
+    if (!resizing.current) api.start({ width: item.w, height: item.h })
+  }, [item.w, item.h, api])
+
+  const bindMove = useDrag(
+    ({ offset: [ox, oy], first, last }) => {
+      if (first) dragging.current = true
+      api.start({ x: ox, y: oy, immediate: true })
+      onMove(item.id, ox, oy)
+      if (last) {
+        dragging.current = false
+        onCommit(item.id)
+      }
+    },
+    { from: () => [item.x, item.y] },
+  )
+
+  const bindResize = useDrag(
+    ({ event, offset: [ow, oh], first, last }) => {
+      event.stopPropagation()
+      if (first) resizing.current = true
+      const w = Math.max(40, ow)
+      const h = Math.max(40, oh)
+      api.start({ width: w, height: h, immediate: true })
+      onUpdate(item.id, { w, h })
+      if (last) {
+        resizing.current = false
+        onCommit(item.id)
+      }
+    },
+    { from: () => [item.w, item.h] },
+  )
+
+  const stop = (e: React.PointerEvent) => e.stopPropagation()
+
+  return (
+    <animated.div
+      {...bindMove()}
+      style={{
+        position: "absolute",
+        x,
+        y,
+        width,
+        height,
+        touchAction: "none",
+      }}
+      className="z-10 group/img overflow-hidden rounded-lg shadow-lg ring-1 ring-black/20"
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={item.src}
+        alt=""
+        draggable={false}
+        className="h-full w-full touch-none select-none object-cover"
+      />
+      <button
+        onPointerDown={stop}
+        onClick={() => onDelete(item)}
+        className="absolute right-1 top-1 rounded bg-black/50 px-1 text-xs text-white opacity-0 group-hover/img:opacity-100"
+      >
+        ✕
+      </button>
+      <div
+        {...bindResize()}
+        className="absolute bottom-1 right-1 h-3.5 w-3.5 cursor-se-resize rounded-sm bg-white/70 opacity-0 group-hover/img:opacity-100"
+      />
+    </animated.div>
   )
 }
 

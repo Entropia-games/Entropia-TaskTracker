@@ -19,9 +19,21 @@ export type Card = {
   author: string
 }
 
+export type ImageItem = {
+  id: string
+  x: number
+  y: number
+  w: number
+  h: number
+  src: string
+  key: string
+  author: string
+}
+
 export type BoardData = {
   strokes: Stroke[]
   cards: Card[]
+  images: ImageItem[]
 }
 
 export type BoardPresence = {

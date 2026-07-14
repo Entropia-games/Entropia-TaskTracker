@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { getSupabase } from "@/lib/supabase"
-import type { BoardData, Card, Me, Point, Stroke } from "./types"
+import type { BoardData, Card, ImageItem, Me, Point, Stroke } from "./types"
 
 type RemoteCursor = {
   userId: string
@@ -20,11 +20,12 @@ type DrawPointPayload = {
   author: string
 }
 
-const EMPTY: BoardData = { strokes: [], cards: [] }
+const EMPTY: BoardData = { strokes: [], cards: [], images: [] }
 
 export function useBoard(boardId: string, me: Me | null) {
   const [strokes, setStrokes] = useState<Stroke[]>([])
   const [cards, setCards] = useState<Card[]>([])
+  const [images, setImages] = useState<ImageItem[]>([])
   const [liveStrokes, setLiveStrokes] = useState<Record<string, Stroke>>({})
   const [cursors, setCursors] = useState<Record<string, RemoteCursor>>({})
   const [ready, setReady] = useState(false)
@@ -34,9 +35,11 @@ export function useBoard(boardId: string, me: Me | null) {
 
   const strokesRef = useRef(strokes)
   const cardsRef = useRef(cards)
+  const imagesRef = useRef(images)
   const liveRef = useRef(liveStrokes)
   strokesRef.current = strokes
   cardsRef.current = cards
+  imagesRef.current = images
   liveRef.current = liveStrokes
 
   const send = useCallback((event: string, payload: unknown) => {
@@ -51,7 +54,7 @@ export function useBoard(boardId: string, me: Me | null) {
         .from("boards")
         .upsert({
           id: boardId,
-          data: { strokes: strokesRef.current, cards: cardsRef.current },
+          data: { strokes: strokesRef.current, cards: cardsRef.current, images: imagesRef.current },
           updated_at: new Date().toISOString(),
           updated_by: me.id,
         })
@@ -69,6 +72,7 @@ export function useBoard(boardId: string, me: Me | null) {
     setReady(false)
     setStrokes([])
     setCards([])
+    setImages([])
     setLiveStrokes({})
     setCursors({})
 
@@ -81,6 +85,7 @@ export function useBoard(boardId: string, me: Me | null) {
         const d = (data?.data as BoardData) ?? EMPTY
         setStrokes(d.strokes ?? [])
         setCards(d.cards ?? [])
+        setImages(d.images ?? [])
         setReady(true)
       })
 
@@ -143,6 +148,38 @@ export function useBoard(boardId: string, me: Me | null) {
     channel.on("broadcast", { event: "card:delete" }, ({ payload }) => {
       const { id } = payload as { id: string }
       setCards((prev) => prev.filter((c) => c.id !== id))
+      schedulePersist()
+    })
+
+    channel.on("broadcast", { event: "image:add" }, ({ payload }) => {
+      const c = payload as ImageItem
+      setImages((prev) => (prev.some((x) => x.id === c.id) ? prev : [...prev, c]))
+      schedulePersist()
+    })
+
+    channel.on("broadcast", { event: "image:move" }, ({ payload }) => {
+      const { id, x, y } = payload as { id: string; x: number; y: number }
+      setImages((prev) => prev.map((c) => (c.id === id ? { ...c, x, y } : c)))
+      schedulePersist()
+    })
+
+    channel.on("broadcast", { event: "image:update" }, ({ payload }) => {
+      const { id, w, h } = payload as { id: string; w?: number; h?: number }
+      setImages((prev) =>
+        prev.map((c) => {
+          if (c.id !== id) return c
+          const next = { ...c }
+          if (w !== undefined) next.w = w
+          if (h !== undefined) next.h = h
+          return next
+        }),
+      )
+      schedulePersist()
+    })
+
+    channel.on("broadcast", { event: "image:delete" }, ({ payload }) => {
+      const { id } = payload as { id: string }
+      setImages((prev) => prev.filter((c) => c.id !== id))
       schedulePersist()
     })
 
@@ -271,6 +308,45 @@ export function useBoard(boardId: string, me: Me | null) {
     [send, schedulePersist],
   )
 
+  const addImageCard = useCallback(
+    (c: ImageItem) => {
+      setImages((prev) => [...prev, c])
+      send("image:add", c)
+      schedulePersist()
+    },
+    [send, schedulePersist],
+  )
+
+  const moveImage = useCallback(
+    (id: string, x: number, y: number) => {
+      setImages((prev) => prev.map((c) => (c.id === id ? { ...c, x, y } : c)))
+      send("image:move", { id, x, y })
+    },
+    [send],
+  )
+
+  const commitImageMove = useCallback(() => {
+    schedulePersist()
+  }, [schedulePersist])
+
+  const updateImage = useCallback(
+    (id: string, patch: Partial<Pick<ImageItem, "w" | "h">>) => {
+      setImages((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)))
+      send("image:update", { id, ...patch })
+      schedulePersist()
+    },
+    [send, schedulePersist],
+  )
+
+  const deleteImage = useCallback(
+    (id: string) => {
+      setImages((prev) => prev.filter((c) => c.id !== id))
+      send("image:delete", { id })
+      schedulePersist()
+    },
+    [send, schedulePersist],
+  )
+
   const sendCursor = useCallback(
     (point: Point) => {
       send("cursor", { userId: me?.id, name: me?.name, color: me?.color, x: point.x, y: point.y })
@@ -289,6 +365,7 @@ export function useBoard(boardId: string, me: Me | null) {
     strokes,
     liveStrokes,
     cards,
+    images,
     cursors,
     ready,
     pushStrokePoint,
@@ -298,6 +375,11 @@ export function useBoard(boardId: string, me: Me | null) {
     commitCardMove,
     updateCard,
     deleteCard,
+    addImageCard,
+    moveImage,
+    commitImageMove,
+    updateImage,
+    deleteImage,
     sendCursor,
     clearBoard,
   }

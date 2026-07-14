@@ -193,6 +193,7 @@ export default function TimelinePage() {
   const [teamFilter, setTeamFilter] = useState<IssueTeam | null>(null)
   const [milestoneFilter, setMilestoneFilter] = useState<number | null>(null)
   const [assigneeFilter, setAssigneeFilter] = useState<string | null>(null)
+  const [typeFilter, setTypeFilter] = useState<"all" | "issue" | "epic">("all")
   const projectMilestones = useMemo(
     () => milestones.filter((m) => m.project_id === currentProject?.id),
     [milestones, currentProject],
@@ -309,9 +310,10 @@ export default function TimelinePage() {
         (!priorityFilter || i.priority === priorityFilter) &&
         (!teamFilter || i.team === teamFilter) &&
         (!milestoneFilter || i.milestone_id === milestoneFilter) &&
-        (!assigneeFilter || (assigneeFilter === "__none__" ? !i.assignee_id : i.assignee_id === assigneeFilter))
+        (!assigneeFilter || (assigneeFilter === "__none__" ? !i.assignee_id : i.assignee_id === assigneeFilter)) &&
+        (typeFilter === "all" || (typeFilter === "issue" ? !i.is_epic : i.is_epic))
       )
-  }, [entries, issueMap, statusFilter, priorityFilter, teamFilter, milestoneFilter, assigneeFilter])
+  }, [entries, issueMap, statusFilter, priorityFilter, teamFilter, milestoneFilter, assigneeFilter, typeFilter])
 
   const dateRange = useMemo(() => {
     const today = startOfDay(addDays(new Date(), dayOffset))
@@ -430,6 +432,21 @@ export default function TimelinePage() {
           <h1 className="text-sm font-medium">Timeline</h1>
           <span className="text-xs text-muted-foreground/50">{timelineIssues.length} items</span>
           <span className="mx-1 h-4 w-px bg-border" />
+          <Popover>
+            <PopoverTrigger
+              render={
+                <button className={cn("flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm hover:bg-accent", typeFilter !== "all" ? "text-foreground" : "text-muted-foreground")}>
+                  {typeFilter === "issue" ? "Issues" : typeFilter === "epic" ? "Epics" : "All types"}
+                  <ChevronDown className="size-3" />
+                </button>
+              }
+            />
+            <PopoverContent className="w-36 p-1" align="start">
+              <button className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", typeFilter === "all" ? "text-foreground" : "text-muted-foreground")} onClick={() => setTypeFilter("all")}>All</button>
+              <button className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", typeFilter === "issue" ? "text-foreground" : "text-muted-foreground")} onClick={() => setTypeFilter("issue")}>Issues</button>
+              <button className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", typeFilter === "epic" ? "text-foreground" : "text-muted-foreground")} onClick={() => setTypeFilter("epic")}>Epics</button>
+            </PopoverContent>
+          </Popover>
           <Popover>
             <PopoverTrigger
               render={

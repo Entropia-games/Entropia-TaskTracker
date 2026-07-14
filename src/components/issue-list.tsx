@@ -109,6 +109,7 @@ type Props = {
   title: string
   issues: Issue[]
   focusId?: number
+  showTypeFilter?: boolean
 }
 
 function SortableBoardCard({ issue, children }: { issue: Issue; children: React.ReactNode }) {
@@ -134,7 +135,7 @@ function BoardColumn({ status, children }: { status: string; children: React.Rea
   )
 }
 
-export function IssueList({ title, issues, focusId }: Props) {
+export function IssueList({ title, issues, focusId, showTypeFilter = true }: Props) {
   const { issues: allIssues, deleteIssues, updateIssue, currentProject, milestones: projectMilestones } = useIssues()
   const { requireAuth } = useAuthGate()
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
@@ -335,6 +336,7 @@ export function IssueList({ title, issues, focusId }: Props) {
             </button>
           </span>
           <span className="mx-1 h-4 w-px bg-border" />
+          {showTypeFilter && (
           <Popover>
             <PopoverTrigger
               render={
@@ -350,6 +352,7 @@ export function IssueList({ title, issues, focusId }: Props) {
               <button className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", typeFilter === "epic" ? "text-foreground" : "text-muted-foreground")} onClick={() => setTypeFilter("epic")}>Epics</button>
             </PopoverContent>
           </Popover>
+          )}
           <Popover>
             <PopoverTrigger
               render={

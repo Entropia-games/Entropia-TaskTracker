@@ -63,6 +63,7 @@ function CompletedPanel({
   const [teamFilter, setTeamFilter] = useState<IssueTeam | null>(null)
   const [milestoneFilter, setMilestoneFilter] = useState<number | null>(null)
   const [assigneeFilter, setAssigneeFilter] = useState<string | null>(null)
+  const [typeFilter, setTypeFilter] = useState<"all" | "issue" | "epic">("all")
 
   const projectMilestones = useMemo(
     () => milestones.filter((m) => m.project_id === currentProject?.id),
@@ -78,10 +79,11 @@ function CompletedPanel({
         (!priorityFilter || i.priority === priorityFilter) &&
         (!teamFilter || i.team === teamFilter) &&
         (!milestoneFilter || i.milestone_id === milestoneFilter) &&
-        (!assigneeFilter || (assigneeFilter === "__none__" ? !i.assignee_id : i.assignee_id === assigneeFilter))
+        (!assigneeFilter || (assigneeFilter === "__none__" ? !i.assignee_id : i.assignee_id === assigneeFilter)) &&
+        (typeFilter === "all" || (typeFilter === "issue" ? !i.is_epic : i.is_epic))
       )
       .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-  }, [issues, since, priorityFilter, teamFilter, milestoneFilter, assigneeFilter])
+  }, [issues, since, priorityFilter, teamFilter, milestoneFilter, assigneeFilter, typeFilter])
 
   return (
     <div className="space-y-4">
@@ -90,6 +92,21 @@ function CompletedPanel({
         <span className="text-xs text-muted-foreground/50">{completed.length} tasks</span>
       </div>
       <div className="flex flex-wrap items-center gap-2">
+        <Popover>
+          <PopoverTrigger
+            render={
+              <button className={cn("flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm hover:bg-accent", typeFilter !== "all" ? "text-foreground" : "text-muted-foreground")}>
+                {typeFilter === "issue" ? "Issues" : typeFilter === "epic" ? "Epics" : "All types"}
+                <ChevronDown className="size-3" />
+              </button>
+            }
+          />
+          <PopoverContent className="w-36 p-1" align="start">
+            <button className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", typeFilter === "all" ? "text-foreground" : "text-muted-foreground")} onClick={() => setTypeFilter("all")}>All</button>
+            <button className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", typeFilter === "issue" ? "text-foreground" : "text-muted-foreground")} onClick={() => setTypeFilter("issue")}>Issues</button>
+            <button className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", typeFilter === "epic" ? "text-foreground" : "text-muted-foreground")} onClick={() => setTypeFilter("epic")}>Epics</button>
+          </PopoverContent>
+        </Popover>
         <Popover>
           <PopoverTrigger
             render={

@@ -118,6 +118,53 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
       })
   }, [user, currentProject])
 
+  useEffect(() => {
+    if (!user || !currentProject) return
+    const sb = getSupabase()
+    const projectId = currentProject.id
+    const filter = `project_id=eq.${projectId}`
+
+    const upsertBy = <T extends { id: number }>(row: T) => (prev: T[]) => {
+      const idx = prev.findIndex((r) => r.id === row.id)
+      if (idx === -1) return [row, ...prev]
+      const next = [...prev]
+      next[idx] = row
+      return next
+    }
+
+    const channel = sb
+      .channel(`project-changes-${projectId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "issues", filter },
+        (payload) => {
+          if (payload.eventType === "DELETE") {
+            const oldId = (payload.old as { id: number }).id
+            setIssues((prev) => prev.filter((i) => i.id !== oldId))
+          } else {
+            setIssues(upsertBy(payload.new as Issue))
+          }
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "milestones", filter },
+        (payload) => {
+          if (payload.eventType === "DELETE") {
+            const oldId = (payload.old as { id: number }).id
+            setMilestones((prev) => prev.filter((m) => m.id !== oldId))
+          } else {
+            setMilestones(upsertBy(payload.new as Milestone))
+          }
+        },
+      )
+      .subscribe()
+
+    return () => {
+      sb.removeChannel(channel)
+    }
+  }, [user, currentProject])
+
   const setCurrentProjectAndSave = useCallback((p: Project | null) => {
     setCurrentProject(p)
     if (p) localStorage.setItem(PROJECT_STORAGE_KEY, String(p.id))

@@ -85,7 +85,6 @@ const SORT_OPTIONS = [
   { value: "updated", label: "Recently updated" },
   { value: "priority", label: "Priority" },
   { value: "status", label: "Status" },
-  { value: "due", label: "Due date" },
 ] as const
 type SortBy = (typeof SORT_OPTIONS)[number]["value"]
 
@@ -101,11 +100,6 @@ function sortIssues(list: Issue[], by: SortBy): Issue[] {
       case "updated": return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
       case "priority": return priorityRank[a.priority] - priorityRank[b.priority]
       case "status": return statusRank[a.status] - statusRank[b.status]
-      case "due": {
-        const av = a.due_date ? new Date(a.due_date).getTime() : Infinity
-        const bv = b.due_date ? new Date(b.due_date).getTime() : Infinity
-        return av - bv
-      }
     }
   })
   return arr

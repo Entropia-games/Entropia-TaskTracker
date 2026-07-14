@@ -128,15 +128,14 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
 
   const updateIssue = useCallback(async (id: number, changes: Partial<Issue>) => {
     if (!user) return
+    setIssues((prev) => prev.map((i) => (i.id === id ? { ...i, ...changes } : i)))
     const { error } = await getSupabase()
       .from("issues")
       .update(changes)
       .eq("id", id)
     if (error) {
       console.error("Failed to update issue", JSON.stringify(error))
-      return
     }
-    setIssues((prev) => prev.map((i) => (i.id === id ? { ...i, ...changes } : i)))
   }, [user])
 
   const deleteIssues = useCallback(async (ids: number[]) => {

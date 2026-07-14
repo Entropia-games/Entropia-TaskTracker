@@ -25,6 +25,7 @@ function emit() {
 
 export function ToastViewport() {
   const [items, setItems] = useState<Toast[]>(toasts)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
     listeners.push(setItems)
@@ -33,7 +34,11 @@ export function ToastViewport() {
     }
   }, [])
 
-  if (typeof document === "undefined") return null
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) return null
 
   return createPortal(
     <div className="pointer-events-none fixed bottom-4 right-4 z-[200] flex flex-col items-end gap-2">

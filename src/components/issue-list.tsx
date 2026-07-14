@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import {
   DndContext,
   DragOverlay,
@@ -27,7 +27,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import {   Circle, ChevronDown, Trash2, X, ArrowUp, ArrowDown, Minus, AlertCircle, CircleDot, CircleCheck, CircleOff, Layers, GitPullRequest, Diamond, Plus, Link, List, LayoutGrid, Loader2 } from "lucide-react"
+import {   Circle, ChevronDown, Trash2, X, ArrowUp, ArrowDown, ArrowUpDown, Minus, AlertCircle, CircleDot, CircleCheck, CircleOff, Layers, GitPullRequest, Diamond, Plus, Link, List, LayoutGrid, Loader2 } from "lucide-react"
 import { CreateIssueModal } from "@/components/create-issue-modal"
 import { IssueDetailModal } from "@/components/issue-detail-modal"
 import { IssueContextMenu } from "@/components/issue-context-menu"
@@ -79,6 +79,38 @@ const teamColors: Record<string, string> = {
   Sound:    "text-orange-400",
 }
 
+const SORT_OPTIONS = [
+  { value: "newest", label: "Newest" },
+  { value: "oldest", label: "Oldest" },
+  { value: "updated", label: "Recently updated" },
+  { value: "priority", label: "Priority" },
+  { value: "status", label: "Status" },
+  { value: "due", label: "Due date" },
+] as const
+type SortBy = (typeof SORT_OPTIONS)[number]["value"]
+
+const priorityRank: Record<IssuePriority, number> = { urgent: 0, high: 1, medium: 2, low: 3, none: 4 }
+const statusRank: Record<IssueStatus, number> = { backlog: 0, todo: 1, in_progress: 2, done: 3, canceled: 4 }
+
+function sortIssues(list: Issue[], by: SortBy): Issue[] {
+  const arr = [...list]
+  arr.sort((a, b) => {
+    switch (by) {
+      case "newest": return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      case "oldest": return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      case "updated": return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+      case "priority": return priorityRank[a.priority] - priorityRank[b.priority]
+      case "status": return statusRank[a.status] - statusRank[b.status]
+      case "due": {
+        const av = a.due_date ? new Date(a.due_date).getTime() : Infinity
+        const bv = b.due_date ? new Date(b.due_date).getTime() : Infinity
+        return av - bv
+      }
+    }
+  })
+  return arr
+}
+
 type Props = {
   title: string
   issues: Issue[]
@@ -121,6 +153,8 @@ export function IssueList({ title, issues, focusId }: Props) {
   const [teamFilter, setTeamFilter] = useState<IssueTeam | null>(null)
   const [milestoneFilter, setMilestoneFilter] = useState<number | null>(null)
   const [assigneeFilter, setAssigneeFilter] = useState<string | null>(null)
+  const [typeFilter, setTypeFilter] = useState<"all" | "issue" | "epic">("all")
+  const [sortBy, setSortBy] = useState<SortBy>("newest")
   const [view, setView] = useState<"list" | "board">("list")
   const [viewLoading, setViewLoading] = useState(false)
   const switchView = (next: "list" | "board") => {
@@ -193,8 +227,12 @@ export function IssueList({ title, issues, focusId }: Props) {
     } else if (assigneeFilter && i.assignee_id !== assigneeFilter) {
       return false
     }
+    if (typeFilter === "issue" && i.is_epic) return false
+    if (typeFilter === "epic" && !i.is_epic) return false
     return true
   })
+
+  const sortedIssues = useMemo(() => sortIssues(filteredIssues, sortBy), [filteredIssues, sortBy])
 
   const toggleSelect = (id: number) => {
     setSelectedIds((prev) => {
@@ -256,7 +294,7 @@ export function IssueList({ title, issues, focusId }: Props) {
     .filter((s) => showDone || s !== "done")
     .map((status) => ({
       status,
-      issues: filteredIssues.filter((i) => i.status === status),
+      issues: sortedIssues.filter((i) => i.status === status),
     }))
 
   return (
@@ -285,6 +323,39 @@ export function IssueList({ title, issues, focusId }: Props) {
             </button>
           </span>
           <span className="mx-1 h-4 w-px bg-border" />
+          <Popover>
+            <PopoverTrigger
+              render={
+                <button className={cn("flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm hover:bg-accent", typeFilter !== "all" ? "text-foreground" : "text-muted-foreground")}>
+                  {typeFilter === "issue" ? "Issues" : typeFilter === "epic" ? "Epics" : "All types"}
+                  <ChevronDown className="size-3" />
+                </button>
+              }
+            />
+            <PopoverContent className="w-36 p-1" align="end">
+              <button className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", typeFilter === "all" ? "text-foreground" : "text-muted-foreground")} onClick={() => setTypeFilter("all")}>All</button>
+              <button className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", typeFilter === "issue" ? "text-foreground" : "text-muted-foreground")} onClick={() => setTypeFilter("issue")}>Issues</button>
+              <button className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", typeFilter === "epic" ? "text-foreground" : "text-muted-foreground")} onClick={() => setTypeFilter("epic")}>Epics</button>
+            </PopoverContent>
+          </Popover>
+          <Popover>
+            <PopoverTrigger
+              render={
+                <button className={cn("flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm hover:bg-accent", sortBy !== "newest" ? "text-foreground" : "text-muted-foreground")}>
+                  <ArrowUpDown className="size-3.5" />
+                  {SORT_OPTIONS.find((o) => o.value === sortBy)?.label}
+                  <ChevronDown className="size-3" />
+                </button>
+              }
+            />
+            <PopoverContent className="w-44 p-1" align="end">
+              {SORT_OPTIONS.map((o) => (
+                <button key={o.value} className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", sortBy === o.value ? "text-foreground" : "text-muted-foreground")} onClick={() => setSortBy(o.value)}>
+                  {o.label}
+                </button>
+              ))}
+            </PopoverContent>
+          </Popover>
           <Popover>
             <PopoverTrigger
               render={
@@ -476,7 +547,7 @@ export function IssueList({ title, issues, focusId }: Props) {
             {(["backlog", "todo", "in_progress", "done"] as IssueStatus[])
               .filter((s) => showDone || s !== "done")
               .map((status) => {
-                const columnIssues = filteredIssues.filter((i) => i.status === status)
+                const columnIssues = sortedIssues.filter((i) => i.status === status)
                 return (
                   <BoardColumn key={status} status={status}>
                     <div className="flex items-center gap-2 px-1">

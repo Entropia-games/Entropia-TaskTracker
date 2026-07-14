@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, type MouseEvent } from "react"
 import { useIssues, type Issue, type IssueStatus, type IssuePriority, type IssueTeam, type Project, type Milestone } from "@/lib/issues-context"
 import { getSupabase } from "@/lib/supabase"
 import type { Database } from "@/lib/database.types"
@@ -11,7 +11,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Circle, ChevronDown, CircleDot, CircleCheck, CircleOff, ArrowUp, ArrowDown, Minus, AlertCircle, Layers, Plus, X, Diamond } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { UserDisplayName } from "@/components/ui/display-name"
-import { startOfWeek, startOfMonth } from "date-fns"
+import { startOfWeek, startOfMonth, startOfDay, endOfDay, eachDayOfInterval, format } from "date-fns"
 
 const statusLabels: Record<IssueStatus, string> = {
   backlog: "Backlog", todo: "Todo", in_progress: "In Progress", done: "Done", canceled: "Canceled",
@@ -233,6 +233,104 @@ function CompletedPanel({
   )
 }
 
+function BurnupChart({ issues }: { issues: Issue[] }) {
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null)
+  const data = useMemo(() => {
+    if (issues.length === 0) return null
+    const total = issues.length
+    const doneDays = issues
+      .filter((i) => i.status === "done" && i.updated_at)
+      .map((i) => startOfDay(new Date(i.updated_at)).getTime())
+      .sort((a, b) => a - b)
+    const createdDays = issues.map((i) => startOfDay(new Date(i.created_at ?? Date.now())).getTime())
+    const startMs = Math.min(...createdDays, ...(doneDays.length ? [doneDays[0]] : []))
+    const todayMs = startOfDay(new Date()).getTime()
+    const endMs = Math.max(todayMs, startMs)
+    const days = eachDayOfInterval({ start: new Date(startMs), end: new Date(endMs) })
+    const points = days.map((d) => ({
+      date: d,
+      count: doneDays.filter((t) => t <= endOfDay(d).getTime()).length,
+    }))
+    return { total, points }
+  }, [issues])
+
+  if (!data || data.points.length === 0) return null
+
+  const { total, points } = data
+  const W = 600
+  const H = 220
+  const padL = 32
+  const padR = 12
+  const padT = 12
+  const padB = 28
+  const plotW = W - padL - padR
+  const plotH = H - padT - padB
+  const n = points.length
+  const x = (i: number) => padL + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW)
+  const y = (v: number) => padT + plotH - (total === 0 ? 0 : (v / total) * plotH)
+
+  const linePath = points.map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(p.count).toFixed(1)}`).join(" ")
+  const areaPath = `${linePath} L${x(n - 1).toFixed(1)},${y(0).toFixed(1)} L${x(0).toFixed(1)},${y(0).toFixed(1)} Z`
+
+  const yTicks = [0, Math.round(total / 2), total].filter((v, i, a) => a.indexOf(v) === i)
+  const xTickIdx = n <= 1 ? [0] : [0, Math.floor((n - 1) / 2), n - 1].filter((v, i, a) => a.indexOf(v) === i)
+  const final = points[n - 1].count
+
+  const handleMove = (e: MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const vbX = ((e.clientX - rect.left) / rect.width) * W
+    if (n === 1) { setHoverIdx(0); return }
+    const idx = Math.round(((vbX - padL) / plotW) * (n - 1))
+    setHoverIdx(Math.max(0, Math.min(n - 1, idx)))
+  }
+
+  const hover = hoverIdx !== null ? points[hoverIdx] : null
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-medium text-muted-foreground">Completed over time</h2>
+        <span className="text-xs text-muted-foreground/60">{final}/{total} done</span>
+      </div>
+      <div className="relative" onMouseMove={handleMove} onMouseLeave={() => setHoverIdx(null)}>
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full" preserveAspectRatio="none">
+          {yTicks.map((v) => (
+            <g key={v}>
+              <line x1={padL} y1={y(v)} x2={W - padR} y2={y(v)} className="stroke-border/40" strokeWidth={1} />
+              <text x={padL - 6} y={y(v) + 3} textAnchor="end" className="fill-muted-foreground/50 text-[10px]">{v}</text>
+            </g>
+          ))}
+          <path d={areaPath} className="fill-green-400/10" />
+          <path d={linePath} className="stroke-green-400" strokeWidth={2} fill="none" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+          {xTickIdx.map((i) => (
+            <text key={i} x={x(i)} y={H - 8} textAnchor={i === 0 ? "start" : i === n - 1 ? "end" : "middle"} className="fill-muted-foreground/50 text-[10px]">
+              {format(points[i].date, "MMM d")}
+            </text>
+          ))}
+          {hoverIdx !== null && hover && (
+            <line x1={x(hoverIdx)} y1={padT} x2={x(hoverIdx)} y2={padT + plotH} className="stroke-muted-foreground/30" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+          )}
+        </svg>
+        {hoverIdx !== null && hover && (
+          <>
+            <span
+              className="pointer-events-none absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-green-400 bg-background"
+              style={{ left: `${(x(hoverIdx) / W) * 100}%`, top: `${(y(hover.count) / H) * 100}%` }}
+            />
+            <div
+              className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-md border border-border/50 bg-popover px-2 py-1 text-center shadow-md"
+              style={{ left: `${(x(hoverIdx) / W) * 100}%`, top: `calc(${(y(hover.count) / H) * 100}% - 10px)` }}
+            >
+              <div className="text-xs font-medium">{hover.count} done</div>
+              <div className="text-[10px] text-muted-foreground/60">{format(hover.date, "MMM d, yyyy")}</div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function StatisticsPage() {
   const { issues, milestones, createMilestone, deleteMilestone, currentProject } = useIssues()
   const [users, setUsers] = useState<UserRow[]>([])
@@ -375,6 +473,9 @@ export default function StatisticsPage() {
               <div className="h-full rounded-full bg-green-400 transition-all" style={{ width: `${pct}%` }} />
             </div>
           </div>
+
+          {/* Burnup chart */}
+          <BurnupChart issues={filteredIssues} />
 
           {/* Summary cards */}
           <div className="grid grid-cols-2 gap-3">

@@ -192,7 +192,7 @@ function CompletedPanel({
               <CircleCheck className="size-3.5 shrink-0 text-green-400" />
               <span className="shrink-0 text-xs font-mono text-muted-foreground/50">{currentProject?.code ?? "?"}-{i.display_id}</span>
               <span className="flex-1 truncate text-sm">{i.title}</span>
-              {i.team && <span className={cn("shrink-0 text-[11px]", teamColors[i.team])}>{i.team}</span>}
+              <span className={cn("w-14 shrink-0 text-[11px]", i.team ? teamColors[i.team] : "text-muted-foreground/30")}>{i.team ?? "—"}</span>
               {i.assignee_id && userMap.has(i.assignee_id) && (
                 <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground/60">
                   <span className="truncate max-w-[120px]">{userMap.get(i.assignee_id)?.name ?? "?"}</span>

@@ -45,11 +45,12 @@ const teamColors: Record<string, string> = {
   QA: "text-white/80",
   GD: "text-yellow-400",
   Sound: "text-orange-400",
+  LD: "text-green-400",
 }
 
 const STATUSES = ["backlog", "todo", "in_progress", "done", "canceled"] as IssueStatus[]
 const PRIORITIES = ["none", "low", "medium", "high", "urgent"] as IssuePriority[]
-const TEAMS = ["3D", "Concept", "DEV", "QA", "GD", "Sound"] as IssueTeam[]
+const TEAMS = ["3D", "Concept", "DEV", "QA", "GD", "Sound", "LD"] as IssueTeam[]
 
 type SubKey = "status" | "priority" | "team" | "assignee" | "milestone"
 

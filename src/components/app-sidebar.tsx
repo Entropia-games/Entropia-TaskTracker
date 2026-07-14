@@ -45,6 +45,7 @@ const teams = [
   { label: "QA", color: "text-white/80" },
   { label: "GD", color: "text-yellow-400" },
   { label: "Sound", color: "text-orange-400" },
+  { label: "LD", color: "text-green-400" },
 ]
 
 type NavItem = {

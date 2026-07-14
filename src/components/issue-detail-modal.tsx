@@ -81,6 +81,7 @@ const teamColors: Record<string, string> = {
   QA:       "text-white/80",
   GD:       "text-yellow-400",
   Sound:    "text-orange-400",
+  LD:       "text-green-400",
 }
 
 type Props = {
@@ -509,6 +510,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
                   <SelectItem value="QA"><Circle className="size-3 text-white/80" />QA</SelectItem>
                   <SelectItem value="GD"><Circle className="size-3 text-yellow-400" />GD</SelectItem>
                   <SelectItem value="Sound"><Circle className="size-3 text-orange-400" />Sound</SelectItem>
+                  <SelectItem value="LD"><Circle className="size-3 text-green-400" />LD</SelectItem>
                 </SelectContent>
               </Select>
 

@@ -37,6 +37,7 @@ const teamColors: Record<string, string> = {
   QA: "bg-white/25 border-white/40 text-white/90",
   GD: "bg-yellow-500/35 border-yellow-500/55 text-yellow-300",
   Sound: "bg-orange-500/35 border-orange-500/55 text-orange-300",
+  LD: "bg-green-500/35 border-green-500/55 text-green-300",
 }
 
 const teamTextColors: Record<string, string> = {
@@ -46,6 +47,7 @@ const teamTextColors: Record<string, string> = {
   QA: "text-white/80",
   GD: "text-yellow-400",
   Sound: "text-orange-400",
+  LD: "text-green-400",
 }
 
 const STATUS_LABELS: Record<IssueStatus, string> = {
@@ -83,7 +85,7 @@ const PRIORITY_COLOR: Record<IssuePriority, string> = {
   high: "text-orange-400",
   urgent: "text-red-400",
 }
-const TEAMS: IssueTeam[] = ["3D", "Concept", "DEV", "QA", "GD", "Sound"]
+const TEAMS: IssueTeam[] = ["3D", "Concept", "DEV", "QA", "GD", "Sound", "LD"]
 
 const COLUMN_WIDTH = 40
 const ROW_HEIGHT = 48

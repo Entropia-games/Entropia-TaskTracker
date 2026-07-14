@@ -78,6 +78,7 @@ const teamColors: Record<string, string> = {
   QA:       "text-white/80",
   GD:       "text-yellow-400",
   Sound:    "text-orange-400",
+  LD:       "text-green-400",
 }
 
 const SORT_OPTIONS = [
@@ -434,7 +435,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
               >
                 All
               </button>
-              {(["3D", "Concept", "DEV", "QA", "GD", "Sound"] as IssueTeam[]).map((t) => (
+              {(["3D", "Concept", "DEV", "QA", "GD", "Sound", "LD"] as IssueTeam[]).map((t) => (
                 <button
                   key={t}
                   className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", teamFilter === t ? "text-foreground" : "text-muted-foreground")}
@@ -699,7 +700,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                                     <Circle className="size-3 text-muted-foreground/40" />
                                     No Team
                                   </button>
-                                  {(["3D", "Concept", "DEV", "QA", "GD", "Sound"] as IssueTeam[]).map((t) => (
+                                  {(["3D", "Concept", "DEV", "QA", "GD", "Sound", "LD"] as IssueTeam[]).map((t) => (
                                     <button
                                       key={t}
                                       className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", issue.team === t ? "text-foreground" : "text-muted-foreground")}
@@ -958,7 +959,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                           <Circle className="size-3 text-muted-foreground/40" />
                           No Team
                         </button>
-                        {(["3D", "Concept", "DEV", "QA", "GD", "Sound"] as IssueTeam[]).map((t) => (
+                        {(["3D", "Concept", "DEV", "QA", "GD", "Sound", "LD"] as IssueTeam[]).map((t) => (
                           <button
                             key={t}
                             className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", issue.team === t ? "text-foreground" : "text-muted-foreground")}

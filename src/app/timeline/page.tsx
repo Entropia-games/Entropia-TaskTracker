@@ -1,16 +1,17 @@
 "use client"
 
 import { useState, useMemo, useRef, useEffect, useCallback } from "react"
-import { useIssues, type Issue } from "@/lib/issues-context"
+import { useIssues, type Issue, type IssueStatus, type IssuePriority, type IssueTeam } from "@/lib/issues-context"
 import { getSupabase } from "@/lib/supabase"
 import type { Database } from "@/lib/database.types"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { format, differenceInDays, addDays, startOfDay, min as dateMin, max as dateMax } from "date-fns"
-import { Plus, X, Layers, Search, GripVertical } from "lucide-react"
+import { Plus, X, Layers, Search, GripVertical, ChevronDown, Circle, CircleOff, CircleDot, CircleCheck, Diamond, ArrowDown, ArrowUp, Minus, AlertCircle } from "lucide-react"
 import {
   DndContext,
   closestCenter,
@@ -45,6 +46,43 @@ const teamTextColors: Record<string, string> = {
   GD: "text-yellow-400",
   Sound: "text-orange-400",
 }
+
+const STATUS_LABELS: Record<IssueStatus, string> = {
+  backlog: "Backlog",
+  todo: "Todo",
+  in_progress: "In Progress",
+  done: "Done",
+  canceled: "Canceled",
+}
+const STATUS_ICON: Record<IssueStatus, typeof Circle> = {
+  backlog: CircleOff,
+  todo: Circle,
+  in_progress: CircleDot,
+  done: CircleCheck,
+  canceled: CircleOff,
+}
+const STATUS_COLOR: Record<IssueStatus, string> = {
+  backlog: "text-muted-foreground/40",
+  todo: "text-muted-foreground",
+  in_progress: "text-yellow-400",
+  done: "text-green-400",
+  canceled: "text-muted-foreground/40",
+}
+const PRIORITY_ICON: Record<IssuePriority, typeof Minus> = {
+  none: Minus,
+  low: ArrowDown,
+  medium: Minus,
+  high: ArrowUp,
+  urgent: AlertCircle,
+}
+const PRIORITY_COLOR: Record<IssuePriority, string> = {
+  none: "text-muted-foreground/40",
+  low: "text-muted-foreground",
+  medium: "text-blue-400",
+  high: "text-orange-400",
+  urgent: "text-red-400",
+}
+const TEAMS: IssueTeam[] = ["3D", "Concept", "DEV", "QA", "GD", "Sound"]
 
 const COLUMN_WIDTH = 40
 const ROW_HEIGHT = 48
@@ -138,7 +176,7 @@ function SortableTimelineRow({
 }
 
 export default function TimelinePage() {
-  const { issues, currentProject } = useIssues()
+  const { issues, currentProject, milestones } = useIssues()
   const [users, setUsers] = useState<Database["public"]["Tables"]["users"]["Row"][]>([])
   const scrollRef = useRef<HTMLDivElement>(null)
   const gridRef = useRef<HTMLDivElement>(null)
@@ -149,6 +187,15 @@ export default function TimelinePage() {
   const [addOpen, setAddOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [viewTeam, setViewTeam] = useState(false)
+  const [statusFilter, setStatusFilter] = useState<IssueStatus | null>(null)
+  const [priorityFilter, setPriorityFilter] = useState<IssuePriority | null>(null)
+  const [teamFilter, setTeamFilter] = useState<IssueTeam | null>(null)
+  const [milestoneFilter, setMilestoneFilter] = useState<number | null>(null)
+  const [assigneeFilter, setAssigneeFilter] = useState<string | null>(null)
+  const projectMilestones = useMemo(
+    () => milestones.filter((m) => m.project_id === currentProject?.id),
+    [milestones, currentProject],
+  )
   const [detailIssueId, setDetailIssueId] = useState<number | null>(null)
   const [detailParentIssue, setDetailParentIssue] = useState<Issue | null>(null)
   const detailIssue = detailIssueId ? issues.find((i) => i.id === detailIssueId) ?? null : null
@@ -256,7 +303,14 @@ export default function TimelinePage() {
         }
       })
       .filter((i): i is NonNullable<typeof i> => i !== null && i.timelineEnd >= i.timelineStart)
-  }, [entries, issueMap])
+      .filter((i) =>
+        (!statusFilter || i.status === statusFilter) &&
+        (!priorityFilter || i.priority === priorityFilter) &&
+        (!teamFilter || i.team === teamFilter) &&
+        (!milestoneFilter || i.milestone_id === milestoneFilter) &&
+        (!assigneeFilter || (assigneeFilter === "__none__" ? !i.assignee_id : i.assignee_id === assigneeFilter))
+      )
+  }, [entries, issueMap, statusFilter, priorityFilter, teamFilter, milestoneFilter, assigneeFilter])
 
   const dateRange = useMemo(() => {
     const today = startOfDay(new Date())
@@ -374,6 +428,121 @@ export default function TimelinePage() {
         <div className="flex items-center gap-2">
           <h1 className="text-sm font-medium">Timeline</h1>
           <span className="text-xs text-muted-foreground/50">{timelineIssues.length} items</span>
+          <span className="mx-1 h-4 w-px bg-border" />
+          <Popover>
+            <PopoverTrigger
+              render={
+                <button className={cn("flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm hover:bg-accent", statusFilter ? "text-foreground" : "text-muted-foreground")}>
+                  Status{statusFilter ? `: ${STATUS_LABELS[statusFilter]}` : ""}
+                  <ChevronDown className="size-3" />
+                </button>
+              }
+            />
+            <PopoverContent className="w-40 p-1" align="start">
+              <button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent" onClick={() => setStatusFilter(null)}>All</button>
+              {(Object.keys(STATUS_LABELS) as IssueStatus[]).map((s) => {
+                const SIcon = STATUS_ICON[s]
+                return (
+                  <button key={s} className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", statusFilter === s ? "text-foreground" : "text-muted-foreground")} onClick={() => setStatusFilter(s)}>
+                    <SIcon className={cn("size-3.5", STATUS_COLOR[s])} />
+                    {STATUS_LABELS[s]}
+                  </button>
+                )
+              })}
+            </PopoverContent>
+          </Popover>
+          <Popover>
+            <PopoverTrigger
+              render={
+                <button className={cn("flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm hover:bg-accent", priorityFilter ? "text-foreground" : "text-muted-foreground")}>
+                  Priority{priorityFilter ? `: ${priorityFilter}` : ""}
+                  <ChevronDown className="size-3" />
+                </button>
+              }
+            />
+            <PopoverContent className="w-40 p-1" align="start">
+              <button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent" onClick={() => setPriorityFilter(null)}>All</button>
+              {(Object.keys(PRIORITY_ICON) as IssuePriority[]).map((p) => {
+                const PIcon = PRIORITY_ICON[p]
+                return (
+                  <button key={p} className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", priorityFilter === p ? "text-foreground" : "text-muted-foreground")} onClick={() => setPriorityFilter(p)}>
+                    <PIcon className={cn("size-3.5", PRIORITY_COLOR[p])} />
+                    {p}
+                  </button>
+                )
+              })}
+            </PopoverContent>
+          </Popover>
+          <Popover>
+            <PopoverTrigger
+              render={
+                <button className={cn("flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm hover:bg-accent", teamFilter ? "text-foreground" : "text-muted-foreground")}>
+                  Team{teamFilter ? `: ${teamFilter}` : ""}
+                  <ChevronDown className="size-3" />
+                </button>
+              }
+            />
+            <PopoverContent className="w-32 p-1" align="start">
+              <button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent" onClick={() => setTeamFilter(null)}>All</button>
+              {TEAMS.map((t) => (
+                <button key={t} className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", teamFilter === t ? "text-foreground" : "text-muted-foreground")} onClick={() => setTeamFilter(t)}>
+                  <Circle className={cn("size-3 fill-current", teamColors[t])} />
+                  {t}
+                </button>
+              ))}
+            </PopoverContent>
+          </Popover>
+          {projectMilestones.length > 0 && (
+            <Popover>
+              <PopoverTrigger
+                render={
+                  <button className={cn("flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm hover:bg-accent", milestoneFilter ? "text-foreground" : "text-muted-foreground")}>
+                    <Diamond className={cn("size-3", milestoneFilter ? "text-red-400/60" : "text-muted-foreground/40")} />
+                    Milestone{milestoneFilter ? `: ${projectMilestones.find((m) => m.id === milestoneFilter)?.name}` : ""}
+                    <ChevronDown className="size-3" />
+                  </button>
+                }
+              />
+              <PopoverContent className="w-48 p-1" align="start">
+                <button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent" onClick={() => setMilestoneFilter(null)}>All</button>
+                {projectMilestones.map((m) => (
+                  <button key={m.id} className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", milestoneFilter === m.id ? "text-foreground" : "text-muted-foreground")} onClick={() => setMilestoneFilter(m.id)}>
+                    <Diamond className="size-3 text-red-400/60 shrink-0" />
+                    {m.name}
+                  </button>
+                ))}
+              </PopoverContent>
+            </Popover>
+          )}
+          <Popover>
+            <PopoverTrigger
+              render={
+                <button className={cn("flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm hover:bg-accent", assigneeFilter ? "text-foreground" : "text-muted-foreground")}>
+                  {assigneeFilter === "__none__"
+                    ? "Unassigned"
+                    : assigneeFilter
+                      ? (users.find((u) => u.id === assigneeFilter)?.name ?? "Assignee")
+                      : "Assignee"}
+                  <ChevronDown className="size-3" />
+                </button>
+              }
+            />
+            <PopoverContent className="w-48 p-1" align="start">
+              <button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent" onClick={() => setAssigneeFilter(null)}>All</button>
+              <button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent" onClick={() => setAssigneeFilter("__none__")}>
+                <span className="flex size-4 items-center justify-center rounded-full bg-muted-foreground/20 text-[9px]">?</span>
+                Unassigned
+              </button>
+              {users.map((u) => (
+                <button key={u.id} className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", assigneeFilter === u.id ? "text-foreground" : "text-muted-foreground")} onClick={() => setAssigneeFilter(u.id)}>
+                  <span className="flex size-4 items-center justify-center rounded-full bg-muted-foreground/30 text-[9px] font-medium text-foreground">
+                    {(u.name ?? u.email[0])[0].toUpperCase()}
+                  </span>
+                  {u.name ?? u.email}
+                </button>
+              ))}
+            </PopoverContent>
+          </Popover>
         </div>
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-2 text-xs text-muted-foreground">

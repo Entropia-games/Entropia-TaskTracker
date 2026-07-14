@@ -16,7 +16,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "lin",
+  title: "Entro.Track",
   description: "Project management",
 };
 

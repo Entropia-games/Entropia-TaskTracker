@@ -420,11 +420,11 @@ export default function StatisticsPage() {
         </div>
       </div>
       {tab === "overview" ? (
-        <div className="flex-1 overflow-auto px-6 py-5">
-          <div className="mx-auto max-w-lg space-y-6">
+        <div className="flex-1 overflow-auto px-6 py-4">
+          <div className="mx-auto max-w-6xl space-y-4">
 
-          {/* Milestone selector */}
-          <div className="flex items-center gap-2">
+          {/* Top bar: milestone selector + completion */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <Popover open={milestonePopoverOpen} onOpenChange={setMilestonePopoverOpen}>
               <PopoverTrigger
                 render={
@@ -461,24 +461,24 @@ export default function StatisticsPage() {
                   ))}
               </PopoverContent>
             </Popover>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-muted-foreground">Completion</span>
+              <div className="h-2 w-40 rounded-full bg-border/50 overflow-hidden">
+                <div className="h-full rounded-full bg-green-400 transition-all" style={{ width: `${pct}%` }} />
+              </div>
+              <span className="text-sm text-muted-foreground/60">{doneCount}/{total} ({pct}%)</span>
+            </div>
           </div>
 
-          {/* Overall */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm text-muted-foreground">
-              <span>Completion</span>
-              <span>{doneCount}/{total} ({pct}%)</span>
-            </div>
-            <div className="h-2 rounded-full bg-border/50 overflow-hidden">
-              <div className="h-full rounded-full bg-green-400 transition-all" style={{ width: `${pct}%` }} />
-            </div>
-          </div>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
 
           {/* Burnup chart */}
-          <BurnupChart issues={filteredIssues} />
+          <div className="rounded-lg border border-border/30 p-4 lg:col-span-2">
+            <BurnupChart issues={filteredIssues} />
+          </div>
 
           {/* Summary cards */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 content-start">
             <div className="rounded-lg border border-border/30 px-4 py-3">
               <span className="text-2xl font-semibold">{total}</span>
               <p className="text-sm text-muted-foreground/60 mt-0.5">Issues</p>
@@ -493,7 +493,7 @@ export default function StatisticsPage() {
           </div>
 
           {/* By Status */}
-          <div className="space-y-2">
+          <div className="space-y-2 rounded-lg border border-border/30 p-4">
             <h2 className="text-sm font-medium text-muted-foreground">By Status</h2>
             {(["backlog", "todo", "in_progress", "done", "canceled"] as IssueStatus[]).map((s) => {
               const count = statusCounts[s]
@@ -520,7 +520,7 @@ export default function StatisticsPage() {
           </div>
 
           {/* By Priority */}
-          <div className="space-y-2">
+          <div className="space-y-2 rounded-lg border border-border/30 p-4">
             <h2 className="text-sm font-medium text-muted-foreground">By Priority</h2>
             {(["urgent", "high", "medium", "low", "none"] as IssuePriority[]).map((p) => {
               const count = priorityCounts[p]
@@ -547,21 +547,22 @@ export default function StatisticsPage() {
           </div>
 
           {/* By Team */}
-          <div className="space-y-2">
+          <div className="space-y-2 rounded-lg border border-border/30 p-4">
             <h2 className="text-sm font-medium text-muted-foreground">By Team</h2>
             <div className="flex flex-wrap gap-2">
               {teams.map((t) => {
                 const count = teamCounts[t]
                 return (
-                  <div key={t} className="rounded-lg border border-border/30 px-3 py-2.5">
+                  <div key={t} className="rounded-lg border border-border/30 px-3 py-2">
                     <span className={cn("text-sm font-semibold", teamColors[t])}>{t}</span>
-                    <p className="text-sm text-muted-foreground/60 mt-0.5">{count} issues</p>
+                    <p className="text-xs text-muted-foreground/60 mt-0.5">{count} issues</p>
                   </div>
                 )
               })}
             </div>
           </div>
 
+          </div>
           </div>
         </div>
       ) : (

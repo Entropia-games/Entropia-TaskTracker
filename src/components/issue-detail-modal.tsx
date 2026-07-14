@@ -7,6 +7,7 @@ import { useIssues } from "@/lib/issues-context"
 import { useAuthGate } from "@/lib/auth-gate-context"
 import { uploadFiles } from "@/lib/uploadthing"
 import { compressImage } from "@/lib/compress-image"
+import { showToast } from "@/lib/toast"
 import type { Database } from "@/lib/database.types"
 import {
   Dialog,
@@ -263,6 +264,13 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
     try {
       const isImage = file.type.startsWith("image/")
       const toUpload = isImage ? await compressImage(file) : file
+      const limit = isImage ? 4 * 1024 * 1024 : 16 * 1024 * 1024
+      if (toUpload.size > limit) {
+        setUploading(false)
+        showToast(isImage ? "Photo is too large — max 4 MB" : "File is too large — max 16 MB")
+        if (imageInputRef.current) imageInputRef.current.value = ""
+        return
+      }
       const [res] = await uploadFiles(isImage ? "image" : "file", { files: [toUpload] })
       if (res?.serverData?.url) {
         const att: Attachment = {

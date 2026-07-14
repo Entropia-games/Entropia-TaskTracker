@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/lib/auth-context";
 import { AuthGateProvider } from "@/lib/auth-gate-context";
 import { IssuesProvider } from "@/lib/issues-context";
+import { ToastViewport } from "@/lib/toast";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -41,6 +42,7 @@ export default function RootLayout({
                 </div>
                 {children}
               </main>
+              <ToastViewport />
             </SidebarProvider>
             </IssuesProvider>
             </AuthGateProvider>

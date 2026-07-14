@@ -213,15 +213,17 @@ function CompletedPanel({
               <span className="shrink-0 text-xs font-mono text-muted-foreground/50">{currentProject?.code ?? "?"}-{i.display_id}</span>
               <span className="flex-1 truncate text-sm">{i.title}</span>
               <span className="flex w-52 shrink-0 items-center gap-2">
-                <span className={cn("w-14 shrink-0 text-[11px]", i.team ? teamColors[i.team] : "text-muted-foreground/30")}>{i.team ?? "—"}</span>
-                {i.assignee_id && userMap.has(i.assignee_id) && (
-                  <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground/60">
-                    <span className="truncate max-w-[100px]"><UserDisplayName name={userMap.get(i.assignee_id)?.name} email={userMap.get(i.assignee_id)?.email ?? ""} displayName={userMap.get(i.assignee_id)?.display_name} /></span>
-                    <Avatar className="size-4">
-                      <AvatarFallback className="text-[8px]">{(userMap.get(i.assignee_id)?.name ?? "?")[0].toUpperCase()}</AvatarFallback>
-                    </Avatar>
-                  </span>
-                )}
+                <span className={cn("w-14 shrink-0 text-right text-[11px]", i.team ? teamColors[i.team] : "text-muted-foreground/30")}>{i.team ?? "—"}</span>
+                <span className="flex min-w-0 flex-1 items-center justify-end gap-1.5 text-xs text-muted-foreground/60">
+                  {i.assignee_id && userMap.has(i.assignee_id) && (
+                    <>
+                      <span className="truncate max-w-[100px] text-right"><UserDisplayName name={userMap.get(i.assignee_id)?.name} email={userMap.get(i.assignee_id)?.email ?? ""} displayName={userMap.get(i.assignee_id)?.display_name} /></span>
+                      <Avatar className="size-4">
+                        <AvatarFallback className="text-[8px]">{(userMap.get(i.assignee_id)?.name ?? "?")[0].toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                    </>
+                  )}
+                </span>
               </span>
             </div>
           ))

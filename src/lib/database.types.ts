@@ -162,6 +162,39 @@ export type Database = {
         }
         Relationships: []
       }
+      timeline_entries: {
+        Row: {
+          id: number
+          project_id: number
+          issue_id: number
+          start_date: string
+          end_date: string
+          color: string | null
+          position: number
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          project_id: number
+          issue_id: number
+          start_date: string
+          end_date: string
+          color?: string | null
+          position?: number
+          created_at?: string
+        }
+        Update: {
+          id?: number
+          project_id?: number
+          issue_id?: number
+          start_date?: string
+          end_date?: string
+          color?: string | null
+          position?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: Record<string, never>
     Functions: {

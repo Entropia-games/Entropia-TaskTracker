@@ -79,20 +79,6 @@ const ROW_COLORS: { id: string; bar: string; row: string; rowHover: string; dot:
 
 const ROW_DEFAULT = "bg-muted/60 border-border/55 text-foreground"
 
-const STORAGE_KEY = "lin-timeline-entries"
-
-function loadEntries(): TimelineEntry[] {
-  if (typeof window === "undefined") return []
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? JSON.parse(raw) : []
-  } catch { return [] }
-}
-
-function saveEntries(entries: TimelineEntry[]) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(entries)) } catch {}
-}
-
 type RowColorObj = { id: string; bar: string; row: string; rowHover: string; dot: string } | null
 
 function SortableTimelineRow({
@@ -158,6 +144,8 @@ export default function TimelinePage() {
   const gridRef = useRef<HTMLDivElement>(null)
   const [syncScroll, setSyncScroll] = useState(0)
   const [entries, setEntries] = useState<TimelineEntry[]>([])
+  const entriesRef = useRef(entries)
+  entriesRef.current = entries
   const [addOpen, setAddOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [viewTeam, setViewTeam] = useState(false)
@@ -170,13 +158,59 @@ export default function TimelinePage() {
     getSupabase().from("users").select("*").then(({ data }) => {
       if (data) setUsers(data)
     })
-    setEntries(loadEntries())
   }, [])
 
-  const persistEntries = useCallback((next: TimelineEntry[]) => {
-    setEntries(next)
-    saveEntries(next)
-  }, [])
+  useEffect(() => {
+    if (!currentProject) return
+    getSupabase()
+      .from("timeline_entries")
+      .select("*")
+      .eq("project_id", currentProject.id)
+      .order("position")
+      .then(({ data }) => {
+        if (data) {
+          setEntries(
+            data.map((r) => ({
+              issueId: r.issue_id,
+              startDate: r.start_date,
+              endDate: r.end_date,
+              color: r.color ?? undefined,
+            })),
+          )
+        }
+      })
+  }, [currentProject])
+
+  const persistEntries = useCallback(
+    async (next: TimelineEntry[]) => {
+      setEntries(next)
+      if (!currentProject) return
+      const sb = getSupabase()
+      const prev = entriesRef.current
+      const nextIds = new Set(next.map((e) => e.issueId))
+      const removed = prev.filter((e) => !nextIds.has(e.issueId))
+      const rows = next.map((e, i) => ({
+        project_id: currentProject.id,
+        issue_id: e.issueId,
+        start_date: e.startDate,
+        end_date: e.endDate,
+        color: e.color ?? null,
+        position: i,
+      }))
+      if (removed.length > 0) {
+        await sb
+          .from("timeline_entries")
+          .delete()
+          .eq("project_id", currentProject.id)
+          .in("issue_id", removed.map((r) => r.issueId))
+      }
+      const { error } = await sb
+        .from("timeline_entries")
+        .upsert(rows, { onConflict: "project_id,issue_id" })
+      if (error) console.error("Failed to persist timeline entries", JSON.stringify(error))
+    },
+    [currentProject],
+  )
 
   const updateEntry = useCallback((issueId: number, changes: Partial<TimelineEntry>) => {
     const next = entries.map((e) => e.issueId === issueId ? { ...e, ...changes } : e)

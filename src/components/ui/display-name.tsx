@@ -35,7 +35,7 @@ export function UserDisplayName({
         nativeButton={false}
         render={
           <span
-            className={cn("truncate", className)}
+            className={cn("truncate select-none outline-none", className)}
             onMouseEnter={() => setOpen(true)}
             onMouseLeave={() => setOpen(false)}
           >

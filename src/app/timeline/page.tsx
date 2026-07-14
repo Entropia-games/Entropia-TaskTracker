@@ -203,6 +203,7 @@ export default function TimelinePage() {
   const [detailParentIssue, setDetailParentIssue] = useState<Issue | null>(null)
   const detailIssue = detailIssueId ? issues.find((i) => i.id === detailIssueId) ?? null : null
   const [resizing, setResizing] = useState<{ issueId: number; side: "left" | "right" } | null>(null)
+  const [moving, setMoving] = useState<{ issueId: number; startClientX: number; origStart: Date; origEnd: Date } | null>(null)
 
   useEffect(() => {
     getSupabase().from("users").select("*").then(({ data }) => {
@@ -363,6 +364,19 @@ export default function TimelinePage() {
     setResizing({ issueId, side })
   }, [])
 
+  const handleMoveMouseDown = useCallback((e: React.MouseEvent, issueId: number) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const entry = entries.find((en) => en.issueId === issueId)
+    if (!entry) return
+    setMoving({
+      issueId,
+      startClientX: e.clientX,
+      origStart: startOfDay(new Date(entry.startDate)),
+      origEnd: startOfDay(new Date(entry.endDate)),
+    })
+  }, [entries])
+
   useEffect(() => {
     if (!resizing) return
     const gridEl = gridRef.current
@@ -425,6 +439,31 @@ export default function TimelinePage() {
       document.removeEventListener("mouseup", handleMouseUp)
     }
   }, [resizing, entries, dateRange, updateEntry])
+
+  const updateEntryRef = useRef(updateEntry)
+  updateEntryRef.current = updateEntry
+
+  useEffect(() => {
+    if (!moving) return
+    document.body.style.cursor = "grabbing"
+    const handleMouseMove = (e: MouseEvent) => {
+      const colDelta = Math.round((e.clientX - moving.startClientX) / COLUMN_WIDTH)
+      const newStart = format(addDays(moving.origStart, colDelta), "yyyy-MM-dd")
+      const newEnd = format(addDays(moving.origEnd, colDelta), "yyyy-MM-dd")
+      updateEntryRef.current(moving.issueId, { startDate: newStart, endDate: newEnd })
+    }
+    const handleMouseUp = () => {
+      document.body.style.cursor = ""
+      setMoving(null)
+    }
+    document.addEventListener("mousemove", handleMouseMove)
+    document.addEventListener("mouseup", handleMouseUp)
+    return () => {
+      document.body.style.cursor = ""
+      document.removeEventListener("mousemove", handleMouseMove)
+      document.removeEventListener("mouseup", handleMouseUp)
+    }
+  }, [moving])
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -667,7 +706,8 @@ export default function TimelinePage() {
                       width: Math.max(span * COLUMN_WIDTH - 4, 24),
                       height: ROW_HEIGHT - 6,
                     }}
-                    className={cn("rounded-md border flex items-center gap-0 text-xs font-medium select-none group", barColor, resizing?.issueId === issue.id ? "z-10 shadow-lg" : "")}
+                    onMouseDown={(e) => handleMoveMouseDown(e, issue.id)}
+                    className={cn("rounded-md border flex items-center gap-0 text-xs font-medium select-none group cursor-grab active:cursor-grabbing", barColor, (resizing?.issueId === issue.id || moving?.issueId === issue.id) ? "z-10 shadow-lg" : "")}
                     title={`${currentProject?.code ?? "?"}-${issue.display_id}: ${issue.title}`}
                   >
                     <div

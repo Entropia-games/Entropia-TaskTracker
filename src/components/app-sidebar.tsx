@@ -33,6 +33,7 @@ import { DisplayName } from "@/components/ui/display-name"
 import { useAuthGate } from "@/lib/auth-gate-context"
 import { useIssues } from "@/lib/issues-context"
 import { AuthDialog } from "@/components/auth-dialog"
+import { UsersDialog } from "@/components/users-dialog"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
@@ -141,6 +142,9 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+              <SidebarMenuItem>
+                <UsersDialog />
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

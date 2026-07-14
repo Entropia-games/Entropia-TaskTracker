@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/lib/auth-context";
 import { AuthGateProvider } from "@/lib/auth-gate-context";
 import { IssuesProvider } from "@/lib/issues-context";
+import { PresenceProvider } from "@/lib/presence-context";
 import { ToastViewport } from "@/lib/toast";
 
 const inter = Inter({
@@ -32,6 +33,7 @@ export default function RootLayout({
       <body className="min-h-full flex">
         <TooltipProvider>
           <AuthProvider>
+            <PresenceProvider>
             <AuthGateProvider>
             <IssuesProvider>
             <SidebarProvider defaultOpen={true}>
@@ -46,6 +48,7 @@ export default function RootLayout({
             </SidebarProvider>
             </IssuesProvider>
             </AuthGateProvider>
+            </PresenceProvider>
           </AuthProvider>
         </TooltipProvider>
       </body>

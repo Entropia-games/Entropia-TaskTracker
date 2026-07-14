@@ -67,6 +67,11 @@ const PRIORITY_OPTIONS: { value: IssuePriority; label: string; icon: typeof Minu
   { value: "urgent", label: "Urgent",      icon: AlertCircle, color: "text-red-400" },
 ]
 
+function parseDateOnly(s: string): Date {
+  const [y, m, d] = s.split("-").map(Number)
+  return new Date(y, m - 1, d)
+}
+
 const teamColors: Record<string, string> = {
   "3D":     "text-red-400",
   Concept:  "text-blue-400",
@@ -106,6 +111,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
   const [readyId, setReadyId] = useState<number | null>(null)
   const [displayedIssue, setDisplayedIssue] = useState<Issue | null>(null)
+  const [timelineEntry, setTimelineEntry] = useState<{ start_date: string; end_date: string } | null>(null)
   const titleRef = useRef<HTMLInputElement>(null)
   const descRef = useRef<HTMLTextAreaElement>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
@@ -157,6 +163,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
     if (!open || !issue) {
       setReadyId(null)
       setDisplayedIssue(null)
+      setTimelineEntry(null)
       return
     }
     if (readyId === issue.id) {
@@ -184,6 +191,19 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
         if (active && rows) setLinkedPRs(rows)
       }),
     )
+    if (currentProject) {
+      tasks.push(
+        getSupabase()
+          .from("timeline_entries")
+          .select("start_date,end_date")
+          .eq("project_id", currentProject.id)
+          .eq("issue_id", issue.id)
+          .maybeSingle()
+          .then(({ data: row }) => {
+            if (active) setTimelineEntry(row ? { start_date: row.start_date, end_date: row.end_date } : null)
+          }),
+      )
+    }
     Promise.all(tasks).then(() => {
       if (active) {
         setReadyId(issue.id)
@@ -502,6 +522,15 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
                 <div className="flex items-center gap-1.5 rounded-md border border-transparent px-2 py-1 hover:border-border/30">
                   <CalendarIcon className="size-3.5 text-muted-foreground/60" />
                   <span className="text-xs text-muted-foreground">{format(new Date(data.due_date), "MMM d, yyyy")}</span>
+                </div>
+              )}
+
+              {timelineEntry && (
+                <div className="flex items-center gap-1.5 rounded-md border border-transparent px-2 py-1 hover:border-border/30">
+                  <CalendarIcon className="size-3.5 text-green-400/70" />
+                  <span className="text-xs text-muted-foreground">
+                    Timeline: {format(parseDateOnly(timelineEntry.start_date), "MMM d, yyyy")} – {format(parseDateOnly(timelineEntry.end_date), "MMM d, yyyy")}
+                  </span>
                 </div>
               )}
 

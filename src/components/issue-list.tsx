@@ -305,6 +305,24 @@ export function IssueList({ title, issues, focusId }: Props) {
           <Badge variant="secondary" className="rounded-sm text-[11px] font-normal">
             {filteredIssues.length}
           </Badge>
+          <Popover>
+            <PopoverTrigger
+              render={
+                <button className={cn("flex items-center gap-1.5 rounded-md px-2 py-1 text-xs hover:bg-accent", sortBy !== "newest" ? "text-foreground" : "text-muted-foreground")}>
+                  <ArrowUpDown className="size-3.5" />
+                  {SORT_OPTIONS.find((o) => o.value === sortBy)?.label}
+                  <ChevronDown className="size-3" />
+                </button>
+              }
+            />
+            <PopoverContent className="w-44 p-1" align="start">
+              {SORT_OPTIONS.map((o) => (
+                <button key={o.value} className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", sortBy === o.value ? "text-foreground" : "text-muted-foreground")} onClick={() => setSortBy(o.value)}>
+                  {o.label}
+                </button>
+              ))}
+            </PopoverContent>
+          </Popover>
         </div>
         <div className="flex items-center gap-2">
           <span className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -336,24 +354,6 @@ export function IssueList({ title, issues, focusId }: Props) {
               <button className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", typeFilter === "all" ? "text-foreground" : "text-muted-foreground")} onClick={() => setTypeFilter("all")}>All</button>
               <button className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", typeFilter === "issue" ? "text-foreground" : "text-muted-foreground")} onClick={() => setTypeFilter("issue")}>Issues</button>
               <button className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", typeFilter === "epic" ? "text-foreground" : "text-muted-foreground")} onClick={() => setTypeFilter("epic")}>Epics</button>
-            </PopoverContent>
-          </Popover>
-          <Popover>
-            <PopoverTrigger
-              render={
-                <button className={cn("flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm hover:bg-accent", sortBy !== "newest" ? "text-foreground" : "text-muted-foreground")}>
-                  <ArrowUpDown className="size-3.5" />
-                  {SORT_OPTIONS.find((o) => o.value === sortBy)?.label}
-                  <ChevronDown className="size-3" />
-                </button>
-              }
-            />
-            <PopoverContent className="w-44 p-1" align="end">
-              {SORT_OPTIONS.map((o) => (
-                <button key={o.value} className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", sortBy === o.value ? "text-foreground" : "text-muted-foreground")} onClick={() => setSortBy(o.value)}>
-                  {o.label}
-                </button>
-              ))}
             </PopoverContent>
           </Popover>
           <Popover>

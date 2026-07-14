@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { useIssues, type IssueStatus, type IssuePriority, type IssueTeam, type Milestone, type Attachment } from "@/lib/issues-context"
+import { useAuth } from "@/lib/auth-context"
 import { getSupabase } from "@/lib/supabase"
 import { useAuthGate } from "@/lib/auth-gate-context"
 import type { Database } from "@/lib/database.types"
@@ -90,6 +91,7 @@ const PRIORITY_COLORS: Record<IssuePriority, string> = {
 export function CreateIssueModal() {
   const { addIssue, milestones: projectMilestones, issues } = useIssues()
   const { requireAuth } = useAuthGate()
+  const { user } = useAuth()
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
@@ -111,7 +113,8 @@ export function CreateIssueModal() {
       if (data) setUsers(data)
     })
     setMilestoneId(null)
-  }, [open])
+    setAssigneeId(user?.id ?? null)
+  }, [open, user?.id])
 
   const isImageAtt = (a: Attachment) =>
     a.type?.startsWith("image/") ?? /\.(png|jpe?g|gif|webp|svg|bmp|avif)$/i.test(a.url)

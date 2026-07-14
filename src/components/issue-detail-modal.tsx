@@ -44,6 +44,7 @@ import {
   ExternalLink,
   Diamond,
   Image,
+  Trash2,
   X,
 } from "lucide-react"
 import { format } from "date-fns"
@@ -85,7 +86,7 @@ type Props = {
 }
 
 export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetail, parentIssue }: Props) {
-  const { updateIssue, issues, milestones, currentProject } = useIssues()
+  const { updateIssue, deleteIssues, issues, milestones, currentProject } = useIssues()
   const { requireAuth } = useAuthGate()
   const [status, setStatus] = useState<IssueStatus>("backlog")
   const [priority, setPriority] = useState<IssuePriority>("none")
@@ -99,6 +100,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
   const [editTitle, setEditTitle] = useState("")
   const [editDescription, setEditDescription] = useState("")
   const [editingDescription, setEditingDescription] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [confirmEpicToggle, setConfirmEpicToggle] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
@@ -332,6 +334,13 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
               <span>{currentProject?.code ?? "?"}-{data.display_id}</span>
               <span className="text-muted-foreground/20">·</span>
               <span className={cn(activeStatus?.color)}>{activeStatus?.label}</span>
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="ml-auto rounded p-1 text-muted-foreground/40 hover:bg-accent hover:text-red-400 transition-colors outline-none ring-0"
+                title="Delete issue"
+              >
+                <Trash2 className="size-3.5" />
+              </button>
             </div>
             <input
               ref={titleRef}
@@ -651,6 +660,16 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
           </div>
         )}
       </DialogContent>
+      <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <DialogContent className="sm:max-w-xs">
+          <DialogTitle className="text-sm font-medium">Delete issue?</DialogTitle>
+          <p className="text-xs text-muted-foreground/60">This action cannot be undone.</p>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" size="sm" onClick={() => setConfirmDelete(false)}>Cancel</Button>
+            <Button variant="destructive" size="sm" onClick={() => { setConfirmDelete(false); deleteIssues([data.id]); onOpenChange(false) }}>Delete</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <Dialog open={confirmEpicToggle} onOpenChange={setConfirmEpicToggle}>
         <DialogContent className="sm:max-w-xs">
           <DialogTitle className="text-sm font-medium">Convert to issue?</DialogTitle>

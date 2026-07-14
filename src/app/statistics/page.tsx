@@ -7,6 +7,7 @@ import type { Database } from "@/lib/database.types"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Circle, ChevronDown, CircleDot, CircleCheck, CircleOff, ArrowUp, ArrowDown, Minus, AlertCircle, Layers, Plus, X, Diamond } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { startOfWeek, startOfMonth } from "date-fns"
@@ -193,7 +194,12 @@ function CompletedPanel({
               <span className="flex-1 truncate text-sm">{i.title}</span>
               {i.team && <span className={cn("shrink-0 text-[11px]", teamColors[i.team])}>{i.team}</span>}
               {i.assignee_id && userMap.has(i.assignee_id) && (
-                <span className="shrink-0 text-xs text-muted-foreground/60">{userMap.get(i.assignee_id)?.name ?? "?"}</span>
+                <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground/60">
+                  <span className="truncate max-w-[120px]">{userMap.get(i.assignee_id)?.name ?? "?"}</span>
+                  <Avatar className="size-4">
+                    <AvatarFallback className="text-[8px]">{(userMap.get(i.assignee_id)?.name ?? "?")[0].toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                </span>
               )}
             </div>
           ))

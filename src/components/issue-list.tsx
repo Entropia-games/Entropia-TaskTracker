@@ -4,11 +4,13 @@ import { useState, useEffect, useRef, useMemo } from "react"
 import {
   DndContext,
   DragOverlay,
-  closestCorners,
+  pointerWithin,
+  rectIntersection,
   PointerSensor,
   useSensor,
   useSensors,
   useDroppable,
+  type CollisionDetection,
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core"
@@ -139,10 +141,16 @@ function SortableBoardCard({ issue, children }: { issue: Issue; children: React.
 function BoardColumn({ status, children }: { status: string; children: React.ReactNode }) {
   const { setNodeRef, isOver } = useDroppable({ id: status })
   return (
-    <div ref={setNodeRef} className={cn("flex w-72 shrink-0 flex-col gap-2", isOver && "bg-muted/10")}>
+    <div ref={setNodeRef} className={cn("flex h-full w-72 shrink-0 flex-col gap-2 rounded-md", isOver && "bg-muted/10")}>
       {children}
     </div>
   )
+}
+
+const boardCollisionDetection: CollisionDetection = (args) => {
+  const pointerCollisions = pointerWithin(args)
+  if (pointerCollisions.length > 0) return pointerCollisions
+  return rectIntersection(args)
 }
 
 export function IssueList({ title, issues, focusId, showTypeFilter = true }: Props) {
@@ -552,7 +560,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
       </div>
 
       {view === "board" ? (
-        <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
+        <DndContext sensors={sensors} collisionDetection={boardCollisionDetection} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
           <div className="flex-1 overflow-auto flex gap-4 p-6">
             {(["backlog", "todo", "in_progress", "done"] as IssueStatus[])
               .filter((s) => showDone || s !== "done")
@@ -566,7 +574,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                     </div>
                     <SortableContext items={columnIssues.map((i) => i.id)} strategy={verticalListSortingStrategy}>
                       {columnIssues.length === 0 && (
-                        <div className="flex items-center justify-center rounded-md border border-dashed border-border/30 p-4">
+                        <div className="flex min-h-24 flex-1 items-center justify-center rounded-md border border-dashed border-border/30 p-4">
                           <span className="text-xs text-muted-foreground/30">Drop here</span>
                         </div>
                       )}

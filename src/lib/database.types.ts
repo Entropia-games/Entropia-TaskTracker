@@ -30,6 +30,30 @@ export type Database = {
         }
         Relationships: []
       }
+      boards: {
+        Row: {
+          id: string
+          name: string
+          data: Json
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id: string
+          name?: string
+          data?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: string
+          name?: string
+          data?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       projects: {
         Row: {
           id: number

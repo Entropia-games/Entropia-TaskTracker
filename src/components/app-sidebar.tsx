@@ -22,6 +22,7 @@ import {
   LayoutGrid,
   BarChart3,
   Timeline,
+  PenLine,
   Search,
   LogOut,
   LogIn,
@@ -58,6 +59,7 @@ const navItems: NavItem[] = [
   { label: "Epics", icon: LayoutGrid, href: "/epics" },
   { label: "Statistics", icon: BarChart3, href: "/statistics" },
   { label: "Timeline", icon: Timeline, href: "/timeline" },
+  { label: "Desk", icon: PenLine, href: "/desk" },
 ]
 
 export function AppSidebar() {

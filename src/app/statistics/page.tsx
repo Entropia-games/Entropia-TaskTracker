@@ -58,7 +58,6 @@ function CompletedPanel({
   milestones: Milestone[]
   currentProject: Project | null
 }) {
-  const [statusFilter, setStatusFilter] = useState<IssueStatus | null>(null)
   const [priorityFilter, setPriorityFilter] = useState<IssuePriority | null>(null)
   const [teamFilter, setTeamFilter] = useState<IssueTeam | null>(null)
   const [milestoneFilter, setMilestoneFilter] = useState<number | null>(null)
@@ -75,14 +74,13 @@ function CompletedPanel({
     return issues
       .filter((i) => i.status === "done" && i.updated_at && new Date(i.updated_at).getTime() >= sinceMs)
       .filter((i) =>
-        (!statusFilter || i.status === statusFilter) &&
         (!priorityFilter || i.priority === priorityFilter) &&
         (!teamFilter || i.team === teamFilter) &&
         (!milestoneFilter || i.milestone_id === milestoneFilter) &&
         (!assigneeFilter || (assigneeFilter === "__none__" ? !i.assignee_id : i.assignee_id === assigneeFilter))
       )
       .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-  }, [issues, since, statusFilter, priorityFilter, teamFilter, milestoneFilter, assigneeFilter])
+  }, [issues, since, priorityFilter, teamFilter, milestoneFilter, assigneeFilter])
 
   return (
     <div className="space-y-4">
@@ -91,28 +89,6 @@ function CompletedPanel({
         <span className="text-xs text-muted-foreground/50">{completed.length} tasks</span>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Popover>
-          <PopoverTrigger
-            render={
-              <button className={cn("flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm hover:bg-accent", statusFilter ? "text-foreground" : "text-muted-foreground")}>
-                Status{statusFilter ? `: ${statusLabels[statusFilter]}` : ""}
-                <ChevronDown className="size-3" />
-              </button>
-            }
-          />
-          <PopoverContent className="w-40 p-1" align="start">
-            <button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent" onClick={() => setStatusFilter(null)}>All</button>
-            {(Object.keys(statusLabels) as IssueStatus[]).map((s) => {
-              const SIcon = statusIcons[s]
-              return (
-                <button key={s} className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", statusFilter === s ? "text-foreground" : "text-muted-foreground")} onClick={() => setStatusFilter(s)}>
-                  <SIcon className={cn("size-3.5", statusColors[s])} />
-                  {statusLabels[s]}
-                </button>
-              )
-            })}
-          </PopoverContent>
-        </Popover>
         <Popover>
           <PopoverTrigger
             render={

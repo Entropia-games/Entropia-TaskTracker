@@ -213,26 +213,61 @@ export default function TimelinePage() {
     })
   }, [])
 
-  useEffect(() => {
+  const loadEntries = useCallback(async () => {
     if (!currentProject) return
-    getSupabase()
+    const { data } = await getSupabase()
       .from("timeline_entries")
       .select("*")
       .eq("project_id", currentProject.id)
       .order("position")
-      .then(({ data }) => {
-        if (data) {
-          setEntries(
-            data.map((r) => ({
-              issueId: r.issue_id,
-              startDate: r.start_date,
-              endDate: r.end_date,
-              color: r.color ?? undefined,
-            })),
-          )
-        }
-      })
+    if (data) {
+      setEntries(
+        data.map((r) => ({
+          issueId: r.issue_id,
+          startDate: r.start_date,
+          endDate: r.end_date,
+          color: r.color ?? undefined,
+        })),
+      )
+    }
   }, [currentProject])
+
+  useEffect(() => {
+    loadEntries()
+  }, [loadEntries])
+
+  const interactingRef = useRef(false)
+  interactingRef.current = resizing !== null || moving !== null
+  const pendingReloadRef = useRef(false)
+
+  useEffect(() => {
+    if (!currentProject) return
+    const sb = getSupabase()
+    const channel = sb
+      .channel(`timeline-${currentProject.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "timeline_entries", filter: `project_id=eq.${currentProject.id}` },
+        () => {
+          if (interactingRef.current) {
+            pendingReloadRef.current = true
+          } else {
+            loadEntries()
+          }
+        },
+      )
+      .subscribe()
+    return () => {
+      sb.removeChannel(channel)
+    }
+  }, [currentProject, loadEntries])
+
+  useEffect(() => {
+    if (resizing === null && moving === null && pendingReloadRef.current) {
+      pendingReloadRef.current = false
+      loadEntries()
+    }
+  }, [resizing, moving, loadEntries])
 
   const persistEntries = useCallback(
     async (next: TimelineEntry[]) => {
@@ -265,10 +300,9 @@ export default function TimelinePage() {
     [currentProject],
   )
 
-  const updateEntry = useCallback((issueId: number, changes: Partial<TimelineEntry>) => {
-    const next = entries.map((e) => e.issueId === issueId ? { ...e, ...changes } : e)
-    persistEntries(next)
-  }, [entries, persistEntries])
+  const updateEntryLocal = useCallback((issueId: number, changes: Partial<TimelineEntry>) => {
+    setEntries((prev) => prev.map((e) => e.issueId === issueId ? { ...e, ...changes } : e))
+  }, [])
 
   const userMap = useMemo(() => new Map(users.map((u) => [u.id, u])), [users])
   const issueMap = useMemo(() => new Map(issues.map((i) => [i.id, i])), [issues])
@@ -395,16 +429,16 @@ export default function TimelinePage() {
       const colIndex = Math.max(0, Math.round(mouseX / COLUMN_WIDTH))
       const newDate = format(addDays(dateRange.start, colIndex), "yyyy-MM-dd")
 
-      const entry = entries.find((en) => en.issueId === resizing.issueId)
+      const entry = entriesRef.current.find((en) => en.issueId === resizing.issueId)
       if (!entry) return
 
       if (resizing.side === "left") {
         if (newDate < entry.endDate) {
-          updateEntry(resizing.issueId, { startDate: newDate })
+          updateEntryLocal(resizing.issueId, { startDate: newDate })
         }
       } else {
         if (newDate > entry.startDate) {
-          updateEntry(resizing.issueId, { endDate: newDate })
+          updateEntryLocal(resizing.issueId, { endDate: newDate })
         }
       }
 
@@ -430,6 +464,7 @@ export default function TimelinePage() {
     const handleMouseUp = () => {
       if (autoScrollFrame !== null) { clearInterval(autoScrollFrame) }
       document.body.style.cursor = ""
+      persistEntries(entriesRef.current)
       setResizing(null)
     }
 
@@ -440,10 +475,10 @@ export default function TimelinePage() {
       document.removeEventListener("mousemove", handleMouseMove)
       document.removeEventListener("mouseup", handleMouseUp)
     }
-  }, [resizing, entries, dateRange, updateEntry])
+  }, [resizing, dateRange, updateEntryLocal, persistEntries])
 
-  const updateEntryRef = useRef(updateEntry)
-  updateEntryRef.current = updateEntry
+  const updateEntryLocalRef = useRef(updateEntryLocal)
+  updateEntryLocalRef.current = updateEntryLocal
 
   useEffect(() => {
     if (!moving) return
@@ -452,10 +487,11 @@ export default function TimelinePage() {
       const colDelta = Math.round((e.clientX - moving.startClientX) / COLUMN_WIDTH)
       const newStart = format(addDays(moving.origStart, colDelta), "yyyy-MM-dd")
       const newEnd = format(addDays(moving.origEnd, colDelta), "yyyy-MM-dd")
-      updateEntryRef.current(moving.issueId, { startDate: newStart, endDate: newEnd })
+      updateEntryLocalRef.current(moving.issueId, { startDate: newStart, endDate: newEnd })
     }
     const handleMouseUp = () => {
       document.body.style.cursor = ""
+      persistEntries(entriesRef.current)
       setMoving(null)
     }
     document.addEventListener("mousemove", handleMouseMove)
@@ -465,7 +501,7 @@ export default function TimelinePage() {
       document.removeEventListener("mousemove", handleMouseMove)
       document.removeEventListener("mouseup", handleMouseUp)
     }
-  }, [moving])
+  }, [moving, persistEntries])
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">

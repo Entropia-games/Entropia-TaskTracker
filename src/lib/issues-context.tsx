@@ -43,6 +43,7 @@ type IssuesContext = {
   updateMilestone: (id: number, changes: Partial<Milestone>) => Promise<void>
   deleteMilestone: (id: number) => Promise<void>
   loading: boolean
+  projectsLoaded: boolean
 }
 
 const IssuesContext = createContext<IssuesContext | null>(null)
@@ -59,18 +60,19 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
   const [hasMemberships, setHasMemberships] = useState(false)
   const [myRole, setMyRole] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [projectsLoaded, setProjectsLoaded] = useState(false)
 
   useEffect(() => {
     if (!user) return
     const sb = getSupabase()
     ;(async () => {
       const { data } = await sb.from("projects").select("*").order("id")
-      if (!data) return
+      if (!data) { setProjectsLoaded(true); return }
       let rows = data as Project[]
 
-      // Scope visible projects to this user's memberships (configured in the DB).
-      // A user with no memberships sees ALL projects — a safe admin default until
-      // you explicitly restrict them by inserting project_members rows.
+      // Scope visible projects strictly to this user's memberships (configured in
+      // the DB). A user only sees a project if they have a project_members row for
+      // it. No memberships => no projects (and no admin/desk access).
       const { data: mem } = await sb
         .from("project_members")
         .select("project_id, role")
@@ -80,15 +82,14 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
       for (const m of mem ?? []) rolesById[m.project_id] = m.role
       setMemberRoles(rolesById)
       setHasMemberships(ids.length > 0)
-      if (ids.length > 0) {
-        const idSet = new Set(ids)
-        rows = rows.filter((p) => idSet.has(p.id))
-      }
+      const idSet = new Set(ids)
+      rows = rows.filter((p) => idSet.has(p.id))
 
       setProjects(rows)
       const storedId = localStorage.getItem(PROJECT_STORAGE_KEY)
       const saved = storedId ? rows.find((p) => p.id === Number(storedId)) : null
       setCurrentProject(saved ?? rows[0] ?? null)
+      setProjectsLoaded(true)
     })()
   }, [user])
 
@@ -282,7 +283,7 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
   }, [user])
 
   return (
-    <IssuesContext.Provider value={{ issues, milestones, projects, currentProject, setCurrentProject: setCurrentProjectAndSave, myRole, hasMemberships, addIssue, updateIssue, deleteIssues, createMilestone, updateMilestone, deleteMilestone, loading }}>
+    <IssuesContext.Provider value={{ issues, milestones, projects, currentProject, setCurrentProject: setCurrentProjectAndSave, myRole, hasMemberships, addIssue, updateIssue, deleteIssues, createMilestone, updateMilestone, deleteMilestone, loading, projectsLoaded }}>
       {children}
     </IssuesContext.Provider>
   )

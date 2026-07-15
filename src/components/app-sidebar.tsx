@@ -67,7 +67,7 @@ const navItems: NavItem[] = [
 export function AppSidebar() {
   const { user, username, displayName, signOut } = useAuth()
   const { requireAuth } = useAuthGate()
-  const { projects, currentProject, setCurrentProject, myRole, hasMemberships } = useIssues()
+  const { projects, currentProject, setCurrentProject, myRole } = useIssues()
   const [projectPopoverOpen, setProjectPopoverOpen] = useState(false)
   const [authOpen, setAuthOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -87,7 +87,7 @@ export function AppSidebar() {
   }, [router])
 
   const visibleNavItems = navItems.filter(
-    (item) => item.href !== "/desk" || myRole === "admin" || !hasMemberships
+    (item) => item.href !== "/desk" || myRole === "admin"
   )
 
   return (

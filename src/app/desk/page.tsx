@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { ChevronDown, Pencil, X } from "lucide-react"
 import { getSupabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth-context"
+import { useIssues } from "@/lib/issues-context"
 import { Whiteboard } from "@/components/board/whiteboard"
 import type { Me } from "@/lib/board/types"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -29,6 +30,7 @@ type BoardRow = { id: string; name: string }
 
 export default function DeskPage() {
   const { user, username, displayName, loading } = useAuth()
+  const { myRole } = useIssues()
   const [boards, setBoards] = useState<BoardRow[]>([])
   const [boardId, setBoardId] = useState<string>("")
   const [popoverOpen, setPopoverOpen] = useState(false)
@@ -89,6 +91,7 @@ export default function DeskPage() {
   if (loading) return <div className="p-6 text-neutral-400">Loading…</div>
   if (!user) return <div className="p-6 text-neutral-400">Sign in to use the desk.</div>
   if (!me) return null
+  if (myRole !== "admin") return <div className="p-6 text-neutral-400">Access denied.</div>
 
   const list: BoardRow[] = boards
   const currentName = list.find((b) => b.id === boardId)?.name ?? (boardId || "—")

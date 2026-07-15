@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { BoardAccessGate } from "@/components/board-access-gate";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/lib/auth-context";
 import { AuthGateProvider } from "@/lib/auth-gate-context";
@@ -42,7 +43,7 @@ export default function RootLayout({
                 <div className="flex items-center gap-2 border-b border-border/50 px-4 py-2">
                   <SidebarTrigger />
                 </div>
-                {children}
+                <BoardAccessGate>{children}</BoardAccessGate>
               </main>
               <ToastViewport />
             </SidebarProvider>

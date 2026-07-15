@@ -12,7 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils"
 import { UserDisplayName } from "@/components/ui/display-name"
 import { format, differenceInDays, addDays, startOfDay, min as dateMin, max as dateMax } from "date-fns"
-import { Plus, X, Layers, Search, GripVertical, ChevronDown, Circle, CircleOff, CircleDot, CircleCheck, Diamond, ArrowDown, ArrowUp, Minus, AlertCircle } from "lucide-react"
+import { Plus, X, Layers, Search, GripVertical, ChevronDown, Circle, CircleOff, CircleDot, CircleCheck, Diamond, ArrowDown, ArrowUp, Minus, AlertCircle, Lock } from "lucide-react"
 import {
   DndContext,
   closestCenter,
@@ -20,6 +20,7 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from "@dnd-kit/core"
 import {
   SortableContext,
@@ -30,13 +31,66 @@ import {
 import { CSS } from "@dnd-kit/utilities"
 import { IssueDetailModal } from "@/components/issue-detail-modal"
 import { useAuth } from "@/lib/auth-context"
-import { useTimelineCursors } from "@/lib/timeline-cursors"
+import { useTimelineCursors, type TimelineCursor } from "@/lib/timeline-cursors"
 
 const CURSOR_PALETTE = ["#ef4444", "#f59e0b", "#10b981", "#3b82f6", "#8b5cf6", "#ec4899", "#14b8a6", "#eab308"]
 function cursorColorFor(id: string) {
   let h = 0
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0
   return CURSOR_PALETTE[h % CURSOR_PALETTE.length]
+}
+
+const CURSOR_SMOOTH_TIME = 0.09
+
+function smoothDamp(current: number, target: number, vel: { v: number }, smoothTime: number, dt: number) {
+  const omega = 2 / smoothTime
+  const x = omega * dt
+  const exp = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x)
+  const change = current - target
+  const temp = (vel.v + omega * change) * dt
+  vel.v = (vel.v - omega * temp) * exp
+  return target + (change + temp) * exp
+}
+
+function RemoteCursor({ cursor }: { cursor: TimelineCursor }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const posRef = useRef({ x: cursor.x, y: cursor.y })
+  const velRef = useRef({ x: { v: 0 }, y: { v: 0 } })
+  const targetRef = useRef({ x: cursor.x, y: cursor.y })
+  targetRef.current = { x: cursor.x, y: cursor.y }
+  const initialTransform = useRef(`translate(${cursor.x}px, ${cursor.y}px)`)
+
+  useEffect(() => {
+    let raf = 0
+    let lastT = performance.now()
+    const tick = (now: number) => {
+      const dt = Math.min((now - lastT) / 1000, 0.05)
+      lastT = now
+      const p = posRef.current
+      const t = targetRef.current
+      p.x = smoothDamp(p.x, t.x, velRef.current.x, CURSOR_SMOOTH_TIME, dt)
+      p.y = smoothDamp(p.y, t.y, velRef.current.y, CURSOR_SMOOTH_TIME, dt)
+      if (ref.current) ref.current.style.transform = `translate(${p.x}px, ${p.y}px)`
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [])
+
+  return (
+    <div
+      ref={ref}
+      className="pointer-events-none absolute left-0 top-0 z-30 flex items-start gap-1"
+      style={{ transform: initialTransform.current, willChange: "transform" }}
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="shrink-0 drop-shadow">
+        <path d="M4 2l6 16 2.5-6.5L19 9 4 2z" fill={cursor.color} stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
+      </svg>
+      <span className="rounded px-1 py-0.5 text-[10px] font-medium text-white whitespace-nowrap" style={{ backgroundColor: cursor.color }}>
+        {cursor.name}
+      </span>
+    </div>
+  )
 }
 
 const teamColors: Record<string, string> = {
@@ -139,6 +193,7 @@ function SortableTimelineRow({
   userMap,
   onOpen,
   onRemove,
+  lock,
 }: {
   issue: Issue & { timelineStart: Date; timelineEnd: Date }
   idx: number
@@ -147,8 +202,9 @@ function SortableTimelineRow({
   userMap: Map<string, Database["public"]["Tables"]["users"]["Row"]>
   onOpen: () => void
   onRemove: (id: number) => void
+  lock: { userId: string; name: string; color: string } | null
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: issue.id })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: issue.id, disabled: !!lock })
   const style = {
     height: ROW_HEIGHT,
     transform: CSS.Transform.toString(transform),
@@ -157,11 +213,24 @@ function SortableTimelineRow({
     zIndex: isDragging ? 30 : undefined,
   }
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="flex items-center" onClick={onOpen}>
-      <div className={cn("group flex w-full items-center gap-2 rounded-md border border-white/20 px-4 py-1.5 transition-colors", idx % 2 === 0 && !rowColorObj && "bg-muted/10 hover:bg-muted/20", rowColorObj?.row, rowColorObj?.rowHover)}>
+    <div
+      ref={setNodeRef}
+      style={{ ...style, ...(lock ? { boxShadow: `inset 3px 0 0 ${lock.color}` } : {}) }}
+      {...(lock ? {} : attributes)}
+      {...(lock ? {} : listeners)}
+      className={cn("flex items-center", lock && "cursor-not-allowed")}
+      onClick={lock ? undefined : onOpen}
+    >
+      <div className={cn("group flex w-full items-center gap-2 rounded-md border border-white/20 px-4 py-1.5 transition-colors", idx % 2 === 0 && !rowColorObj && "bg-muted/10 hover:bg-muted/20", rowColorObj?.row, rowColorObj?.rowHover, lock && "opacity-60")}>
         <div className="flex-1 min-w-0 flex items-center gap-1.5">
           {issue.is_epic && <Layers className="size-3 shrink-0 text-purple-400" />}
           <span className="text-xs truncate">{issue.title}</span>
+          {lock && (
+            <span className="flex shrink-0 items-center gap-0.5 rounded px-1 text-[9px] font-medium text-white" style={{ backgroundColor: lock.color }} title={`${lock.name} is editing`}>
+              <Lock className="size-2.5" />
+              {lock.name}
+            </span>
+          )}
         </div>
         {viewTeam ? (
           issue.team ? (
@@ -194,12 +263,25 @@ export default function TimelinePage() {
     () => (user ? { id: user.id, name: displayName || username || user.email || "Anon", color: cursorColorFor(user.id) } : null),
     [user, username, displayName],
   )
-  const { cursors, sendCursor } = useTimelineCursors(currentProject?.id ?? null, me)
+  const { cursors, sendCursor, locks, lockIssue, unlockIssue } = useTimelineCursors(currentProject?.id ?? null, me)
   const cursorSentRef = useRef(0)
+  const panelContentRef = useRef<HTMLDivElement>(null)
+  const locksRef = useRef(locks)
+  locksRef.current = locks
+  const meRef = useRef(me)
+  meRef.current = me
+  const lockedByOther = useCallback(
+    (issueId: number) => {
+      const l = locks[issueId]
+      return l && l.userId !== me?.id ? l : null
+    },
+    [locks, me?.id],
+  )
   const [users, setUsers] = useState<Database["public"]["Tables"]["users"]["Row"][]>([])
   const scrollRef = useRef<HTMLDivElement>(null)
   const gridRef = useRef<HTMLDivElement>(null)
   const [syncScroll, setSyncScroll] = useState(0)
+  const [syncScrollY, setSyncScrollY] = useState(0)
   const [entries, setEntries] = useState<TimelineEntry[]>([])
   const entriesRef = useRef(entries)
   entriesRef.current = entries
@@ -252,9 +334,19 @@ export default function TimelinePage() {
     loadEntries()
   }, [loadEntries])
 
-  const interactingRef = useRef(false)
-  interactingRef.current = resizing !== null || moving !== null
+  const busyRef = useRef(false)
   const pendingReloadRef = useRef(false)
+  const persistOneRef = useRef<(id: number) => Promise<void>>(async () => {})
+
+  const finishGesture = useCallback(async (issueId: number) => {
+    await persistOneRef.current(issueId)
+    unlockIssue(issueId)
+    busyRef.current = false
+    if (pendingReloadRef.current) {
+      pendingReloadRef.current = false
+      loadEntries()
+    }
+  }, [loadEntries, unlockIssue])
 
   useEffect(() => {
     if (!currentProject) return
@@ -265,7 +357,7 @@ export default function TimelinePage() {
         "postgres_changes",
         { event: "*", schema: "public", table: "timeline_entries", filter: `project_id=eq.${currentProject.id}` },
         () => {
-          if (interactingRef.current) {
+          if (busyRef.current) {
             pendingReloadRef.current = true
           } else {
             loadEntries()
@@ -277,13 +369,6 @@ export default function TimelinePage() {
       sb.removeChannel(channel)
     }
   }, [currentProject, loadEntries])
-
-  useEffect(() => {
-    if (resizing === null && moving === null && pendingReloadRef.current) {
-      pendingReloadRef.current = false
-      loadEntries()
-    }
-  }, [resizing, moving, loadEntries])
 
   const persistEntries = useCallback(
     async (next: TimelineEntry[]) => {
@@ -320,6 +405,28 @@ export default function TimelinePage() {
     setEntries((prev) => prev.map((e) => e.issueId === issueId ? { ...e, ...changes } : e))
   }, [])
 
+  const persistOne = useCallback(async (issueId: number) => {
+    if (!currentProject) return
+    const idx = entriesRef.current.findIndex((e) => e.issueId === issueId)
+    if (idx === -1) return
+    const e = entriesRef.current[idx]
+    const { error } = await getSupabase()
+      .from("timeline_entries")
+      .upsert(
+        {
+          project_id: currentProject.id,
+          issue_id: e.issueId,
+          start_date: e.startDate,
+          end_date: e.endDate,
+          color: e.color ?? null,
+          position: idx,
+        },
+        { onConflict: "project_id,issue_id" },
+      )
+    if (error) console.error("Failed to persist timeline entry", JSON.stringify(error))
+  }, [currentProject])
+  persistOneRef.current = persistOne
+
   const userMap = useMemo(() => new Map(users.map((u) => [u.id, u])), [users])
   const issueMap = useMemo(() => new Map(issues.map((i) => [i.id, i])), [issues])
   const entryColorMap = useMemo(() => new Map(entries.map((e) => [e.issueId, e.color])), [entries])
@@ -337,8 +444,19 @@ export default function TimelinePage() {
     persistEntries([...ordered, ...rest])
   }, [entries, persistEntries])
 
+  const handleTimelineDragStart = (event: DragStartEvent) => {
+    busyRef.current = true
+    lockIssue(event.active.id as number)
+  }
+
   const handleTimelineDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
+    unlockIssue(active.id as number)
+    busyRef.current = false
+    if (pendingReloadRef.current) {
+      pendingReloadRef.current = false
+      loadEntries()
+    }
     if (!over || active.id === over.id) return
     const oldIndex = timelineIssues.findIndex((i) => i.id === active.id)
     const newIndex = timelineIssues.findIndex((i) => i.id === over.id)
@@ -379,12 +497,18 @@ export default function TimelinePage() {
     return { start: today, end, totalDays }
   }, [timelineIssues, dayOffset])
 
+  const dateRangeRef = useRef(dateRange)
+  dateRangeRef.current = dateRange
+
   const days = useMemo(() => {
     return Array.from({ length: dateRange.totalDays }, (_, i) => addDays(dateRange.start, i))
   }, [dateRange])
 
   const handleSyncScroll = () => {
-    if (scrollRef.current) setSyncScroll(scrollRef.current.scrollLeft)
+    if (scrollRef.current) {
+      setSyncScroll(scrollRef.current.scrollLeft)
+      setSyncScrollY(scrollRef.current.scrollTop)
+    }
   }
 
   const addEntry = (issueId: number) => {
@@ -413,14 +537,22 @@ export default function TimelinePage() {
   const handleResizeMouseDown = useCallback((e: React.MouseEvent, issueId: number, side: "left" | "right") => {
     e.preventDefault()
     e.stopPropagation()
+    const l = locksRef.current[issueId]
+    if (l && l.userId !== meRef.current?.id) return
+    busyRef.current = true
+    lockIssue(issueId)
     setResizing({ issueId, side })
-  }, [])
+  }, [lockIssue])
 
   const handleMoveMouseDown = useCallback((e: React.MouseEvent, issueId: number) => {
     e.preventDefault()
     e.stopPropagation()
+    const l = locksRef.current[issueId]
+    if (l && l.userId !== meRef.current?.id) return
     const entry = entries.find((en) => en.issueId === issueId)
     if (!entry) return
+    busyRef.current = true
+    lockIssue(issueId)
     setMoving({
       issueId,
       startClientX: e.clientX,
@@ -443,7 +575,7 @@ export default function TimelinePage() {
       const scrollLeft = scrollEl.scrollLeft
       const mouseX = e.clientX - gridRect.left + scrollLeft
       const colIndex = Math.max(0, Math.round(mouseX / COLUMN_WIDTH))
-      const newDate = format(addDays(dateRange.start, colIndex), "yyyy-MM-dd")
+      const newDate = format(addDays(dateRangeRef.current.start, colIndex), "yyyy-MM-dd")
 
       const entry = entriesRef.current.find((en) => en.issueId === resizing.issueId)
       if (!entry) return
@@ -480,7 +612,7 @@ export default function TimelinePage() {
     const handleMouseUp = () => {
       if (autoScrollFrame !== null) { clearInterval(autoScrollFrame) }
       document.body.style.cursor = ""
-      persistEntries(entriesRef.current)
+      finishGesture(resizing.issueId)
       setResizing(null)
     }
 
@@ -491,7 +623,7 @@ export default function TimelinePage() {
       document.removeEventListener("mousemove", handleMouseMove)
       document.removeEventListener("mouseup", handleMouseUp)
     }
-  }, [resizing, dateRange, updateEntryLocal, persistEntries])
+  }, [resizing, updateEntryLocal, finishGesture])
 
   const updateEntryLocalRef = useRef(updateEntryLocal)
   updateEntryLocalRef.current = updateEntryLocal
@@ -507,7 +639,7 @@ export default function TimelinePage() {
     }
     const handleMouseUp = () => {
       document.body.style.cursor = ""
-      persistEntries(entriesRef.current)
+      finishGesture(moving.issueId)
       setMoving(null)
     }
     document.addEventListener("mousemove", handleMouseMove)
@@ -517,7 +649,7 @@ export default function TimelinePage() {
       document.removeEventListener("mousemove", handleMouseMove)
       document.removeEventListener("mouseup", handleMouseUp)
     }
-  }, [moving, persistEntries])
+  }, [moving, finishGesture])
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -688,19 +820,31 @@ export default function TimelinePage() {
           </Button>
         </div>
       </div>
-      <div className="flex flex-1 overflow-hidden">
+      <div className="relative flex flex-1 overflow-hidden">
         <div className="shrink-0 border-r border-border/30 px-3" style={{ width: SWIMLANE_WIDTH + 24 }}>
           <div style={{ height: HEADER_HEIGHT }} className="border-b border-border/30 px-4 flex items-center">
             <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/60">Tasks</span>
           </div>
-          <div className="overflow-hidden" style={{ height: `calc(100% - ${HEADER_HEIGHT}px)` }}>
-            <div style={{ transform: `translateY(-${syncScroll}px)` }} className="transition-none">
+          <div
+            className="overflow-hidden"
+            style={{ height: `calc(100% - ${HEADER_HEIGHT}px)` }}
+            onMouseMove={(e) => {
+              const el = panelContentRef.current
+              if (!el) return
+              const now = Date.now()
+              if (now - cursorSentRef.current < 25) return
+              cursorSentRef.current = now
+              const rect = el.getBoundingClientRect()
+              sendCursor("panel", e.clientX - rect.left, e.clientY - rect.top)
+            }}
+          >
+            <div ref={panelContentRef} style={{ transform: `translateY(-${syncScroll}px)`, position: "relative" }} className="transition-none">
               {timelineIssues.length === 0 ? (
                 <div className="flex items-center justify-center p-6">
                   <span className="text-xs text-muted-foreground/40">No items yet</span>
                 </div>
               ) : (
-                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleTimelineDragEnd}>
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleTimelineDragStart} onDragEnd={handleTimelineDragEnd}>
                   <SortableContext items={timelineIssues.map((i) => i.id)} strategy={verticalListSortingStrategy}>
                     {timelineIssues.map((issue, idx) => {
                       const foundColorId = entryColorMap.get(issue.id)
@@ -715,6 +859,7 @@ export default function TimelinePage() {
                           userMap={userMap}
                           onOpen={() => { setDetailParentIssue(null); setDetailIssueId(issue.id) }}
                           onRemove={removeEntry}
+                          lock={lockedByOther(issue.id)}
                         />
                       )
                     })}
@@ -743,10 +888,10 @@ export default function TimelinePage() {
               const grid = gridRef.current
               if (!grid) return
               const now = Date.now()
-              if (now - cursorSentRef.current < 40) return
+              if (now - cursorSentRef.current < 25) return
               cursorSentRef.current = now
               const rect = grid.getBoundingClientRect()
-              sendCursor(e.clientX - rect.left, e.clientY - rect.top)
+              sendCursor("grid", e.clientX - rect.left, e.clientY - rect.top)
             }}
             className="flex-1 overflow-auto"
           >
@@ -763,6 +908,7 @@ export default function TimelinePage() {
                 const barColor = overrideId
                   ? (ROW_COLORS.find((c) => c.id === overrideId)?.bar ?? teamColor)
                   : teamColor
+                const barLock = lockedByOther(issue.id)
                 return (
                   <div
                     key={issue.id}
@@ -772,15 +918,17 @@ export default function TimelinePage() {
                       left: startCol * COLUMN_WIDTH,
                       width: Math.max(span * COLUMN_WIDTH - 4, 24),
                       height: ROW_HEIGHT - 6,
+                      ...(barLock ? { boxShadow: `0 0 0 1.5px ${barLock.color}` } : {}),
                     }}
-                    onMouseDown={(e) => handleMoveMouseDown(e, issue.id)}
-                    className={cn("rounded-md border flex items-center gap-0 text-xs font-medium select-none group cursor-grab active:cursor-grabbing", barColor, (resizing?.issueId === issue.id || moving?.issueId === issue.id) ? "z-10 shadow-lg" : "")}
-                    title={`${currentProject?.code ?? "?"}-${issue.display_id}: ${issue.title}`}
+                    onMouseDown={barLock ? undefined : (e) => handleMoveMouseDown(e, issue.id)}
+                    className={cn("rounded-md border flex items-center gap-0 text-xs font-medium select-none group", barColor, barLock ? "cursor-not-allowed opacity-60" : "cursor-grab active:cursor-grabbing", (resizing?.issueId === issue.id || moving?.issueId === issue.id) ? "z-10 shadow-lg" : "")}
+                    title={barLock ? `${barLock.name} is editing` : `${currentProject?.code ?? "?"}-${issue.display_id}: ${issue.title}`}
                   >
                     <div
-                      onMouseDown={(e) => handleResizeMouseDown(e, issue.id, "left")}
+                      onMouseDown={barLock ? undefined : (e) => handleResizeMouseDown(e, issue.id, "left")}
                       className={cn(
-                        "shrink-0 flex items-center justify-center w-3 h-full cursor-col-resize opacity-0 hover:opacity-100 transition-opacity rounded-l-md",
+                        "shrink-0 flex items-center justify-center w-3 h-full cursor-col-resize opacity-0 transition-opacity rounded-l-md",
+                        barLock ? "hidden" : "hover:opacity-100",
                         resizing?.issueId === issue.id && resizing?.side === "left" ? "opacity-100" : "group-hover:opacity-100",
                       )}
                     >
@@ -788,6 +936,7 @@ export default function TimelinePage() {
                     </div>
                     {issue.is_epic && <Layers className="size-3 shrink-0 text-purple-400 mx-1" />}
                     <span className="truncate flex-1">{issue.title}</span>
+                    {barLock && <Lock className="size-2.5 shrink-0 mx-1" style={{ color: barLock.color }} />}
                     {viewTeam ? (
                       issue.team ? (
                       <span className={cn("shrink-0 text-[10px] font-medium", teamTextColors[issue.team] ?? "text-muted-foreground/70")}>{issue.team}</span>
@@ -802,9 +951,10 @@ export default function TimelinePage() {
                       )
                     )}
                     <div
-                      onMouseDown={(e) => handleResizeMouseDown(e, issue.id, "right")}
+                      onMouseDown={barLock ? undefined : (e) => handleResizeMouseDown(e, issue.id, "right")}
                       className={cn(
-                        "shrink-0 flex items-center justify-center w-3 h-full cursor-col-resize opacity-0 hover:opacity-100 transition-opacity rounded-r-md",
+                        "shrink-0 flex items-center justify-center w-3 h-full cursor-col-resize opacity-0 transition-opacity rounded-r-md",
+                        barLock ? "hidden" : "hover:opacity-100",
                         resizing?.issueId === issue.id && resizing?.side === "right" ? "opacity-100" : "group-hover:opacity-100",
                       )}
                     >
@@ -813,25 +963,16 @@ export default function TimelinePage() {
                   </div>
                 )
               })}
-              {Object.values(cursors).map((c) => (
-                <div
-                  key={c.userId}
-                  className="pointer-events-none absolute z-30 flex items-start gap-1"
-                  style={{ left: c.x, top: c.y, transform: "translate(-1px, -1px)" }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="shrink-0 drop-shadow">
-                    <path d="M4 2l6 16 2.5-6.5L19 9 4 2z" fill={c.color} stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
-                  </svg>
-                  <span
-                    className="rounded px-1 py-0.5 text-[10px] font-medium text-white whitespace-nowrap"
-                    style={{ backgroundColor: c.color }}
-                  >
-                    {c.name}
-                  </span>
-                </div>
-              ))}
             </div>
           </div>
+        </div>
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          {Object.values(cursors).map((c) => {
+            const panelWidth = SWIMLANE_WIDTH + 24
+            const x = c.region === "panel" ? 12 + c.x : panelWidth + c.x - syncScroll
+            const y = c.region === "panel" ? HEADER_HEIGHT + c.y - syncScroll : HEADER_HEIGHT + c.y - syncScrollY
+            return <RemoteCursor key={c.userId} cursor={{ ...c, x, y }} />
+          })}
         </div>
       </div>
       <Dialog open={addOpen} onOpenChange={setAddOpen}>

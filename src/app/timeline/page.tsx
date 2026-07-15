@@ -29,6 +29,15 @@ import {
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { IssueDetailModal } from "@/components/issue-detail-modal"
+import { useAuth } from "@/lib/auth-context"
+import { useTimelineCursors } from "@/lib/timeline-cursors"
+
+const CURSOR_PALETTE = ["#ef4444", "#f59e0b", "#10b981", "#3b82f6", "#8b5cf6", "#ec4899", "#14b8a6", "#eab308"]
+function cursorColorFor(id: string) {
+  let h = 0
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0
+  return CURSOR_PALETTE[h % CURSOR_PALETTE.length]
+}
 
 const teamColors: Record<string, string> = {
   "3D": "bg-red-500/35 border-red-500/55 text-red-300",
@@ -180,6 +189,13 @@ function SortableTimelineRow({
 
 export default function TimelinePage() {
   const { issues, currentProject, milestones } = useIssues()
+  const { user, username, displayName } = useAuth()
+  const me = useMemo(
+    () => (user ? { id: user.id, name: displayName || username || user.email || "Anon", color: cursorColorFor(user.id) } : null),
+    [user, username, displayName],
+  )
+  const { cursors, sendCursor } = useTimelineCursors(currentProject?.id ?? null, me)
+  const cursorSentRef = useRef(0)
   const [users, setUsers] = useState<Database["public"]["Tables"]["users"]["Row"][]>([])
   const scrollRef = useRef<HTMLDivElement>(null)
   const gridRef = useRef<HTMLDivElement>(null)
@@ -720,7 +736,20 @@ export default function TimelinePage() {
               </div>
             </div>
           </div>
-          <div ref={scrollRef} onScroll={handleSyncScroll} className="flex-1 overflow-auto">
+          <div
+            ref={scrollRef}
+            onScroll={handleSyncScroll}
+            onMouseMove={(e) => {
+              const grid = gridRef.current
+              if (!grid) return
+              const now = Date.now()
+              if (now - cursorSentRef.current < 40) return
+              cursorSentRef.current = now
+              const rect = grid.getBoundingClientRect()
+              sendCursor(e.clientX - rect.left, e.clientY - rect.top)
+            }}
+            className="flex-1 overflow-auto"
+          >
             <div ref={gridRef} style={{ width: dateRange.totalDays * COLUMN_WIDTH, position: "relative", minHeight: timelineIssues.length * ROW_HEIGHT }}>
               {days.map((day, i) => day.getDay() === 1 ? (
                 <div key={`line-${i}`} style={{ left: i * COLUMN_WIDTH, height: "100%", position: "absolute", top: 0, width: 3 }} className="bg-border/40 z-0" />
@@ -784,6 +813,23 @@ export default function TimelinePage() {
                   </div>
                 )
               })}
+              {Object.values(cursors).map((c) => (
+                <div
+                  key={c.userId}
+                  className="pointer-events-none absolute z-30 flex items-start gap-1"
+                  style={{ left: c.x, top: c.y, transform: "translate(-1px, -1px)" }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="shrink-0 drop-shadow">
+                    <path d="M4 2l6 16 2.5-6.5L19 9 4 2z" fill={c.color} stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
+                  </svg>
+                  <span
+                    className="rounded px-1 py-0.5 text-[10px] font-medium text-white whitespace-nowrap"
+                    style={{ backgroundColor: c.color }}
+                  >
+                    {c.name}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         </div>

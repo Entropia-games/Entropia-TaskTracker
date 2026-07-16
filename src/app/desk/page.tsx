@@ -91,7 +91,7 @@ export default function DeskPage() {
   if (loading) return <div className="p-6 text-neutral-400">Loading…</div>
   if (!user) return <div className="p-6 text-neutral-400">Sign in to use the desk.</div>
   if (!me) return null
-  if (myRole !== "admin") return <div className="p-6 text-neutral-400">Access denied.</div>
+  if (myRole !== "admin" && myRole !== "member") return <div className="p-6 text-neutral-400">Access denied.</div>
 
   const list: BoardRow[] = boards
   const currentName = list.find((b) => b.id === boardId)?.name ?? (boardId || "—")

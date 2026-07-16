@@ -54,6 +54,7 @@ type NavItem = {
   icon: typeof List
   href: string
   count?: number
+  badge?: string
 }
 
 const navItems: NavItem[] = [
@@ -62,8 +63,8 @@ const navItems: NavItem[] = [
   { label: "Epics", icon: LayoutGrid, href: "/epics" },
   { label: "Statistics", icon: BarChart3, href: "/statistics" },
   { label: "Timeline", icon: Timeline, href: "/timeline" },
-  { label: "Docs", icon: FileText, href: "/docs" },
-  { label: "Desk", icon: PenLine, href: "/desk" },
+  { label: "Docs", icon: FileText, href: "/docs", badge: "BETA" },
+  { label: "Desk", icon: PenLine, href: "/desk", badge: "BETA" },
 ]
 
 export function AppSidebar() {
@@ -142,6 +143,9 @@ export function AppSidebar() {
                     <span className="flex items-center gap-2">
                       <item.icon className="size-4" />
                       <span>{item.label}</span>
+                      {item.badge && (
+                        <span className="text-[10px] text-muted-foreground font-medium">{item.badge}</span>
+                      )}
                     </span>
                     {item.count !== undefined && (
                       <span className="text-[11px] text-muted-foreground">{item.count}</span>

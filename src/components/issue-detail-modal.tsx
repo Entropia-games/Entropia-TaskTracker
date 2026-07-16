@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
 import type { Issue, IssueStatus, IssuePriority, IssueTeam, Attachment } from "@/lib/issues-context"
 import { useIssues } from "@/lib/issues-context"
+import { useDocs } from "@/lib/docs-context"
 import { useAuthGate } from "@/lib/auth-gate-context"
 import { uploadFiles } from "@/lib/uploadthing"
 import { compressImage } from "@/lib/compress-image"
@@ -15,6 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { UserDisplayName } from "@/components/ui/display-name"
 import {
@@ -95,6 +97,7 @@ type Props = {
 
 export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetail, parentIssue }: Props) {
   const { updateIssue, deleteIssues, issues, milestones, currentProject } = useIssues()
+  const { documents } = useDocs()
   const { requireAuth } = useAuthGate()
   const [status, setStatus] = useState<IssueStatus>("backlog")
   const [priority, setPriority] = useState<IssuePriority>("none")
@@ -112,6 +115,8 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
   const [confirmEpicToggle, setConfirmEpicToggle] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
+  const [docPickerOpen, setDocPickerOpen] = useState(false)
+  const [docSearch, setDocSearch] = useState("")
   const [readyId, setReadyId] = useState<number | null>(null)
   const [displayedIssue, setDisplayedIssue] = useState<Issue | null>(null)
   const [timelineEntry, setTimelineEntry] = useState<{ start_date: string; end_date: string } | null>(null)
@@ -292,8 +297,18 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
   const removeAttachment = async (att: Attachment) => {
     const next = currentAttachments.filter((a) => a.url !== att.url)
     guardedUpdate({ attachments: next })
-    fetch("/api/delete-images", { method: "POST", body: JSON.stringify({ urls: [att.url] }) })
-      .catch((e) => console.error("Failed to delete image", e))
+    if (att.type !== "doc/link") {
+      fetch("/api/delete-images", { method: "POST", body: JSON.stringify({ urls: [att.url] }) })
+        .catch((e) => console.error("Failed to delete image", e))
+    }
+  }
+
+  const handleDocLinkExisting = (docId: number, docTitle: string) => {
+    guardedUpdate({
+      attachments: [...currentAttachments, { url: `/docs?doc=${docId}`, name: docTitle, type: "doc/link" }],
+    })
+    setDocPickerOpen(false)
+    setDocSearch("")
   }
 
   const activeStatus = STATUS_OPTIONS.find((s) => s.value === status)
@@ -406,8 +421,8 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
               <input ref={imageInputRef} type="file" accept="image/*,.pdf,.doc,.docx,.txt,.zip,.xls,.xlsx,.ppt,.pptx" className="hidden" onChange={handleAttachmentUpload} />
               {currentAttachments.length > 0 && (
                 <div className="mt-2 flex flex-col gap-2">
-                  {currentAttachments.map((att) => (
-                    <div key={att.url} className="group relative">
+                  {currentAttachments.map((att, i) => (
+                    <div key={`${att.url}-${i}`} className="group relative">
                       {isImageAtt(att) ? (
                         <>
                           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -455,6 +470,13 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
               >
                 <Image className="size-3.5" />
                 {uploading ? "Uploading..." : "Add image"}
+              </button>
+              <button
+                onClick={() => setDocPickerOpen(true)}
+                className="mt-2 inline-flex items-center gap-1.5 rounded px-2 py-1 text-xs text-muted-foreground/50 hover:text-muted-foreground hover:bg-accent transition-colors"
+              >
+                <FileText className="size-3.5" />
+                Add document
               </button>
             </div>
           </div>
@@ -701,7 +723,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
         )}
       </DialogContent>
       <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
-        <DialogContent className="sm:max-w-xs">
+        <DialogContent className="sm:max-w-xs" forceRenderOverlay>
           <DialogTitle className="text-sm font-medium">Delete issue?</DialogTitle>
           <p className="text-xs text-muted-foreground/60">This action cannot be undone.</p>
           <div className="flex justify-end gap-2 pt-2">
@@ -711,7 +733,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
         </DialogContent>
       </Dialog>
       <Dialog open={confirmEpicToggle} onOpenChange={setConfirmEpicToggle}>
-        <DialogContent className="sm:max-w-xs">
+        <DialogContent className="sm:max-w-xs" forceRenderOverlay>
           <DialogTitle className="text-sm font-medium">Convert to issue?</DialogTitle>
           <p className="text-xs text-muted-foreground/60">Child issues will no longer be linked to this epic.</p>
           <div className="flex justify-end gap-2 pt-2">
@@ -740,6 +762,40 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
             </div>,
             document.body
           )}
+      </Dialog>
+      <Dialog open={docPickerOpen} onOpenChange={setDocPickerOpen}>
+        <DialogContent className="sm:max-w-md" forceRenderOverlay>
+          <DialogTitle className="text-sm font-medium">Link document</DialogTitle>
+          <Input
+            autoFocus
+            value={docSearch}
+            onChange={(e) => setDocSearch(e.target.value)}
+            placeholder="Search documents..."
+          />
+          {(() => {
+            const available = documents
+              .filter((doc) => !currentAttachments.some((a) => a.url === `/docs?doc=${doc.id}`))
+              .filter((doc) => !docSearch || doc.title.toLowerCase().includes(docSearch.toLowerCase()))
+            return available.length > 0 ? (
+              <div className="max-h-48 overflow-auto">
+                <div className="space-y-0.5">
+                  {available.map((doc) => (
+                    <button
+                      key={doc.id}
+                      onClick={() => handleDocLinkExisting(doc.id, doc.title)}
+                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent"
+                    >
+                      <FileText className="size-3.5 shrink-0" />
+                      <span className="truncate">{doc.title}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <span className="block text-xs text-muted-foreground/50 py-1">No documents found</span>
+            )
+          })()}
+        </DialogContent>
       </Dialog>
     </Dialog>
   )

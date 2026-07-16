@@ -13,7 +13,7 @@ import {
   SidebarMenuItem,
   SidebarSeparator,
 } from "@/components/ui/sidebar"
-import { useState, useCallback, useEffect, useRef } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { SearchModal } from "@/components/search-modal"
 import { useRouter, usePathname } from "next/navigation"
 import {
@@ -23,6 +23,7 @@ import {
   BarChart3,
   Timeline,
   PenLine,
+  FileText,
   Search,
   LogOut,
   LogIn,
@@ -61,6 +62,7 @@ const navItems: NavItem[] = [
   { label: "Epics", icon: LayoutGrid, href: "/epics" },
   { label: "Statistics", icon: BarChart3, href: "/statistics" },
   { label: "Timeline", icon: Timeline, href: "/timeline" },
+  { label: "Docs", icon: FileText, href: "/docs" },
   { label: "Desk", icon: PenLine, href: "/desk" },
 ]
 
@@ -87,7 +89,11 @@ export function AppSidebar() {
   }, [router])
 
   const visibleNavItems = navItems.filter(
-    (item) => item.href !== "/desk" || myRole === "admin"
+    (item) => {
+      const key = item.href.slice(1)
+      if (key === "desk" || key === "docs") return myRole === "admin" || myRole === "member"
+      return true
+    }
   )
 
   return (

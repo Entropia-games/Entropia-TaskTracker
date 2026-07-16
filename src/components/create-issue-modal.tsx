@@ -25,6 +25,7 @@ import {
 import { cn } from "@/lib/utils"
 import { UserDisplayName } from "@/components/ui/display-name"
 import { useIssues, type IssueStatus, type IssuePriority, type IssueTeam, type Milestone, type Attachment } from "@/lib/issues-context"
+import { useDocs } from "@/lib/docs-context"
 import { useAuth } from "@/lib/auth-context"
 import { getSupabase } from "@/lib/supabase"
 import { useAuthGate } from "@/lib/auth-gate-context"
@@ -92,6 +93,7 @@ const PRIORITY_COLORS: Record<IssuePriority, string> = {
 
 export function CreateIssueModal() {
   const { addIssue, milestones: projectMilestones, issues } = useIssues()
+  const { documents } = useDocs()
   const { requireAuth } = useAuthGate()
   const { user } = useAuth()
   const [open, setOpen] = useState(false)
@@ -107,6 +109,8 @@ export function CreateIssueModal() {
   const [users, setUsers] = useState<Database["public"]["Tables"]["users"]["Row"][]>([])
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [uploading, setUploading] = useState(false)
+  const [docPickerOpen, setDocPickerOpen] = useState(false)
+  const [docSearch, setDocSearch] = useState("")
   const imageInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -146,8 +150,16 @@ export function CreateIssueModal() {
 
   const removeAttachment = (att: Attachment) => {
     setAttachments((prev) => prev.filter((a) => a.url !== att.url))
-    fetch("/api/delete-images", { method: "POST", body: JSON.stringify({ urls: [att.url] }) })
-      .catch((e) => console.error("Failed to delete image", e))
+    if (att.type !== "doc/link") {
+      fetch("/api/delete-images", { method: "POST", body: JSON.stringify({ urls: [att.url] }) })
+        .catch((e) => console.error("Failed to delete image", e))
+    }
+  }
+
+  const handleDocLinkExisting = (docId: number, docTitle: string) => {
+    setAttachments((prev) => [...prev, { url: `/docs?doc=${docId}`, name: docTitle, type: "doc/link" }])
+    setDocPickerOpen(false)
+    setDocSearch("")
   }
 
   const activeStatus = STATUS_OPTIONS.find((s) => s.value === status)
@@ -184,8 +196,9 @@ export function CreateIssueModal() {
   }
 
   const discardAttachments = () => {
-    if (attachments.length > 0) {
-      fetch("/api/delete-images", { method: "POST", body: JSON.stringify({ urls: attachments.map((a) => a.url) }) })
+    const nonDocAtts = attachments.filter((a) => a.type !== "doc/link")
+    if (nonDocAtts.length > 0) {
+      fetch("/api/delete-images", { method: "POST", body: JSON.stringify({ urls: nonDocAtts.map((a) => a.url) }) })
         .catch((e) => console.error("Failed to delete image", e))
     }
     setAttachments([])
@@ -253,8 +266,8 @@ export function CreateIssueModal() {
             <input ref={imageInputRef} type="file" accept="image/*,.pdf,.doc,.docx,.txt,.zip,.xls,.xlsx,.ppt,.pptx" className="hidden" onChange={handleAttachmentUpload} />
             {attachments.length > 0 && (
               <div className="mt-2 flex flex-col gap-2">
-                {attachments.map((att) => (
-                  <div key={att.url} className="group relative">
+                {attachments.map((att, i) => (
+                  <div key={`${att.url}-${i}`} className="group relative">
                     {isImageAtt(att) ? (
                       <>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -297,6 +310,13 @@ export function CreateIssueModal() {
             >
               <Image className="size-3.5" />
               {uploading ? "Uploading..." : "Add image"}
+            </button>
+            <button
+              onClick={() => setDocPickerOpen(true)}
+              className="mt-2 inline-flex items-center gap-1.5 rounded px-2 py-1 text-xs text-muted-foreground/50 hover:text-muted-foreground hover:bg-accent transition-colors"
+            >
+              <FileText className="size-3.5" />
+              Add document
             </button>
           </div>
           <DialogFooter className="!mt-0 !mb-0 !mx-0 flex-col sm:flex-col !rounded-none !border-t !border-border/50 !bg-transparent px-5 py-4">
@@ -477,6 +497,40 @@ export function CreateIssueModal() {
             </div>
           </DialogFooter>
         </div>
+      </DialogContent>
+    </Dialog>
+      <Dialog open={docPickerOpen} onOpenChange={setDocPickerOpen}>
+      <DialogContent className="sm:max-w-md" forceRenderOverlay>
+        <DialogTitle className="text-sm font-medium">Link document</DialogTitle>
+        <Input
+          autoFocus
+          value={docSearch}
+          onChange={(e) => setDocSearch(e.target.value)}
+          placeholder="Search documents..."
+        />
+        {(() => {
+          const available = documents
+            .filter((doc) => !attachments.some((a) => a.url === `/docs?doc=${doc.id}`))
+            .filter((doc) => !docSearch || doc.title.toLowerCase().includes(docSearch.toLowerCase()))
+          return available.length > 0 ? (
+            <div className="max-h-48 overflow-auto">
+              <div className="space-y-0.5">
+                {available.map((doc) => (
+                  <button
+                    key={doc.id}
+                    onClick={() => handleDocLinkExisting(doc.id, doc.title)}
+                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent"
+                  >
+                    <FileText className="size-3.5 shrink-0" />
+                    <span className="truncate">{doc.title}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <span className="block text-xs text-muted-foreground/50 py-1">No documents found</span>
+          )
+        })()}
       </DialogContent>
     </Dialog>
     </>

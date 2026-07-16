@@ -8,6 +8,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/lib/auth-context";
 import { AuthGateProvider } from "@/lib/auth-gate-context";
 import { IssuesProvider } from "@/lib/issues-context";
+import { DocsProvider } from "@/lib/docs-context";
 import { PresenceProvider } from "@/lib/presence-context";
 import { ToastViewport } from "@/lib/toast";
 
@@ -37,6 +38,7 @@ export default function RootLayout({
             <PresenceProvider>
             <AuthGateProvider>
             <IssuesProvider>
+            <DocsProvider>
             <SidebarProvider defaultOpen={true}>
               <AppSidebar />
               <main className="flex flex-1 flex-col">
@@ -47,6 +49,7 @@ export default function RootLayout({
               </main>
               <ToastViewport />
             </SidebarProvider>
+            </DocsProvider>
             </IssuesProvider>
             </AuthGateProvider>
             </PresenceProvider>

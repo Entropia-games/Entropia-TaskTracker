@@ -148,3 +148,70 @@
 *::-webkit-scrollbar-thumb:hover {
   background-color: color-mix(in srgb, var(--foreground) 30%, transparent);
 }
+
+/* Wiki link styles */
+.wiki-link {
+  color: #a78bfa;
+  background-color: rgba(167, 139, 250, 0.1);
+  border-radius: 2px;
+  padding: 0 2px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 0.15s;
+}
+.wiki-link:hover {
+  background-color: rgba(167, 139, 250, 0.2);
+}
+
+/* Milkdown editor wrapper */
+.milkdown-editor-wrapper {
+  --crepe-color-background: transparent;
+  --crepe-color-on-background: var(--foreground);
+  --crepe-color-surface: transparent;
+  --crepe-color-on-surface: var(--foreground);
+  --crepe-font-family: var(--font-sans);
+}
+
+.milkdown-editor-wrapper .milkdown {
+  outline: none;
+  min-height: 100%;
+}
+
+.milkdown-editor-wrapper .editor {
+  padding: 1rem;
+}
+
+.milkdown-editor-wrapper .ProseMirror {
+  outline: none;
+  min-height: 100%;
+}
+
+.milkdown-editor-wrapper .ProseMirror p.is-editor-empty:first-child::before {
+  color: var(--muted-foreground);
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.milkdown-editor-wrapper .milkdown-toolbar {
+  --crepe-color-background: var(--background);
+  --crepe-color-surface: var(--card);
+  --crepe-color-on-surface: var(--foreground);
+  border-color: var(--border);
+}
+
+.milkdown-editor-wrapper .milkdown-slash-menu {
+  --crepe-color-background: var(--background);
+  --crepe-color-surface: var(--card);
+  --crepe-color-on-surface: var(--foreground);
+  border-color: var(--border);
+}
+
+.milkdown-editor-wrapper .milkdown-block-handle {
+  --crepe-color-on-surface: var(--foreground);
+}
+
+.milkdown-editor-wrapper.editor-blurred .milkdown-top-bar {
+  display: none;
+}

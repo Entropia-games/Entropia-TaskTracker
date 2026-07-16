@@ -249,6 +249,72 @@ export type Database = {
         }
         Relationships: []
       }
+      doc_sections: {
+        Row: {
+          id: number
+          project_id: number
+          parent_id: number | null
+          name: string
+          color: string | null
+          position: number
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          project_id: number
+          parent_id?: number | null
+          name: string
+          color?: string | null
+          position?: number
+          created_at?: string
+        }
+        Update: {
+          id?: number
+          project_id?: number
+          parent_id?: number | null
+          name?: string
+          color?: string | null
+          position?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
+      documents: {
+        Row: {
+          id: number
+          project_id: number
+          section_id: number | null
+          title: string
+          content: string
+          position: number
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          project_id: number
+          section_id?: number | null
+          title?: string
+          content?: string
+          position?: number
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          project_id?: number
+          section_id?: number | null
+          title?: string
+          content?: string
+          position?: number
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: Record<string, never>
     Functions: {

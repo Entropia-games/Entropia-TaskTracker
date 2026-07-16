@@ -6,3 +6,5 @@
 alter publication supabase_realtime add table public.issues;
 alter publication supabase_realtime add table public.milestones;
 alter publication supabase_realtime add table public.timeline_entries;
+alter publication supabase_realtime add table public.doc_sections;
+alter publication supabase_realtime add table public.documents;

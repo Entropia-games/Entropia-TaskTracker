@@ -28,14 +28,20 @@ export const wikiLinkNode = $node("wiki_link", () => ({
       state.addNode("text", undefined, text)
     },
   },
-  toDOM: (node) => [
-    "span",
-    {
-      class: "wiki-link",
-      "data-id": node.attrs.id as string,
-    },
-    node.attrs.label || node.attrs.id,
-  ],
+  toDOM: (node) => {
+    const id = node.attrs.id as string
+    const label = node.attrs.label as string
+    return [
+      "a",
+      {
+        class: "wiki-link",
+        href: `/docs?doc=${id}`,
+        "data-doc-id": id,
+        contenteditable: "false",
+      },
+      label || id,
+    ]
+  },
 }))
 
 function visitAndReplace(tree: { type: string; children?: unknown[]; value?: string }) {

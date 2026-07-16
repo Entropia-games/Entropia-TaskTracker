@@ -7,7 +7,7 @@ interface WikiLinkAutocompleteProps {
   query: string
   position: { top: number; left: number }
   documents: { id: number; title: string }[]
-  onSelect: (title: string) => void
+  onSelect: (id: number, title: string) => void
   onClose: () => void
 }
 
@@ -47,7 +47,7 @@ export function WikiLinkAutocomplete({
       } else if (e.key === "Enter") {
         e.preventDefault()
         if (filtered[selectedIndex]) {
-          onSelect(filtered[selectedIndex].title)
+          onSelect(filtered[selectedIndex].id, filtered[selectedIndex].title)
         }
       } else if (e.key === "Escape") {
         e.preventDefault()
@@ -100,7 +100,7 @@ export function WikiLinkAutocomplete({
               : "text-foreground hover:bg-accent/50",
           )}
           onMouseEnter={() => setSelectedIndex(i)}
-          onClick={() => onSelect(doc.title)}
+          onClick={() => onSelect(doc.id, doc.title)}
         >
           {doc.title}
         </div>

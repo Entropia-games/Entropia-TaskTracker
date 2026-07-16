@@ -1,13 +1,16 @@
 "use client"
 
 import { useState, useRef, useCallback, useEffect } from "react"
+
 import { Milkdown, MilkdownProvider, useEditor } from "@milkdown/react"
 import { Crepe } from "@milkdown/crepe"
+import { editorViewCtx } from "@milkdown/core"
 import "@milkdown/crepe/theme/common/style.css"
 import "@milkdown/crepe/theme/frame-dark.css"
 import { Trash2 } from "lucide-react"
 import { useDocs } from "@/lib/docs-context"
 import { uploadFiles } from "@/lib/uploadthing"
+import { compressImage } from "@/lib/compress-image"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -16,17 +19,36 @@ import {
   DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
 import { wikiLinkNode, wikiLinkRemark, wikiLinkInputRule } from "./wiki-link-plugin"
 import { WikiLinkAutocomplete } from "./wiki-link-autocomplete"
 import { cn } from "@/lib/utils"
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ProseView = any
+function checkAutocomplete(view: { state: { doc: { textBetween: (from: number, to: number) => string }; selection: { $from: { pos: number; parentOffset: number; parent: { textContent: string }; start: () => number } } }; coordsAtPos: (pos: number) => { top: number; bottom: number; left: number } }) {
+  const { state } = view
+  const $from = state.selection.$from
+  const parentText = $from.parent.textContent
+  const cursorOffset = $from.parentOffset
+  const textBefore = parentText.slice(0, cursorOffset)
+  const lastOpen = textBefore.lastIndexOf("[[")
 
-function EditorInner() {
+  if (lastOpen === -1) return null
+
+  const afterBracket = textBefore.slice(lastOpen + 2)
+  if (afterBracket.includes("]]")) return null
+
+  const cursorPos = $from.pos
+  const triggerFrom = $from.start() + lastOpen
+  const coords = view.coordsAtPos(cursorPos)
+  return {
+    query: afterBracket,
+    position: { top: coords.bottom + 4, left: coords.left },
+    triggerFrom,
+  }
+}
+
+function EditorContent() {
   const { activeDocument, updateDocument, deleteDocument, documents } = useDocs()
-  const [localTitle, setLocalTitle] = useState("")
+  const [localTitle, setLocalTitle] = useState(activeDocument?.title ?? "")
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [editorFocused, setEditorFocused] = useState(false)
   const [autocomplete, setAutocomplete] = useState<{
@@ -38,40 +60,36 @@ function EditorInner() {
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const crepeRef = useRef<Crepe | null>(null)
+  const autocompleteRef = useRef(autocomplete)
+  autocompleteRef.current = autocomplete
+  const activeDocRef = useRef(activeDocument)
+  activeDocRef.current = activeDocument
 
-  const getView = useCallback((): ProseView => {
+  const getView = useCallback(() => {
     const crepe = crepeRef.current
     if (!crepe) return null
     try {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-      return (crepe.editor as unknown as { view: ProseView }).view
+      return crepe.editor.action((ctx) => ctx.get(editorViewCtx))
     } catch {
       return null
     }
   }, [])
 
   useEffect(() => {
-    if (activeDocument) {
-      setLocalTitle(activeDocument.title)
-    } else {
-      setLocalTitle("")
-    }
-    setEditorFocused(false)
+    if (activeDocument) setLocalTitle(activeDocument.title)
   }, [activeDocument?.id])
-
-  const debouncedSave = useCallback(
-    (id: number, changes: Record<string, unknown>) => {
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
-      saveTimerRef.current = setTimeout(() => {
-        updateDocument(id, changes)
-      }, 800)
-    },
-    [updateDocument],
-  )
 
   const handleTitleChange = (value: string) => {
     setLocalTitle(value)
-    if (activeDocument) debouncedSave(activeDocument.id, { title: value })
+    if (activeDocument) {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+      saveTimerRef.current = setTimeout(() => {
+        if (activeDocRef.current) {
+          updateDocument(activeDocRef.current.id, { title: value })
+        }
+      }, 800)
+    }
   }
 
   const handleTitleBlur = () => {
@@ -86,24 +104,56 @@ function EditorInner() {
   }
 
   const handleAutocompleteSelect = useCallback(
-    (title: string) => {
+    (id: number, title: string) => {
       const view = getView()
       if (!view) return
       const { state } = view
       const cursorPos = state.selection.$from.pos
-      const from = autocomplete.triggerFrom
+      const from = autocompleteRef.current.triggerFrom
       const linkNode = state.schema.nodes.wiki_link
       if (linkNode) {
-        const node = linkNode.create({ id: title, label: title })
+        const node = linkNode.create({ id: String(id), label: title })
         view.dispatch(state.tr.delete(from, cursorPos).insert(from, node))
       }
       setAutocomplete((prev) => ({ ...prev, active: false }))
     },
-    [getView, autocomplete.triggerFrom],
+    [getView],
   )
 
   const handleAutocompleteClose = useCallback(() => {
     setAutocomplete((prev) => ({ ...prev, active: false }))
+  }, [])
+
+  useEffect(() => {
+    const container = document.querySelector(".milkdown-editor-wrapper")
+    if (!container) return
+
+    const isWikiLink = (target: HTMLElement) => target.closest("a.wiki-link") as HTMLAnchorElement | null
+
+    const handlePointerDown = (e: Event) => {
+      const link = isWikiLink((e as PointerEvent).target as HTMLElement)
+      if (!link) return
+      e.preventDefault()
+      e.stopPropagation()
+    }
+
+    const handleClick = (e: Event) => {
+      const link = isWikiLink((e as MouseEvent).target as HTMLElement)
+      if (!link) return
+      e.preventDefault()
+      e.stopPropagation()
+      const docId = link.getAttribute("data-doc-id")
+      if (docId) {
+        window.open(`/docs?doc=${docId}`, "_blank")
+      }
+    }
+
+    container.addEventListener("pointerdown", handlePointerDown, true)
+    container.addEventListener("click", handleClick, true)
+    return () => {
+      container.removeEventListener("pointerdown", handlePointerDown, true)
+      container.removeEventListener("click", handleClick, true)
+    }
   }, [])
 
   const { loading } = useEditor(
@@ -121,7 +171,8 @@ function EditorInner() {
           },
           [Crepe.Feature.ImageBlock]: {
             onUpload: async (file: File) => {
-              const [res] = await uploadFiles("image", { files: [file] })
+              const compressed = await compressImage(file)
+              const [res] = await uploadFiles("image", { files: [compressed] })
               return res?.url ?? ""
             },
           },
@@ -144,55 +195,42 @@ function EditorInner() {
       crepe.editor.use(wikiLinkInputRule)
 
       crepe.on((listener) => {
-        listener.markdownUpdated((_, markdown) => {
-          if (activeDocument) {
-            debouncedSave(activeDocument.id, { content: markdown })
-          }
-
-          try {
-            const view = (crepe.editor as unknown as { view: ProseView }).view
-            const { state } = view
-            const cursorPos = state.selection.$from.pos
-            const textBefore = state.doc.textBetween(0, cursorPos)
-            const lastOpen = textBefore.lastIndexOf("[[")
-
-            if (lastOpen === -1) {
-              setAutocomplete((prev) => (prev.active ? { ...prev, active: false } : prev))
-              return
+        listener
+          .markdownUpdated((_ctx, markdown) => {
+            if (activeDocRef.current) {
+              if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+              saveTimerRef.current = setTimeout(() => {
+                if (activeDocRef.current) {
+                  updateDocument(activeDocRef.current.id, { content: markdown })
+                }
+              }, 800)
             }
-
-            const afterBracket = textBefore.slice(lastOpen + 2)
-            if (afterBracket.includes("]]")) {
+          })
+          .selectionUpdated((_ctx, _selection) => {
+            try {
+              const view = crepe.editor.action((c) => c.get(editorViewCtx))
+              const result = checkAutocomplete(view)
+              if (result) {
+                setAutocomplete({
+                  active: true,
+                  query: result.query,
+                  position: result.position,
+                  triggerFrom: result.triggerFrom,
+                })
+              } else {
+                setAutocomplete((prev) => (prev.active ? { ...prev, active: false } : prev))
+              }
+            } catch {
               setAutocomplete((prev) => (prev.active ? { ...prev, active: false } : prev))
-              return
             }
-
-            const coords = view.coordsAtPos(cursorPos)
-            setAutocomplete({
-              active: true,
-              query: afterBracket,
-              position: { top: coords.bottom + 4, left: coords.left },
-              triggerFrom: lastOpen,
-            })
-          } catch {
-            setAutocomplete((prev) => (prev.active ? { ...prev, active: false } : prev))
-          }
-        })
+          })
       })
 
       crepeRef.current = crepe
       return crepe
     },
-    [activeDocument?.id],
+    [],
   )
-
-  if (!activeDocument) {
-    return (
-      <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
-        Select a document or create a new one.
-      </div>
-    )
-  }
 
   return (
     <div className="flex h-full flex-col min-h-0 relative">
@@ -246,7 +284,7 @@ function EditorInner() {
         <DialogContent>
           <DialogTitle>Delete document?</DialogTitle>
           <DialogDescription>
-            &quot;{activeDocument.title}&quot; will be permanently deleted. This action cannot be undone.
+            &quot;{activeDocument?.title}&quot; will be permanently deleted. This action cannot be undone.
           </DialogDescription>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>
@@ -263,9 +301,19 @@ function EditorInner() {
 }
 
 export function DocEditor() {
+  const { activeDocument } = useDocs()
+
+  if (!activeDocument) {
+    return (
+      <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
+        Select a document or create a new one.
+      </div>
+    )
+  }
+
   return (
     <MilkdownProvider>
-      <EditorInner />
+      <EditorContent key={activeDocument.id} />
     </MilkdownProvider>
   )
 }

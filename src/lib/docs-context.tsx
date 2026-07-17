@@ -10,6 +10,7 @@ import {
 } from "react"
 import { getSupabase } from "@/lib/supabase"
 import { uploadFiles } from "@/lib/uploadthing"
+import { compressImage } from "@/lib/compress-image"
 import { useAuth } from "@/lib/auth-context"
 import { useIssues } from "@/lib/issues-context"
 import type { Database } from "@/lib/database.types"
@@ -230,7 +231,8 @@ export function DocsProvider({ children }: { children: ReactNode }) {
         for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
         const blob = new Blob([bytes], { type: mime })
         const file = new File([blob], `pasted-image.${ext}`, { type: mime })
-        const [res] = await uploadFiles("image", { files: [file] })
+        const compressed = await compressImage(file)
+        const [res] = await uploadFiles("image", { files: [compressed] })
         if (res?.url) {
           const md = fullMatch.replace(dataUrl, res.url)
           result = result.replace(fullMatch, md)

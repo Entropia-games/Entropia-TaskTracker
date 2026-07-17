@@ -62,6 +62,9 @@ export function DocsProvider({ children }: { children: ReactNode }) {
     ]).then(([secRes, docRes]) => {
       if (secRes.data) setSections(secRes.data as DocSection[])
       if (docRes.data) setDocuments(docRes.data as Document[])
+    }).catch((e) => {
+      console.error("Failed to load docs", e)
+    }).finally(() => {
       setLoading(false)
     })
   }, [user, currentProject])

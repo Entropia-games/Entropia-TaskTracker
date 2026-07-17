@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
 import type { Issue, IssueStatus, IssuePriority, IssueTeam, Attachment } from "@/lib/issues-context"
 import { useIssues } from "@/lib/issues-context"
@@ -233,28 +233,44 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
 
   function linkifyText(text: string) {
     const lines = text.split("\n")
-    return lines.map((line, li) => {
+    const urlRegex = /(https?:\/\/[^\s<]+[^\s<,.])/g
+
+    const renderLine = (line: string, key: number) => {
       const imgMatch = line.match(/!\[([^\]]*)\]\(([^)]+)\)/)
       if (imgMatch) {
         return (
-          <div key={li} className="my-1">
+          <div key={key} className="my-1">
             <img src={imgMatch[2]} alt={imgMatch[1]} className="max-h-96 max-w-full rounded-lg object-contain" />
           </div>
         )
       }
-      const urlRegex = /(https?:\/\/[^\s<]+[^\s<,.])/g
       const parts = line.split(urlRegex)
-      return (
-        <span key={li}>
-          {parts.map((part, pi) =>
-            urlRegex.test(part)
-              ? <a key={pi} href={part} target="_blank" rel="noopener noreferrer" className="text-blue-400 underline hover:text-blue-300">{part}</a>
-              : part
-          )}
-          {li < lines.length - 1 && <br />}
-        </span>
+      return parts.map((part, pi) =>
+        urlRegex.test(part)
+          ? <a key={pi} href={part} target="_blank" rel="noopener noreferrer" className="text-blue-400 underline hover:text-blue-300">{part}</a>
+          : part
       )
-    })
+    }
+
+    const elements: React.ReactNode[] = []
+    let i = 0
+    while (i < lines.length) {
+      const line = lines[i]
+      const bulletMatch = line.match(/^[-*]\s+(.*)/)
+      if (bulletMatch) {
+        const items: React.ReactNode[] = []
+        while (i < lines.length && lines[i].match(/^[-*]\s+(.*)/)) {
+          const m = lines[i].match(/^[-*]\s+(.*)/)!
+          items.push(<li key={items.length}>{renderLine(m[1], items.length)}</li>)
+          i++
+        }
+        elements.push(<ul key={`ul-${i}`} className="list-disc pl-4 my-1">{items}</ul>)
+      } else {
+        elements.push(<span key={`p-${i}`}>{renderLine(line, i)}{i < lines.length - 1 && <br />}</span>)
+        i++
+      }
+    }
+    return elements
   }
 
   const currentAttachments = (data.attachments as Attachment[] | null) ?? []

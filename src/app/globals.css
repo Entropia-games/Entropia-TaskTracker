@@ -212,6 +212,3 @@
   --crepe-color-on-surface: var(--foreground);
 }
 
-.milkdown-editor-wrapper.editor-blurred .milkdown-top-bar {
-  display: none;
-}

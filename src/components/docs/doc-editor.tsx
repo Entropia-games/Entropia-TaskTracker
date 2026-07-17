@@ -22,7 +22,6 @@ import {
 } from "@/components/ui/dialog"
 import { wikiLinkNode, wikiLinkRemark, wikiLinkInputRule } from "./wiki-link-plugin"
 import { WikiLinkAutocomplete } from "./wiki-link-autocomplete"
-import { cn } from "@/lib/utils"
 
 function checkAutocomplete(view: { state: { doc: { textBetween: (from: number, to: number) => string }; selection: { $from: { pos: number; parentOffset: number; parent: { textContent: string }; start: () => number } } }; coordsAtPos: (pos: number) => { top: number; bottom: number; left: number } }) {
   const { state } = view
@@ -51,7 +50,6 @@ function EditorContent() {
   const { activeDocument, updateDocument, deleteDocument, documents } = useDocs()
   const [localTitle, setLocalTitle] = useState(activeDocument?.title ?? "")
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
-  const [editorFocused, setEditorFocused] = useState(false)
   const [autocomplete, setAutocomplete] = useState<{
     active: boolean
     query: string
@@ -236,7 +234,7 @@ function EditorContent() {
         root,
         defaultValue: activeDocument?.content || "",
         features: {
-          [Crepe.Feature.TopBar]: true,
+          [Crepe.Feature.TopBar]: false,
           [Crepe.Feature.Latex]: false,
           [Crepe.Feature.ImageBlock]: true,
         },
@@ -249,17 +247,6 @@ function EditorContent() {
               const compressed = await compressImage(file)
               const [res] = await uploadFiles("image", { files: [compressed] })
               return res?.url ?? ""
-            },
-          },
-          [Crepe.Feature.TopBar]: {
-            buildTopBar: (builder) => {
-              // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-              const insertGroup = builder.getGroup("insert")
-              // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-              insertGroup.group.items = insertGroup.group.items.filter(
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-                (item: { key: string }) => item.key !== "image",
-              )
             },
           },
         },
@@ -346,12 +333,7 @@ function EditorContent() {
       </div>
 
       <div
-        className={cn("flex-1 min-h-0 overflow-auto milkdown-editor-wrapper relative", !editorFocused && "editor-blurred")}
-        onFocusCapture={() => setEditorFocused(true)}
-        onBlurCapture={(e) => {
-          if (e.currentTarget.contains(e.relatedTarget as Node)) return
-          setEditorFocused(false)
-        }}
+        className="flex-1 min-h-0 overflow-auto milkdown-editor-wrapper relative"
       >
         {loading && (
           <div className="absolute inset-0 z-10 flex items-center justify-center text-muted-foreground text-sm bg-background/50">

@@ -159,6 +159,77 @@ function EditorContent() {
     }
   }, [])
 
+  useEffect(() => {
+    const container = document.querySelector(".milkdown-editor-wrapper")
+    if (!container) return
+
+    let tooltip: HTMLDivElement | null = null
+    const sizeCache = new Map<string, string>()
+
+    const ensureTooltip = () => {
+      if (tooltip) return tooltip
+      tooltip = document.createElement("div")
+      tooltip.className = "image-info-tooltip"
+      tooltip.style.cssText = "position:fixed;z-index:9999;padding:4px 8px;border-radius:4px;background:#1a1a1a;color:#ddd;font-size:11px;pointer-events:none;white-space:nowrap;opacity:0;transition:opacity .15s;box-shadow:0 2px 8px rgba(0,0,0,.4)"
+      document.body.appendChild(tooltip)
+      return tooltip
+    }
+
+    const showTooltip = (img: HTMLImageElement, e: MouseEvent) => {
+      const t = ensureTooltip()
+      const src = img.src || img.getAttribute("src") || ""
+      const keyMatch = src.match(/\/f\/([a-zA-Z0-9]+)/)
+      const name = keyMatch ? keyMatch[1].slice(0, 16) + "..." : src.split("/").pop()?.split("?")[0] || "unknown"
+
+      if (sizeCache.has(src)) {
+        t.textContent = `${name} · ${sizeCache.get(src)}`
+      } else {
+        t.textContent = `${name} · ...`
+        fetch(src, { method: "HEAD" })
+          .then((r) => {
+            const len = r.headers.get("content-length")
+            const type = r.headers.get("content-type") || ""
+            if (len) {
+              const kb = (parseInt(len) / 1024).toFixed(0)
+              sizeCache.set(src, `${kb}KB`)
+              if (tooltip === t) t.textContent = `${name} · ${kb}KB`
+            }
+          })
+          .catch(() => {})
+      }
+
+      t.style.left = `${e.clientX + 12}px`
+      t.style.top = `${e.clientY + 12}px`
+      t.style.opacity = "1"
+    }
+
+    const hideTooltip = () => {
+      if (tooltip) tooltip.style.opacity = "0"
+    }
+
+    const onMouseMove = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      const img = target.tagName === "IMG" ? target as HTMLImageElement : target.closest("img") as HTMLImageElement | null
+      if (img && container.contains(img)) {
+        showTooltip(img, e)
+      } else {
+        hideTooltip()
+      }
+    }
+
+    const onMouseLeave = (e: MouseEvent) => {
+      if (!container.contains(e.relatedTarget as Node)) hideTooltip()
+    }
+
+    container.addEventListener("mousemove", onMouseMove as EventListener)
+    container.addEventListener("mouseleave", onMouseLeave as EventListener)
+    return () => {
+      container.removeEventListener("mousemove", onMouseMove as EventListener)
+      container.removeEventListener("mouseleave", onMouseLeave as EventListener)
+      if (tooltip) { tooltip.remove(); tooltip = null }
+    }
+  }, [])
+
   const { loading } = useEditor(
     (root) => {
       const crepe = new Crepe({

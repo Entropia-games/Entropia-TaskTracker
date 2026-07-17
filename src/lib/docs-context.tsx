@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react"
 import { getSupabase } from "@/lib/supabase"
+import { uploadFiles } from "@/lib/uploadthing"
 import { useAuth } from "@/lib/auth-context"
 import { useIssues } from "@/lib/issues-context"
 import type { Database } from "@/lib/database.types"
@@ -210,12 +211,45 @@ export function DocsProvider({ children }: { children: ReactNode }) {
       .catch((e) => console.error("Failed to delete images", e))
   }
 
+  const base64Pattern = /!\[.*?\]\((data:image\/[^;]+;base64,[^)]+)\)/g
+
+  const uploadBase64Images = async (content: string): Promise<string> => {
+    const matches = [...content.matchAll(base64Pattern)]
+    if (matches.length === 0) return content
+
+    let result = content
+    for (const match of matches) {
+      const fullMatch = match[0]
+      const dataUrl = match[1]
+      try {
+        const [header, data] = dataUrl.split(",")
+        const mime = (header.match(/data:(.*?);/)?.[1] ?? "image/png") as string
+        const ext = mime.split("/")[1] ?? "png"
+        const binary = atob(data)
+        const bytes = new Uint8Array(binary.length)
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+        const blob = new Blob([bytes], { type: mime })
+        const file = new File([blob], `pasted-image.${ext}`, { type: mime })
+        const [res] = await uploadFiles("image", { files: [file] })
+        if (res?.url) {
+          const md = fullMatch.replace(dataUrl, res.url)
+          result = result.replace(fullMatch, md)
+        }
+      } catch (e) {
+        console.error("Failed to upload base64 image", e)
+      }
+    }
+    return result
+  }
+
   const updateDocument = useCallback(async (id: number, changes: Partial<Document>) => {
     if (!user) return
     if (changes.content !== undefined) {
+      const newContent = await uploadBase64Images(changes.content)
+      changes = { ...changes, content: newContent }
       const { data: old } = await getSupabase().from("documents").select("content").eq("id", id).single()
       const oldUrls = old?.content ? new Set(extractImageUrls(old.content)) : new Set<string>()
-      const newUrls = new Set(extractImageUrls(changes.content))
+      const newUrls = new Set(extractImageUrls(newContent))
       const removed = [...oldUrls].filter((u) => !newUrls.has(u))
       deleteImages(removed)
     }

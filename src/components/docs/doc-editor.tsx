@@ -5,6 +5,7 @@ import { useState, useRef, useCallback, useEffect } from "react"
 import { Milkdown, MilkdownProvider, useEditor } from "@milkdown/react"
 import { Crepe } from "@milkdown/crepe"
 import { editorViewCtx } from "@milkdown/core"
+import { replaceAll } from "@milkdown/utils"
 import "@milkdown/crepe/theme/common/style.css"
 import "@milkdown/crepe/theme/frame-dark.css"
 import { Trash2 } from "lucide-react"
@@ -64,6 +65,8 @@ function EditorContent() {
   autocompleteRef.current = autocomplete
   const activeDocRef = useRef(activeDocument)
   activeDocRef.current = activeDocument
+  const prevDocIdRef = useRef<number | null>(null)
+  const mountedRef = useRef(false)
 
   const getView = useCallback(() => {
     const crepe = crepeRef.current
@@ -164,6 +167,7 @@ function EditorContent() {
         features: {
           [Crepe.Feature.TopBar]: true,
           [Crepe.Feature.Latex]: false,
+          [Crepe.Feature.ImageBlock]: true,
         },
         featureConfigs: {
           [Crepe.Feature.Placeholder]: {
@@ -227,10 +231,26 @@ function EditorContent() {
       })
 
       crepeRef.current = crepe
+      mountedRef.current = true
       return crepe
     },
     [],
   )
+
+  useEffect(() => {
+    if (!mountedRef.current || !activeDocument) return
+    const crepe = crepeRef.current
+    if (!crepe) return
+    if (prevDocIdRef.current === activeDocument.id) return
+    prevDocIdRef.current = activeDocument.id
+    const markdown = activeDocument.content || ""
+    try {
+      crepe.editor.action(replaceAll(markdown))
+    } catch {
+      // eslint-disable-next-line no-console
+      console.warn("replaceAll failed, editor will show next render")
+    }
+  }, [activeDocument?.id])
 
   return (
     <div className="flex h-full flex-col min-h-0 relative">
@@ -313,7 +333,7 @@ export function DocEditor() {
 
   return (
     <MilkdownProvider>
-      <EditorContent key={activeDocument.id} />
+      <EditorContent />
     </MilkdownProvider>
   )
 }

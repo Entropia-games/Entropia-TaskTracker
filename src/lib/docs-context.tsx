@@ -20,7 +20,7 @@ type DocsContext = {
   sections: DocSection[]
   documents: Document[]
   activeDocument: Document | null
-  setActiveDocument: (doc: Document | null) => void
+  setActiveDocument: (doc: Document | null) => Promise<void>
   createSection: (name: string, parentId?: number | null) => Promise<DocSection | null>
   updateSection: (id: number, changes: Partial<DocSection>) => Promise<void>
   deleteSection: (id: number) => Promise<void>
@@ -41,7 +41,21 @@ export function DocsProvider({ children }: { children: ReactNode }) {
   const { currentProject } = useIssues()
   const [sections, setSections] = useState<DocSection[]>([])
   const [documents, setDocuments] = useState<Document[]>([])
-  const [activeDocument, setActiveDocument] = useState<Document | null>(null)
+  const [activeDocument, setActiveDocumentState] = useState<Document | null>(null)
+  const setActiveDocument = useCallback(async (doc: Document | null) => {
+    if (!doc) {
+      setActiveDocumentState(null)
+      return
+    }
+    if (doc.content && doc.content !== "") {
+      setActiveDocumentState(doc)
+      return
+    }
+    const { data } = await getSupabase().from("documents").select("content").eq("id", doc.id).single()
+    const full = { ...doc, content: data?.content ?? "" }
+    setActiveDocumentState(full)
+    setDocuments((prev) => prev.map((d) => d.id === doc.id ? { ...d, content: full.content } : d))
+  }, [])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -58,10 +72,10 @@ export function DocsProvider({ children }: { children: ReactNode }) {
 
     Promise.all([
       sb.from("doc_sections").select("*").eq("project_id", projectId).order("position"),
-      sb.from("documents").select("*").eq("project_id", projectId).order("position"),
+      sb.from("documents").select("id, title, section_id, position, project_id, created_by, created_at, updated_at").eq("project_id", projectId).order("position"),
     ]).then(([secRes, docRes]) => {
       if (secRes.data) setSections(secRes.data as DocSection[])
-      if (docRes.data) setDocuments(docRes.data as Document[])
+      if (docRes.data) setDocuments(docRes.data.map((d) => ({ ...d, content: "" })) as Document[])
     }).catch((e) => {
       console.error("Failed to load docs", e)
     }).finally(() => {
@@ -104,11 +118,12 @@ export function DocsProvider({ children }: { children: ReactNode }) {
           if (payload.eventType === "DELETE") {
             const oldId = (payload.old as { id: number }).id
             setDocuments((prev) => prev.filter((d) => d.id !== oldId))
-            setActiveDocument((prev) => (prev?.id === oldId ? null : prev))
+            setActiveDocumentState((prev) => (prev?.id === oldId ? null : prev))
           } else {
-            const doc = payload.new as Document
-            setDocuments(upsertBy(doc))
-            setActiveDocument((prev) => (prev?.id === doc.id ? doc : prev))
+            const row = payload.new as Document
+            const meta = { ...row, content: "" }
+            setDocuments(upsertBy(meta))
+            setActiveDocumentState((prev) => (prev?.id === row.id ? { ...prev, ...row } : prev))
           }
         },
       )
@@ -205,7 +220,7 @@ export function DocsProvider({ children }: { children: ReactNode }) {
       deleteImages(removed)
     }
     setDocuments((prev) => prev.map((d) => (d.id === id ? { ...d, ...changes } : d)))
-    setActiveDocument((prev) => (prev?.id === id ? { ...prev, ...changes } as Document : prev))
+    setActiveDocumentState((prev) => (prev?.id === id ? { ...prev, ...changes } as Document : prev))
     const { error } = await getSupabase().from("documents").update(changes).eq("id", id)
     if (error) console.error("Failed to update document", JSON.stringify(error))
   }, [user])
@@ -220,7 +235,7 @@ export function DocsProvider({ children }: { children: ReactNode }) {
       return
     }
     setDocuments((prev) => prev.filter((d) => d.id !== id))
-    setActiveDocument((prev) => (prev?.id === id ? null : prev))
+    setActiveDocumentState((prev) => (prev?.id === id ? null : prev))
   }, [user])
 
   const moveSection = useCallback(async (id: number, newParentId: number | null, newPosition: number) => {

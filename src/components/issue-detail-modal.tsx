@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
-import type { Issue, IssueStatus, IssuePriority, IssueTeam, Attachment } from "@/lib/issues-context"
+import type { Issue, IssueStatus, IssuePriority, IssueTeam, Attachment, IssueComment } from "@/lib/issues-context"
 import { useIssues } from "@/lib/issues-context"
 import { useDocs } from "@/lib/docs-context"
 import { useAuthGate } from "@/lib/auth-gate-context"
@@ -49,6 +49,7 @@ import {
   Diamond,
   Image,
   Trash2,
+  Pencil,
   X,
 } from "lucide-react"
 import { format } from "date-fns"
@@ -96,7 +97,7 @@ type Props = {
 }
 
 export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetail, parentIssue }: Props) {
-  const { updateIssue, deleteIssues, issues, milestones, currentProject } = useIssues()
+  const { updateIssue, deleteIssues, issues, milestones, currentProject, addComment, deleteComment, updateComment } = useIssues()
   const { documents } = useDocs()
   const { requireAuth } = useAuthGate()
   const [status, setStatus] = useState<IssueStatus>("backlog")
@@ -120,6 +121,8 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
   const [readyId, setReadyId] = useState<number | null>(null)
   const [displayedIssue, setDisplayedIssue] = useState<Issue | null>(null)
   const [timelineEntry, setTimelineEntry] = useState<{ start_date: string; end_date: string } | null>(null)
+  const [editingCommentId, setEditingCommentId] = useState<number | null>(null)
+  const [editingCommentText, setEditingCommentText] = useState("")
   const titleRef = useRef<HTMLInputElement>(null)
   const descRef = useRef<HTMLTextAreaElement>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
@@ -396,11 +399,11 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
               <span className="text-muted-foreground/20">·</span>
               <span className={cn(activeStatus?.color)}>{activeStatus?.label}</span>
               <button
-                onClick={() => setConfirmDelete(true)}
-                className="ml-auto rounded p-1 text-muted-foreground/40 hover:bg-accent hover:text-red-400 transition-colors outline-none ring-0"
-                title="Delete issue"
+                onClick={() => onOpenChange(false)}
+                className="ml-auto rounded p-1 text-muted-foreground/40 hover:bg-accent hover:text-foreground transition-colors outline-none ring-0"
+                title="Close"
               >
-                <Trash2 className="size-3.5" />
+                <X className="size-3.5" />
               </button>
             </div>
             <input
@@ -411,30 +414,31 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
               onKeyDown={(e) => { if (e.key === "Enter") { e.currentTarget.blur() } }}
               className="w-full border-none bg-transparent p-0 text-lg font-medium outline-none ring-0"
             />
-            <div>
-              {editingDescription ? (
-                <textarea
-                  ref={descRef}
-                  value={editDescription}
-                  onChange={(e) => {
-                    setEditDescription(e.target.value)
-                    e.target.style.height = "auto"
-                    e.target.style.height = e.target.scrollHeight + "px"
-                  }}
-                  onBlur={() => { setEditingDescription(false); if (editDescription !== (data.description ?? "")) guardedUpdate({ description: editDescription.trim() ? editDescription : null }) }}
-                  placeholder="Add description..."
-                  rows={3}
-                  className="w-full resize-none overflow-hidden border-none bg-transparent p-0 text-sm text-muted-foreground outline-none ring-0 placeholder:text-muted-foreground/30"
-                />
-              ) : (
-                <div
-                  className="w-full cursor-text whitespace-pre-wrap text-sm text-muted-foreground outline-none ring-0"
-                  onClick={() => { setEditDescription(data.description ?? ""); setEditingDescription(true) }}
-                >
-                  {data.description?.trim() ? linkifyText(data.description) : <span className="text-muted-foreground/30">Add description...</span>}
-                </div>
-              )}
-              <input ref={imageInputRef} type="file" accept="image/*,.pdf,.doc,.docx,.txt,.zip,.xls,.xlsx,.ppt,.pptx" className="hidden" onChange={handleAttachmentUpload} />
+              <div>
+                {editingDescription ? (
+                  <textarea
+                    ref={descRef}
+                    value={editDescription}
+                    onChange={(e) => {
+                      setEditDescription(e.target.value)
+                      e.target.style.height = "auto"
+                      e.target.style.height = e.target.scrollHeight + "px"
+                    }}
+                    onBlur={() => { setEditingDescription(false); if (editDescription !== (data.description ?? "")) guardedUpdate({ description: editDescription.trim() ? editDescription : null }) }}
+                    placeholder="Add description..."
+                    rows={3}
+                    className="w-full resize-none overflow-hidden border-none bg-transparent p-0 text-sm text-muted-foreground outline-none ring-0 placeholder:text-muted-foreground/30"
+                  />
+                ) : (
+                  <div
+                    className="w-full cursor-text whitespace-pre-wrap text-sm text-muted-foreground outline-none ring-0"
+                    onClick={() => { setEditDescription(data.description ?? ""); setEditingDescription(true) }}
+                  >
+                    {data.description?.trim() ? linkifyText(data.description) : <span className="text-muted-foreground/30">Add description...</span>}
+                  </div>
+                )}
+                             </div>
+               <input ref={imageInputRef} type="file" accept="image/*,.pdf,.doc,.docx,.txt,.zip,.xls,.xlsx,.ppt,.pptx" className="hidden" onChange={handleAttachmentUpload} />
               {currentAttachments.length > 0 && (
                 <div className="mt-2 flex flex-col gap-2">
                   {currentAttachments.map((att, i) => (
@@ -495,7 +499,6 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
                 Add document
               </button>
             </div>
-          </div>
 
           <div className="!mt-0 !rounded-none !border-t !border-border/50 px-5 py-4">
             <div className="flex flex-wrap items-center gap-1.5">
@@ -730,6 +733,109 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
               </div>
             )}
           </div>
+
+            <div className="mt-4 border-t border-border/50 pt-4 px-4">
+              <textarea
+                placeholder="Add a comment..."
+                className="w-full min-h-[60px] resize-none rounded border border-border/50 bg-transparent px-3 py-2 text-sm text-muted-foreground placeholder:text-muted-foreground/30 outline-none focus:ring-0 focus:border-border/50"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    const target = e.target as HTMLTextAreaElement
+                    const content = target.value.trim()
+                    if (content) {
+                      requireAuth(() => addComment(data.id, { content }))
+                      target.value = ''
+                    }
+                  }
+                }}
+              />
+              {data.comments && (data.comments as any[]).length > 0 && (
+                <div className="mt-3 mb-4 space-y-3">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50">Comments</span>
+                  {(data.comments as any[]).map((comment: any) => (
+                    <div key={comment.id} className="flex gap-2 group">
+                      <Avatar className="size-6 shrink-0">
+                        <AvatarFallback className="text-[10px]">
+                          {comment.author_name ? comment.author_name[0].toUpperCase() : "?"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] font-medium text-muted-foreground/80">
+                            {comment.author_name}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground/50">
+                            {new Date(comment.created_at).toLocaleDateString()}
+                          </span>
+                          <div className="ml-auto flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              className="p-0.5 rounded text-muted-foreground/40 hover:text-muted-foreground/80 hover:bg-muted/50"
+                              onClick={() => { setEditingCommentId(comment.id); setEditingCommentText(comment.content) }}
+                            >
+                              <Pencil className="size-3" />
+                            </button>
+                            <button
+                              className="p-0.5 rounded text-muted-foreground/40 hover:text-destructive/80 hover:bg-destructive/10"
+                              onClick={() => deleteComment(comment.id, data.id)}
+                            >
+                              <Trash2 className="size-3" />
+                            </button>
+                          </div>
+                        </div>
+                        {editingCommentId === comment.id ? (
+                          <div className="mt-1 flex gap-2">
+                            <textarea
+                              autoFocus
+                              className="flex-1 min-h-[40px] resize-none rounded border border-border/50 bg-transparent px-2 py-1 text-sm text-muted-foreground outline-none focus:ring-0 focus:border-border/50"
+                              value={editingCommentText}
+                              onChange={(e) => setEditingCommentText(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                  e.preventDefault()
+                                  if (editingCommentText.trim()) {
+                                    updateComment(comment.id, data.id, editingCommentText.trim())
+                                    setEditingCommentId(null)
+                                  }
+                                }
+                                if (e.key === 'Escape') setEditingCommentId(null)
+                              }}
+                            />
+                            <div className="flex flex-col gap-1">
+                              <button
+                                className="px-2 py-0.5 text-[10px] rounded bg-muted/50 text-muted-foreground hover:bg-muted"
+                                onClick={() => {
+                                  if (editingCommentText.trim()) {
+                                    updateComment(comment.id, data.id, editingCommentText.trim())
+                                    setEditingCommentId(null)
+                                  }
+                                }}
+                              >Save</button>
+                              <button
+                                className="px-2 py-0.5 text-[10px] rounded text-muted-foreground/50 hover:text-muted-foreground"
+                                onClick={() => setEditingCommentId(null)}
+                              >Cancel</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground whitespace-pre-wrap">{comment.content}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end px-5 pb-4">
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="flex items-center gap-1.5 rounded px-2 py-1 text-xs text-muted-foreground/40 hover:bg-destructive/10 hover:text-red-400 transition-colors outline-none ring-0"
+                title="Delete issue"
+              >
+                <Trash2 className="size-3" />
+                Delete Issue
+              </button>
+            </div>
         </div>
 
         {loading && (

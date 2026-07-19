@@ -9,7 +9,7 @@ export default function MyIssuesPage() {
   const { user } = useAuth()
 
   const myIssues = user
-    ? issues.filter((i) => i.assignee_id === user.id && !i.is_epic)
+    ? issues.filter((i) => i.assignee_id === user.id)
     : []
 
   return <IssueList title="My Issues" issues={myIssues} />

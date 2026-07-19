@@ -26,6 +26,14 @@ export type Attachment = {
   type: string | null
 }
 
+export type IssueComment = Database["public"]["Tables"]["issue_comments"]["Row"]
+
+export type NewIssueCommentInput = {
+  content: string
+  author_id?: string | null
+  author_name?: string | null
+}
+
 type NewIssueInput = Database["public"]["Tables"]["issues"]["Insert"]
 
 type IssuesContext = {
@@ -44,6 +52,10 @@ type IssuesContext = {
   deleteMilestone: (id: number) => Promise<void>
   loading: boolean
   projectsLoaded: boolean
+
+  addComment: (issueId: number, input: NewIssueCommentInput) => Promise<void>
+  deleteComment: (commentId: number, issueId: number) => Promise<void>
+  updateComment: (commentId: number, issueId: number, content: string) => Promise<void>
 }
 
 const IssuesContext = createContext<IssuesContext | null>(null)
@@ -102,17 +114,29 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
     if (!user) return
     if (!currentProject) { setLoading(false); return }
     const sb = getSupabase()
+    const projectId = currentProject.id
     sb.from("issues")
       .select("*")
-      .eq("project_id", currentProject.id)
+      .eq("project_id", projectId)
       .order("created_at", { ascending: false })
-      .then(({ data }) => {
-        if (data) setIssues(data)
+      .then(async ({ data: issues }) => {
+        if (!issues) { setLoading(false); return }
+        const ids = issues.map((i) => i.id)
+        const { data: comments } = ids.length > 0
+          ? await sb.from("issue_comments").select("*").in("issue_id", ids)
+          : { data: [] }
+        const byIssue = new Map<number, any[]>()
+        for (const c of comments ?? []) {
+          const list = byIssue.get(c.issue_id) ?? []
+          list.push(c)
+          byIssue.set(c.issue_id, list)
+        }
+        setIssues(issues.map((issue) => ({ ...issue, comments: byIssue.get(issue.id) ?? [] })))
         setLoading(false)
       })
     sb.from("milestones")
       .select("*")
-      .eq("project_id", currentProject.id)
+      .eq("project_id", projectId)
       .order("created_at", { ascending: false })
       .then(({ data }) => {
         if (data) setMilestones(data)
@@ -156,6 +180,40 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
             setMilestones((prev) => prev.filter((m) => m.id !== oldId))
           } else {
             setMilestones(upsertBy(payload.new as Milestone))
+          }
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "issue_comments", filter },
+        (payload) => {
+          if (payload.eventType === "DELETE") {
+            const oldCommentId = (payload.old as { id: number }).id
+            const oldIssueId = (payload.old as { issue_id: number }).issue_id
+            setIssues((prev) => prev.map((issue) => {
+              if (issue.id === oldIssueId) {
+                const comments = (issue.comments as any[]) || []
+                return {
+                  ...issue,
+                  comments: comments.filter((c) => c.id !== oldCommentId)
+                }
+              }
+              return issue
+            }))
+          } else {
+            const newComment = payload.new as IssueComment
+            setIssues((prev) => prev.map((issue) => {
+              if (issue.id === newComment.issue_id) {
+                const comments = (issue.comments as any[]) || []
+                if (!comments.some(c => c.id === newComment.id)) {
+                  return {
+                    ...issue,
+                    comments: [...comments, newComment]
+                  }
+                }
+              }
+              return issue
+            }))
           }
         },
       )
@@ -256,6 +314,86 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
       return
     }
     setIssues((prev) => prev.filter((i) => !ids.includes(i.id)))
+      }, [user])
+
+  const addComment = useCallback(async (issueId: number, input: NewIssueCommentInput) => {
+    if (!user) return
+    const sb = getSupabase()
+    const creatorName = username ?? (await sb.from("users").select("name").eq("id", user.id).single()).data?.name ?? "Unknown"
+    const { data, error } = await sb
+      .from("issue_comments")
+      .insert({
+        issue_id: issueId,
+        content: input.content,
+        author_id: input.author_id ?? null,
+        author_name: input.author_name ?? creatorName,
+      })
+      .select()
+      .single()
+
+    if (error || !data) {
+      if (error) console.error("Failed to add comment", JSON.stringify(error, null, 2))
+      return
+    }
+
+    setIssues((prev) => prev.map((issue) => {
+      if (issue.id === issueId) {
+        const comments = (issue.comments as any[]) || []
+        return {
+          ...issue,
+          comments: [...comments, data]
+        }
+      }
+      return issue
+    }))
+  }, [user, username])
+
+  const deleteComment = useCallback(async (commentId: number, issueId: number) => {
+    if (!user) return
+
+    const { error } = await getSupabase()
+      .from("issue_comments")
+      .delete()
+      .eq("id", commentId)
+    if (error) {
+      console.error("Failed to delete comment", JSON.stringify(error))
+      return
+    }
+
+    setIssues((prev) => prev.map((issue) => {
+      if (issue.id === issueId) {
+        const comments = (issue.comments as any[]) || []
+        return {
+          ...issue,
+          comments: comments.filter((c) => c.id !== commentId)
+        }
+      }
+      return issue
+    }))
+  }, [user])
+
+  const updateComment = useCallback(async (commentId: number, issueId: number, content: string) => {
+    if (!user) return
+
+    const { error } = await getSupabase()
+      .from("issue_comments")
+      .update({ content })
+      .eq("id", commentId)
+    if (error) {
+      console.error("Failed to update comment", JSON.stringify(error))
+      return
+    }
+
+    setIssues((prev) => prev.map((issue) => {
+      if (issue.id === issueId) {
+        const comments = (issue.comments as any[]) || []
+        return {
+          ...issue,
+          comments: comments.map((c) => c.id === commentId ? { ...c, content } : c)
+        }
+      }
+      return issue
+    }))
   }, [user])
 
   const createMilestone = useCallback(async (name: string, description?: string, target_date?: string) => {
@@ -283,7 +421,7 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
   }, [user])
 
   return (
-    <IssuesContext.Provider value={{ issues, milestones, projects, currentProject, setCurrentProject: setCurrentProjectAndSave, myRole, hasMemberships, addIssue, updateIssue, deleteIssues, createMilestone, updateMilestone, deleteMilestone, loading, projectsLoaded }}>
+    <IssuesContext.Provider value={{ issues, milestones, projects, currentProject, setCurrentProject: setCurrentProjectAndSave, myRole, hasMemberships, addIssue, updateIssue, deleteIssues, createMilestone, updateMilestone, deleteMilestone, loading, projectsLoaded, addComment, deleteComment, updateComment }}>
       {children}
     </IssuesContext.Provider>
   )

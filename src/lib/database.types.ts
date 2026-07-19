@@ -30,6 +30,99 @@ export type Database = {
         }
         Relationships: []
       }
+      issue_comments: {
+        Row: {
+          id: number
+          issue_id: number
+          content: string
+          author_id: string | null
+          author_name: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          issue_id: number
+          content: string
+          author_id?: string | null
+          author_name?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          issue_id?: number
+          content?: string
+          author_id?: string | null
+          author_name?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      issues: {
+        Row: {
+          id: number
+          title: string
+          description: string | null
+          status: Database["public"]["Enums"]["issue_status"]
+          priority: Database["public"]["Enums"]["issue_priority"]
+          team: Database["public"]["Enums"]["issue_team"] | null
+          is_epic: boolean
+          parent_epic_id: number | null
+          milestone_id: number | null
+          due_date: string | null
+          assignee_id: string | null
+          created_by: string | null
+          project_id: number | null
+          display_id: number | null
+          attachments: Json
+          created_at: string
+          updated_at: string
+          comments: Json
+        }
+        Insert: {
+          id?: number
+          title: string
+          description?: string | null
+          status?: Database["public"]["Enums"]["issue_status"]
+          priority?: Database["public"]["Enums"]["issue_priority"]
+          team?: Database["public"]["Enums"]["issue_team"] | null
+          is_epic?: boolean
+          parent_epic_id?: number | null
+          milestone_id?: number | null
+          due_date?: string | null
+          assignee_id?: string | null
+          created_by?: string | null
+          project_id?: number | null
+          display_id?: number | null
+          attachments?: Json
+          created_at?: string
+          updated_at?: string
+          comments?: Json
+        }
+        Update: {
+          id?: number
+          title?: string
+          description?: string | null
+          status?: Database["public"]["Enums"]["issue_status"]
+          priority?: Database["public"]["Enums"]["issue_priority"]
+          team?: Database["public"]["Enums"]["issue_team"] | null
+          is_epic?: boolean
+          parent_epic_id?: number | null
+          milestone_id?: number | null
+          due_date?: string | null
+          assignee_id?: string | null
+          created_by?: string | null
+          project_id?: number | null
+          display_id?: number | null
+          attachments?: Json
+          created_at?: string
+          updated_at?: string
+          comments?: Json
+        }
+        Relationships: []
+      }
       boards: {
         Row: {
           id: string
@@ -72,66 +165,6 @@ export type Database = {
           name?: string
           code?: string
           created_at?: string
-        }
-        Relationships: []
-      }
-      issues: {
-        Row: {
-          id: number
-          title: string
-          description: string | null
-          status: Database["public"]["Enums"]["issue_status"]
-          priority: Database["public"]["Enums"]["issue_priority"]
-          team: Database["public"]["Enums"]["issue_team"] | null
-          is_epic: boolean
-          parent_epic_id: number | null
-          milestone_id: number | null
-          due_date: string | null
-          assignee_id: string | null
-          created_by: string | null
-          project_id: number | null
-          display_id: number | null
-          attachments: Json
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: number
-          title: string
-          description?: string | null
-          status?: Database["public"]["Enums"]["issue_status"]
-          priority?: Database["public"]["Enums"]["issue_priority"]
-          team?: Database["public"]["Enums"]["issue_team"] | null
-          is_epic?: boolean
-          parent_epic_id?: number | null
-          milestone_id?: number | null
-          due_date?: string | null
-          assignee_id?: string | null
-          created_by?: string | null
-          project_id?: number | null
-          display_id?: number | null
-          attachments?: Json
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: number
-          title?: string
-          description?: string | null
-          status?: Database["public"]["Enums"]["issue_status"]
-          priority?: Database["public"]["Enums"]["issue_priority"]
-          team?: Database["public"]["Enums"]["issue_team"] | null
-          is_epic?: boolean
-          parent_epic_id?: number | null
-          milestone_id?: number | null
-          due_date?: string | null
-          assignee_id?: string | null
-          created_by?: string | null
-          project_id?: number | null
-          display_id?: number | null
-          attachments?: Json
-          created_at?: string
-          updated_at?: string
         }
         Relationships: []
       }

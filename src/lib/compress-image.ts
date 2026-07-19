@@ -4,11 +4,11 @@
 export interface CompressOptions {
   maxSize?: number // max width/height in px, default 1600
   quality?: number // 0..1, default 0.85
-  maxFileSizeMB?: number // skip compression below this size, default 0.3
+  maxFileSizeMB?: number // skip compression below this size, default 0.2
 }
 
 export async function compressImage(file: File, opts: CompressOptions = {}): Promise<File> {
-  const { maxSize = 1600, quality = 0.85, maxFileSizeMB = 0.3 } = opts
+  const { maxSize = 1600, quality = 0.85, maxFileSizeMB = 0.2 } = opts
 
   if (!file.type.startsWith("image/")) return file
   if (file.size <= maxFileSizeMB * 1024 * 1024) return file

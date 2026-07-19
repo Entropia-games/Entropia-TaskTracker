@@ -703,13 +703,41 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
                 })}
               </div>
             )}
-            {isEpic && childIssues.length > 0 && (
+            {isEpic && (
               <div className="mt-4 space-y-3 border-t border-border/30 pt-4">
                 <div className="flex items-center gap-2">
                   <div className="flex-1 h-1.5 rounded-full bg-border/50 overflow-hidden">
                     <div className="h-full rounded-full bg-green-400 transition-all" style={{ width: `${progress}%` }} />
                   </div>
                   <span className="text-[11px] text-muted-foreground/60 shrink-0">{doneCount}/{childIssues.length} ({progress}%)</span>
+                  <Popover>
+                    <PopoverTrigger
+                      render={
+                        <button className="shrink-0 rounded p-0.5 text-muted-foreground/40 hover:bg-accent hover:text-foreground transition-colors outline-none ring-0" title="Link issue to epic">
+                          <Plus className="size-3.5" />
+                        </button>
+                      }
+                    />
+                    <PopoverContent className="w-64 p-1 max-h-60 overflow-y-auto" align="end">
+                      {(() => {
+                        const childIds = new Set(childIssues.map((c) => c.id))
+                        const available = issues.filter((i) => !i.is_epic && !childIds.has(i.id))
+                        if (available.length === 0) {
+                          return <span className="block px-2 py-1.5 text-xs text-muted-foreground/50">All issues are linked</span>
+                        }
+                        return available.map((i) => (
+                          <button
+                            key={i.id}
+                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent"
+                            onClick={() => { updateIssue(i.id, { parent_epic_id: data.id }) }}
+                          >
+                            <span className="text-muted-foreground/40 font-mono">{currentProject?.code ?? "?"}-{i.display_id}</span>
+                            <span className="flex-1 truncate">{i.title}</span>
+                          </button>
+                        ))
+                      })()}
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <div className="space-y-0.5">
                   {childIssues.map((child) => {

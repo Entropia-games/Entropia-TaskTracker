@@ -39,7 +39,8 @@ import { getSupabase } from "@/lib/supabase"
 import type { Database } from "@/lib/database.types"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { UserDisplayName } from "@/components/ui/display-name"
-import { cn } from "@/lib/utils"
+import { cn, userAvatarColor } from "@/lib/utils"
+import { useDeptMap } from "@/lib/use-dept-map"
 
 const statusLabels: Record<IssueStatus, string> = {
   backlog: "Backlog",
@@ -228,6 +229,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
   }, [issues])
 
   const userMap = new Map(users.map((u) => [u.id, u]))
+  const deptMap = useDeptMap()
   const milestoneMap = new Map(projectMilestones.map((m) => [m.id, m]))
   const epics = issues.filter((i) => i.is_epic)
 
@@ -503,7 +505,8 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                     ? "Unassigned"
                     : assigneeFilter
                       ? <>
-  <UserDisplayName name={users.find((u) => u.id === assigneeFilter)?.name} email={users.find((u) => u.id === assigneeFilter)?.email ?? ""} displayName={users.find((u) => u.id === assigneeFilter)?.display_name} />
+  <UserDisplayName name={users.find((u) => u.id === assigneeFilter)?.name} email={users.find((u) => u.id === assigneeFilter)?.email ?? ""} displayName={users.find((u) => u.id === assigneeFilter)?.display_name} department={deptMap.get(assigneeFilter ?? "")} />
+
 </>
                       : "Assignee"}
                   <ChevronDown className="size-3" />
@@ -533,7 +536,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                   <span className="flex size-4 items-center justify-center rounded-full bg-muted-foreground/30 text-[9px] font-medium text-foreground">
                     {(u.name ?? u.email[0])[0].toUpperCase()}
                   </span>
-                  <UserDisplayName name={u.name} email={u.email} displayName={u.display_name} />
+                  <UserDisplayName name={u.name} email={u.email} displayName={u.display_name} department={deptMap.get(u.id)} />
                 </button>
               ))}
             </PopoverContent>
@@ -776,10 +779,10 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                                       {issue.assignee_id && userMap.has(issue.assignee_id) ? (
                                         <>
                                           <span className="text-sm text-muted-foreground truncate">
-                                            <UserDisplayName name={userMap.get(issue.assignee_id)?.name} email={userMap.get(issue.assignee_id)?.email ?? ""} displayName={userMap.get(issue.assignee_id)?.display_name} />
+                                            <UserDisplayName name={userMap.get(issue.assignee_id)?.name} email={userMap.get(issue.assignee_id)?.email ?? ""} displayName={userMap.get(issue.assignee_id)?.display_name} department={deptMap.get(issue.assignee_id)} />
                                           </span>
                                           <Avatar className="size-6">
-                                            <AvatarFallback className="text-[11px]">
+                                            <AvatarFallback className={cn(userAvatarColor((userMap.get(issue.assignee_id)?.name ?? "?")), "text-[11px]")}>
                                               {(userMap.get(issue.assignee_id)?.name ?? "?")[0].toUpperCase()}
                                             </AvatarFallback>
                                           </Avatar>
@@ -804,16 +807,16 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                                       className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", issue.assignee_id === u.id ? "text-foreground" : "text-muted-foreground")}
                                       onClick={(e) => { e.stopPropagation(); requireAuth(() => updateIssue(issue.id, { assignee_id: u.id })); setOpenAssigneePopover(null) }}
                                     >
-                                      <Avatar className="size-5">
-                                        <AvatarFallback className="text-[9px]">{(u.name ?? u.email)[0].toUpperCase()}</AvatarFallback>
-                                      </Avatar>
-                                      <UserDisplayName name={u.name} email={u.email} displayName={u.display_name} />
-                                    </button>
-                                  ))}
-                                </PopoverContent>
-                              </Popover>
+                                        <Avatar className="size-5">
+                                          <AvatarFallback className={cn(userAvatarColor((u.name ?? u.email)), "text-[9px]")}>{(u.name ?? u.email)[0].toUpperCase()}</AvatarFallback>
+                                        </Avatar>
+                                         <UserDisplayName name={u.name} email={u.email} displayName={u.display_name} department={deptMap.get(u.id)} />
+                                      </button>
+                                    ))}
+                                  </PopoverContent>
+                                </Popover>
+                              </div>
                             </div>
-                          </div>
                         </SortableBoardCard>
                       ))}
                     </SortableContext>
@@ -1036,10 +1039,10 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                             {issue.assignee_id && userMap.has(issue.assignee_id) ? (
                               <>
                                 <span className="text-sm text-muted-foreground truncate">
-                                  <UserDisplayName name={userMap.get(issue.assignee_id)?.name} email={userMap.get(issue.assignee_id)?.email ?? ""} displayName={userMap.get(issue.assignee_id)?.display_name} />
+                                  <UserDisplayName name={userMap.get(issue.assignee_id)?.name} email={userMap.get(issue.assignee_id)?.email ?? ""} displayName={userMap.get(issue.assignee_id)?.display_name} department={deptMap.get(issue.assignee_id)} />
                                 </span>
                                 <Avatar className="size-6">
-                                  <AvatarFallback className="text-[11px]">
+                                  <AvatarFallback className={cn(userAvatarColor((userMap.get(issue.assignee_id)?.name ?? "?")), "text-[11px]")}>
                                     {(userMap.get(issue.assignee_id)?.name ?? "?")[0].toUpperCase()}
                                   </AvatarFallback>
                                 </Avatar>
@@ -1064,10 +1067,10 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                             className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", issue.assignee_id === u.id ? "text-foreground" : "text-muted-foreground")}
                             onClick={(e) => { e.stopPropagation(); requireAuth(() => updateIssue(issue.id, { assignee_id: u.id })); setOpenAssigneePopover(null) }}
                           >
-                            <Avatar className="size-5">
-                              <AvatarFallback className="text-[9px]">{(u.name ?? u.email)[0].toUpperCase()}</AvatarFallback>
-                            </Avatar>
-                            <UserDisplayName name={u.name} email={u.email} displayName={u.display_name} />
+                              <Avatar className="size-5">
+                                <AvatarFallback className={cn(userAvatarColor((u.name ?? u.email)), "text-[9px]")}>{(u.name ?? u.email)[0].toUpperCase()}</AvatarFallback>
+                              </Avatar>
+                            <UserDisplayName name={u.name} email={u.email} displayName={u.display_name} department={deptMap.get(u.id)} />
                           </button>
                         ))}
                       </PopoverContent>

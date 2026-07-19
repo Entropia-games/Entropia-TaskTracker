@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { UserDisplayName } from "@/components/ui/display-name"
+import { useDeptMap } from "@/lib/use-dept-map"
 import {
   Select,
   SelectContent,
@@ -53,7 +54,7 @@ import {
   X,
 } from "lucide-react"
 import { format } from "date-fns"
-import { cn } from "@/lib/utils"
+import { cn, userAvatarColor } from "@/lib/utils"
 import { getSupabase } from "@/lib/supabase"
 
 const STATUS_OPTIONS: { value: IssueStatus; label: string; icon: typeof Circle; color: string }[] = [
@@ -100,6 +101,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
   const { updateIssue, deleteIssues, issues, milestones, currentProject, addComment, deleteComment, updateComment } = useIssues()
   const { documents } = useDocs()
   const { requireAuth } = useAuthGate()
+  const deptMap = useDeptMap()
   const [status, setStatus] = useState<IssueStatus>("backlog")
   const [priority, setPriority] = useState<IssuePriority>("none")
   const [team, setTeam] = useState<IssueTeam | null>(null)
@@ -598,11 +600,11 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
                       {assigneeId ? (
                         <>
                           <Avatar className="size-4">
-                            <AvatarFallback className="text-[8px]">
+                            <AvatarFallback className={cn(userAvatarColor((userMap.get(assigneeId)?.name ?? "?")), "text-[8px]")}>
                               {(userMap.get(assigneeId)?.name ?? "?")[0].toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
-                          <UserDisplayName name={userMap.get(assigneeId)?.name} email={userMap.get(assigneeId)?.email ?? ""} displayName={userMap.get(assigneeId)?.display_name} />
+                           <UserDisplayName name={userMap.get(assigneeId)?.name} email={userMap.get(assigneeId)?.email ?? ""} displayName={userMap.get(assigneeId)?.display_name} department={deptMap.get(assigneeId)} />
                         </>
                       ) : (
                         "Unassigned"
@@ -627,7 +629,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
                       <span className="flex size-4 items-center justify-center rounded-full bg-muted-foreground/30 text-[9px] font-medium text-foreground">
                         {(u.name ?? u.email[0])[0].toUpperCase()}
                       </span>
-                      <UserDisplayName name={u.name} email={u.email} displayName={u.display_name} />
+                       <UserDisplayName name={u.name} email={u.email} displayName={u.display_name} department={deptMap.get(u.id)} />
                     </button>
                   ))}
                 </PopoverContent>
@@ -784,7 +786,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
                   {(data.comments as any[]).map((comment: any) => (
                     <div key={comment.id} className="flex gap-2 group">
                       <Avatar className="size-6 shrink-0">
-                        <AvatarFallback className="text-[10px]">
+                        <AvatarFallback className={cn(userAvatarColor(comment.author_name ?? ""), "text-[10px]")}>
                           {comment.author_name ? comment.author_name[0].toUpperCase() : "?"}
                         </AvatarFallback>
                       </Avatar>

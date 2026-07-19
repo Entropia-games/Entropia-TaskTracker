@@ -403,6 +403,7 @@ create table if not exists public.project_members (
   project_id  bigint not null references public.projects(id) on delete cascade,
   role        text not null default 'member',
   name        text,
+  department  text,
   created_at  timestamptz not null default now(),
   unique (user_id, project_id)
 );

@@ -37,7 +37,7 @@ import { AuthDialog } from "@/components/auth-dialog"
 import { UsersDialog } from "@/components/users-dialog"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { cn } from "@/lib/utils"
+import { cn, userAvatarColor } from "@/lib/utils"
 
 const teams = [
   { label: "3D", color: "text-red-400" },
@@ -204,7 +204,7 @@ export function AppSidebar() {
               >
                 <span className="flex items-center gap-2 text-muted-foreground">
                   <Avatar className="size-5">
-                    <AvatarFallback className="text-[10px]">
+                    <AvatarFallback className={cn(userAvatarColor((username ?? "U")), "text-[10px]")}>
                       {(username ?? "U")[0].toUpperCase()}
                     </AvatarFallback>
                   </Avatar>

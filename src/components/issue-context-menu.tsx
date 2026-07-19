@@ -17,8 +17,9 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useIssues, type Issue, type IssueStatus, type IssuePriority, type IssueTeam } from "@/lib/issues-context"
 import type { Database } from "@/lib/database.types"
-import { cn } from "@/lib/utils"
+import { cn, userAvatarColor } from "@/lib/utils"
 import { UserDisplayName } from "@/components/ui/display-name"
+import { useDeptMap } from "@/lib/use-dept-map"
 
 type AppUser = Database["public"]["Tables"]["users"]["Row"]
 
@@ -80,6 +81,7 @@ function MenuItem({ label, icon, itemRef, onHover, onClick }: { label: string; i
 
 export function IssueContextMenu({ issue, users, x, y, onChange, onClose }: Props) {
   const { milestones } = useIssues()
+  const deptMap = useDeptMap()
   const [sub, setSub] = useState<SubKey | null>(null)
   const [subTop, setSubTop] = useState(0)
   const itemRefs = useRef<Partial<Record<SubKey, HTMLButtonElement | null>>>({})
@@ -157,7 +159,7 @@ export function IssueContextMenu({ issue, users, x, y, onChange, onClose }: Prop
         <MenuItem
           label="Assignee"
           itemRef={(el) => { itemRefs.current.assignee = el }}
-          icon={user ? <Avatar className="size-4"><AvatarFallback className="text-[9px]">{(user.name ?? user.email)[0].toUpperCase()}</AvatarFallback></Avatar> : <span className="flex size-4 items-center justify-center rounded-full bg-muted-foreground/20 text-[9px]">?</span>}
+          icon={user ? <Avatar className="size-4"><AvatarFallback className={cn(userAvatarColor((user.name ?? user.email)), "text-[9px]")}>{(user.name ?? user.email)[0].toUpperCase()}</AvatarFallback></Avatar> : <span className="flex size-4 items-center justify-center rounded-full bg-muted-foreground/20 text-[9px]">?</span>}
           onHover={() => setSub("assignee")}
           onClick={() => setSub("assignee")}
         />
@@ -240,9 +242,9 @@ export function IssueContextMenu({ issue, users, x, y, onChange, onClose }: Prop
                     className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-zinc-700", issue.assignee_id === u.id ? "text-foreground" : "text-muted-foreground")}
                   >
                     <Avatar className="size-4">
-                      <AvatarFallback className="text-[9px]">{(u.name ?? u.email)[0].toUpperCase()}</AvatarFallback>
+                      <AvatarFallback className={cn(userAvatarColor((u.name ?? u.email)), "text-[9px]")}>{(u.name ?? u.email)[0].toUpperCase()}</AvatarFallback>
                     </Avatar>
-                    <UserDisplayName name={u.name} email={u.email} displayName={u.display_name} />
+                    <UserDisplayName name={u.name} email={u.email} displayName={u.display_name} department={deptMap.get(u.id)} />
                   </button>
                 ))}
               </>

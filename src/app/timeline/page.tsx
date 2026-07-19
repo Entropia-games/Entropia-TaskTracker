@@ -9,8 +9,9 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { cn } from "@/lib/utils"
+import { cn, userAvatarColor } from "@/lib/utils"
 import { UserDisplayName } from "@/components/ui/display-name"
+import { useDeptMap } from "@/lib/use-dept-map"
 import { format, differenceInDays, addDays, startOfDay, min as dateMin, max as dateMax } from "date-fns"
 import { Plus, X, Layers, Search, GripVertical, ChevronDown, Circle, CircleOff, CircleDot, CircleCheck, Diamond, ArrowDown, ArrowUp, Minus, AlertCircle, Lock } from "lucide-react"
 import {
@@ -191,6 +192,7 @@ function SortableTimelineRow({
   viewTeam,
   rowColorObj,
   userMap,
+  deptMap,
   onOpen,
   onRemove,
   lock,
@@ -200,6 +202,7 @@ function SortableTimelineRow({
   viewTeam: boolean
   rowColorObj: RowColorObj
   userMap: Map<string, Database["public"]["Tables"]["users"]["Row"]>
+  deptMap: Map<string, string>
   onOpen: () => void
   onRemove: (id: number) => void
   lock: { userId: string; name: string; color: string } | null
@@ -241,9 +244,9 @@ function SortableTimelineRow({
         ) : (
           issue.assignee_id && userMap.has(issue.assignee_id) && (
             <div className="flex shrink-0 items-center gap-1.5">
-              <span className="max-w-[110px] truncate text-xs text-muted-foreground"><UserDisplayName name={userMap.get(issue.assignee_id)?.name} email={userMap.get(issue.assignee_id)?.email ?? ""} displayName={userMap.get(issue.assignee_id)?.display_name} /></span>
+              <span className="max-w-[110px] truncate text-xs text-muted-foreground"><UserDisplayName name={userMap.get(issue.assignee_id)?.name} email={userMap.get(issue.assignee_id)?.email ?? ""} displayName={userMap.get(issue.assignee_id)?.display_name} department={deptMap.get(issue.assignee_id)} /></span>
               <Avatar className="size-6 shrink-0">
-                <AvatarFallback className="text-[10px]">{(userMap.get(issue.assignee_id)?.name ?? "?")[0].toUpperCase()}</AvatarFallback>
+                <AvatarFallback className={cn(userAvatarColor((userMap.get(issue.assignee_id)?.name ?? "?")), "text-[10px]")}>{(userMap.get(issue.assignee_id)?.name ?? "?")[0].toUpperCase()}</AvatarFallback>
               </Avatar>
             </div>
           )
@@ -428,6 +431,7 @@ export default function TimelinePage() {
   persistOneRef.current = persistOne
 
   const userMap = useMemo(() => new Map(users.map((u) => [u.id, u])), [users])
+  const deptMap = useDeptMap()
   const issueMap = useMemo(() => new Map(issues.map((i) => [i.id, i])), [issues])
   const entryColorMap = useMemo(() => new Map(entries.map((e) => [e.issueId, e.color])), [entries])
 
@@ -766,7 +770,7 @@ export default function TimelinePage() {
                     ? "Unassigned"
                     : assigneeFilter
                       ? <>
-  <UserDisplayName name={users.find((u) => u.id === assigneeFilter)?.name} email={users.find((u) => u.id === assigneeFilter)?.email ?? ""} displayName={users.find((u) => u.id === assigneeFilter)?.display_name} />
+  <UserDisplayName name={users.find((u) => u.id === assigneeFilter)?.name} email={users.find((u) => u.id === assigneeFilter)?.email ?? ""} displayName={users.find((u) => u.id === assigneeFilter)?.display_name} department={deptMap.get(assigneeFilter ?? "")} />
 </>
                       : "Assignee"}
                   <ChevronDown className="size-3" />
@@ -784,7 +788,7 @@ export default function TimelinePage() {
                   <span className="flex size-4 items-center justify-center rounded-full bg-muted-foreground/30 text-[9px] font-medium text-foreground">
                     {(u.name ?? u.email[0])[0].toUpperCase()}
                   </span>
-                  <UserDisplayName name={u.name} email={u.email} displayName={u.display_name} />
+                  <UserDisplayName name={u.name} email={u.email} displayName={u.display_name} department={deptMap.get(u.id)} />
                 </button>
               ))}
             </PopoverContent>
@@ -857,6 +861,7 @@ export default function TimelinePage() {
                           viewTeam={viewTeam}
                           rowColorObj={rowColorObj}
                           userMap={userMap}
+                          deptMap={deptMap}
                           onOpen={() => { setDetailParentIssue(null); setDetailIssueId(issue.id) }}
                           onRemove={removeEntry}
                           lock={lockedByOther(issue.id)}
@@ -945,9 +950,9 @@ export default function TimelinePage() {
                       )
                     ) : (
                       issue.assignee_id && userMap.has(issue.assignee_id) && (
-                        <Avatar className="size-4 shrink-0">
-                          <AvatarFallback className="text-[6px]">{(userMap.get(issue.assignee_id)?.name ?? "?")[0].toUpperCase()}</AvatarFallback>
-                        </Avatar>
+                          <Avatar className="size-4 shrink-0">
+                           <AvatarFallback className={cn(userAvatarColor((userMap.get(issue.assignee_id)?.name ?? "?")), "text-[6px]")}>{(userMap.get(issue.assignee_id)?.name ?? "?")[0].toUpperCase()}</AvatarFallback>
+                         </Avatar>
                       )
                     )}
                     <div
@@ -1003,7 +1008,7 @@ export default function TimelinePage() {
                 <span className="truncate flex-1">{issue.title}</span>
                 {issue.assignee_id && userMap.has(issue.assignee_id) && (
                   <Avatar className="size-4 shrink-0">
-                    <AvatarFallback className="text-[6px]">{(userMap.get(issue.assignee_id)?.name ?? "?")[0].toUpperCase()}</AvatarFallback>
+                    <AvatarFallback className={cn(userAvatarColor((userMap.get(issue.assignee_id)?.name ?? "?")), "text-[6px]")}>{(userMap.get(issue.assignee_id)?.name ?? "?")[0].toUpperCase()}</AvatarFallback>
                   </Avatar>
                 )}
               </button>

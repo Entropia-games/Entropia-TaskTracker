@@ -9,8 +9,9 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Circle, ChevronDown, CircleDot, CircleCheck, CircleOff, ArrowUp, ArrowDown, Minus, AlertCircle, Layers, Plus, X, Diamond } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn, userAvatarColor } from "@/lib/utils"
 import { UserDisplayName } from "@/components/ui/display-name"
+import { useDeptMap } from "@/lib/use-dept-map"
 import { startOfWeek, startOfMonth, startOfDay, endOfDay, eachDayOfInterval, format } from "date-fns"
 
 const statusLabels: Record<IssueStatus, string> = {
@@ -71,6 +72,7 @@ function CompletedPanel({
     [milestones, currentProject],
   )
   const userMap = useMemo(() => new Map(users.map((u) => [u.id, u])), [users])
+  const deptMap = useDeptMap()
 
   const completed = useMemo(() => {
     const sinceMs = since.getTime()
@@ -178,8 +180,9 @@ function CompletedPanel({
                 {assigneeFilter === "__none__"
                   ? "Unassigned"
                   : assigneeFilter
-                    ? <>
-  <UserDisplayName name={users.find((u) => u.id === assigneeFilter)?.name} email={users.find((u) => u.id === assigneeFilter)?.email ?? ""} displayName={users.find((u) => u.id === assigneeFilter)?.display_name} />
+                      ? <>
+  <UserDisplayName name={users.find((u) => u.id === assigneeFilter)?.name} email={users.find((u) => u.id === assigneeFilter)?.email ?? ""} displayName={users.find((u) => u.id === assigneeFilter)?.display_name} department={deptMap.get(assigneeFilter ?? "")} />
+
 </>
                     : "Assignee"}
                 <ChevronDown className="size-3" />
@@ -197,7 +200,7 @@ function CompletedPanel({
                 <span className="flex size-4 items-center justify-center rounded-full bg-muted-foreground/30 text-[9px] font-medium text-foreground">
                   {(u.name ?? u.email[0])[0].toUpperCase()}
                 </span>
-                <UserDisplayName name={u.name} email={u.email} displayName={u.display_name} />
+                <UserDisplayName name={u.name} email={u.email} displayName={u.display_name} department={deptMap.get(u.id)} />
               </button>
             ))}
           </PopoverContent>
@@ -217,9 +220,9 @@ function CompletedPanel({
                 <span className="flex min-w-0 flex-1 items-center justify-end gap-1.5 text-xs text-muted-foreground/60">
                   {i.assignee_id && userMap.has(i.assignee_id) && (
                     <>
-                      <span className="truncate max-w-[100px] text-right"><UserDisplayName name={userMap.get(i.assignee_id)?.name} email={userMap.get(i.assignee_id)?.email ?? ""} displayName={userMap.get(i.assignee_id)?.display_name} /></span>
+                      <span className="truncate max-w-[100px] text-right"><UserDisplayName name={userMap.get(i.assignee_id)?.name} email={userMap.get(i.assignee_id)?.email ?? ""} displayName={userMap.get(i.assignee_id)?.display_name} department={deptMap.get(i.assignee_id)} /></span>
                       <Avatar className="size-4">
-                        <AvatarFallback className="text-[8px]">{(userMap.get(i.assignee_id)?.name ?? "?")[0].toUpperCase()}</AvatarFallback>
+                        <AvatarFallback className={cn(userAvatarColor((userMap.get(i.assignee_id)?.name ?? "?")), "text-[8px]")}>{(userMap.get(i.assignee_id)?.name ?? "?")[0].toUpperCase()}</AvatarFallback>
                       </Avatar>
                     </>
                   )}

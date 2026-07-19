@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog"
 import { SidebarMenuButton } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { cn } from "@/lib/utils"
+import { cn, userAvatarColor } from "@/lib/utils"
 
 type Member = {
   id: string
@@ -90,7 +90,7 @@ export function UsersDialog() {
                 <div className="relative shrink-0">
                   <Avatar>
                     {m.avatar_url ? <AvatarImage src={m.avatar_url} alt={label} /> : null}
-                    <AvatarFallback>{initials}</AvatarFallback>
+                    <AvatarFallback className={userAvatarColor(m.name ?? "")}>{initials}</AvatarFallback>
                   </Avatar>
                   <span
                     className={cn(

@@ -112,6 +112,7 @@ export function CreateIssueModal() {
   const [docPickerOpen, setDocPickerOpen] = useState(false)
   const [docSearch, setDocSearch] = useState("")
   const imageInputRef = useRef<HTMLInputElement>(null)
+  const popoverOpenRef = useRef(false)
 
   useEffect(() => {
     if (!open) return
@@ -222,6 +223,7 @@ export function CreateIssueModal() {
   }, [open, title, description, status, priority, discardAttachments])
 
   const handleOpenChange = (v: boolean) => {
+    if (!v && popoverOpenRef.current) return
     setOpen(v)
       if (!v) {
         setTitle("")
@@ -358,7 +360,7 @@ export function CreateIssueModal() {
                   })}
                 </SelectContent>
               </Select>
-              <Popover>
+              <Popover onOpenChange={(v) => { popoverOpenRef.current = v }}>
                 <PopoverTrigger
                   render={
                     <button className={cn("flex h-7 cursor-default items-center gap-1.5 border-0 px-2 text-xs hover:bg-accent data-open:bg-accent", issueTypeColor(issueType))}>
@@ -417,9 +419,9 @@ export function CreateIssueModal() {
                 </Select>
               )}
               {issueType !== "epic" && (
-                <Popover>
-                  <PopoverTrigger
-                    render={
+              <Popover onOpenChange={(v) => { popoverOpenRef.current = v }}>
+                <PopoverTrigger
+                  render={
                       <button className={cn("flex h-7 cursor-default items-center gap-1.5 border-0 px-2 text-xs hover:bg-accent", parentEpicId ? "text-purple-400" : "text-muted-foreground")}>
                         <Layers className="size-3.5" />
                         {parentEpicId ? (epics.find((e) => e.id === parentEpicId)?.title ?? "Epic") : "No Epic"}
@@ -450,7 +452,7 @@ export function CreateIssueModal() {
                   </PopoverContent>
                 </Popover>
               )}
-              <Popover>
+              <Popover onOpenChange={(v) => { popoverOpenRef.current = v }}>
                 <PopoverTrigger
                   render={
                     <button

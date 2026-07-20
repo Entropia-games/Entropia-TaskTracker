@@ -29,7 +29,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import {   Circle, ChevronDown, Trash2, X, ArrowUp, ArrowDown, ArrowUpDown, Minus, AlertCircle, CircleDot, CircleCheck, CircleOff, Layers, GitPullRequest, Diamond, Plus, Link, List, LayoutGrid, Loader2 } from "lucide-react"
+import {   Circle, ChevronDown, Trash2, X, ArrowUp, ArrowDown, ArrowUpDown, Minus, AlertCircle, CircleDot, CircleCheck, CircleOff, Layers, GitPullRequest, Diamond, Plus, Link, List, LayoutGrid, Loader2, ShieldOff, Shield } from "lucide-react"
 import { CreateIssueModal } from "@/components/create-issue-modal"
 import { IssueDetailModal } from "@/components/issue-detail-modal"
 import { IssueContextMenu } from "@/components/issue-context-menu"
@@ -48,7 +48,6 @@ const statusLabels: Record<IssueStatus, string> = {
   todo: "Todo",
   in_progress: "In Progress",
   done: "Done",
-  canceled: "Canceled",
 }
 
 const statusMeta: Record<IssueStatus, { icon: typeof Circle; color: string }> = {
@@ -56,7 +55,6 @@ const statusMeta: Record<IssueStatus, { icon: typeof Circle; color: string }> = 
   todo: { icon: Circle, color: "text-muted-foreground" },
   in_progress: { icon: CircleDot, color: "text-yellow-400" },
   done: { icon: CircleCheck, color: "text-green-400" },
-  canceled: { icon: CircleOff, color: "text-muted-foreground/40" },
 }
 
 const statusHeaderBg: Record<IssueStatus, string> = {
@@ -64,7 +62,6 @@ const statusHeaderBg: Record<IssueStatus, string> = {
   todo: "bg-slate-400/10",
   in_progress: "bg-yellow-400/15",
   done: "bg-green-400/15",
-  canceled: "bg-muted-foreground/10",
 }
 
 const priorityIcons: Record<IssuePriority, typeof Minus> = {
@@ -103,7 +100,7 @@ const SORT_OPTIONS = [
 type SortBy = (typeof SORT_OPTIONS)[number]["value"]
 
 const priorityRank: Record<IssuePriority, number> = { urgent: 0, high: 1, medium: 2, low: 3, none: 4 }
-const statusRank: Record<IssueStatus, number> = { backlog: 0, todo: 1, in_progress: 2, done: 3, canceled: 4 }
+const statusRank: Record<IssueStatus, number> = { backlog: 0, todo: 1, in_progress: 2, done: 3 }
 
 function sortIssues(list: Issue[], by: SortBy): Issue[] {
   const arr = [...list]
@@ -156,7 +153,7 @@ const boardCollisionDetection: CollisionDetection = (args) => {
 }
 
 export function IssueList({ title, issues, focusId, showTypeFilter = true }: Props) {
-  const { issues: allIssues, deleteIssues, updateIssue, currentProject, milestones: projectMilestones } = useIssues()
+  const { issues: allIssues, deleteIssues, updateIssue, currentProject, milestones: projectMilestones, depsVersion } = useIssues()
   const { requireAuth } = useAuthGate()
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [detailIssueId, setDetailIssueId] = useState<number | null>(null)
@@ -191,6 +188,8 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
   const [linkedPRMap, setLinkedPRMap] = useState<Map<number, { count: number; firstUrl: string; firstState: string }>>(new Map())
   const rowClickTarget = useRef<number | null>(null)
   const [ctxMenu, setCtxMenu] = useState<{ issue: Issue; x: number; y: number } | null>(null)
+  const [blockedIds, setBlockedIds] = useState<Set<number>>(new Set())
+  const [blockingIds, setBlockingIds] = useState<Set<number>>(new Set())
 
   const applyCtxChange = (changes: Partial<Issue>) => {
     if (!ctxMenu) return
@@ -228,6 +227,17 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
       setLinkedPRMap(map)
     })
   }, [issues])
+
+  useEffect(() => {
+    const ids = issues.map((i) => i.id)
+    if (ids.length === 0) return
+    getSupabase().from("issue_dependencies").select("issue_id, blocked_by_id").in("issue_id", ids).then(({ data }) => {
+      if (data) setBlockedIds(new Set(data.map((d) => d.issue_id)))
+    })
+    getSupabase().from("issue_dependencies").select("blocked_by_id").in("blocked_by_id", ids).then(({ data }) => {
+      if (data) setBlockingIds(new Set(data.map((d) => d.blocked_by_id)))
+    })
+  }, [issues, depsVersion])
 
   const userMap = new Map(users.map((u) => [u.id, u]))
   const deptMap = useDeptMap()
@@ -397,9 +407,9 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
               >
                 All
               </button>
-              {(["backlog", "todo", "in_progress", "done", "canceled"] as IssueStatus[]).map((s) => {
-                const statusIconMap: Record<string, typeof Circle> = { backlog: CircleOff, todo: Circle, in_progress: CircleDot, done: CircleCheck, canceled: CircleOff }
-                const statusColorMap: Record<string, string> = { backlog: "text-muted-foreground/40", todo: "text-muted-foreground", in_progress: "text-yellow-400", done: "text-green-400", canceled: "text-muted-foreground/40" }
+              {(["backlog", "todo", "in_progress", "done"] as IssueStatus[]).map((s) => {
+                const statusIconMap: Record<string, typeof Circle> = { backlog: CircleOff, todo: Circle, in_progress: CircleDot, done: CircleCheck }
+                const statusColorMap: Record<string, string> = { backlog: "text-muted-foreground/40", todo: "text-muted-foreground", in_progress: "text-yellow-400", done: "text-green-400" }
                 const SIcon = statusIconMap[s]
                 return (
                   <button
@@ -540,9 +550,11 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                   className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", assigneeFilter === u.id ? "text-foreground" : "text-muted-foreground")}
                   onClick={() => setAssigneeFilter(u.id)}
                 >
-                  <span className="flex size-4 items-center justify-center rounded-full bg-muted-foreground/30 text-[9px] font-medium text-foreground">
-                    {(u.name ?? u.email[0])[0].toUpperCase()}
-                  </span>
+                  <Avatar className="size-4">
+                    <AvatarFallback className={cn(userAvatarColor((u.name ?? u.email)), "text-[9px]")}>
+                      {(u.name ?? u.email)[0].toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
                   <UserDisplayName name={u.name} email={u.email} displayName={u.display_name} department={deptMap.get(u.id)} />
                 </button>
               ))}
@@ -617,6 +629,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                             <div className="flex items-center gap-2">
                               {(() => { const S = statusMeta[issue.status]; const SIcon = S.icon; return <SIcon className={cn("size-3.5 shrink-0", S.color)} /> })()}
                               <span className="min-w-0 flex-1 truncate text-sm">{issue.title}</span>
+                              {blockedIds.has(issue.id) && <ShieldOff className="size-3 shrink-0 text-red-400" />}
                             </div>
                             <div className="flex items-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:thin]">
                               <Popover open={openPriorityPopover === issue.id} onOpenChange={(v) => setOpenPriorityPopover(v ? issue.id : null)}>
@@ -912,10 +925,11 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                       const TypeIcon = issueTypeIcon(issue.issue_type)
                       return <TypeIcon className={cn("size-4 shrink-0", issueTypeColor(issue.issue_type))} />
                     })()}</span>
-                    <span className={cn("min-w-[4rem] text-sm font-mono", issue.status === "done" || issue.status === "canceled" ? "text-muted-foreground/30 line-through" : "text-muted-foreground/60")}>
+                    <span className={cn("min-w-[4rem] text-sm font-mono", issue.status === "done" ? "text-muted-foreground/30 line-through" : "text-muted-foreground/60")}>
                       {currentProject?.code ?? "?"}-{issue.display_id}
                     </span>
                     <span className="min-w-0 flex-1 truncate text-sm">{issue.title}</span>
+                    {blockedIds.has(issue.id) && <ShieldOff className="size-3.5 shrink-0 text-red-400" />}
                     <span className="flex w-5 shrink-0 items-center justify-center">{linkedPRMap.has(issue.id) && (() => {
                       const pr = linkedPRMap.get(issue.id)!
                       const isMerged = pr.firstState === "merged"

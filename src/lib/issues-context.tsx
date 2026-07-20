@@ -57,6 +57,8 @@ type IssuesContext = {
   addComment: (issueId: number, input: NewIssueCommentInput) => Promise<void>
   deleteComment: (commentId: number, issueId: number) => Promise<void>
   updateComment: (commentId: number, issueId: number, content: string) => Promise<void>
+  depsVersion: number
+  bumpDepsVersion: () => void
 }
 
 const IssuesContext = createContext<IssuesContext | null>(null)
@@ -422,8 +424,11 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
     setIssues((prev) => prev.map((i) => i.milestone_id === id ? { ...i, milestone_id: null } : i))
   }, [user])
 
+  const [depsVersion, setDepsVersion] = useState(0)
+  const bumpDepsVersion = useCallback(() => setDepsVersion((v) => v + 1), [])
+
   return (
-    <IssuesContext.Provider value={{ issues, milestones, projects, currentProject, setCurrentProject: setCurrentProjectAndSave, myRole, hasMemberships, addIssue, updateIssue, deleteIssues, createMilestone, updateMilestone, deleteMilestone, loading, projectsLoaded, addComment, deleteComment, updateComment }}>
+    <IssuesContext.Provider value={{ issues, milestones, projects, currentProject, setCurrentProject: setCurrentProjectAndSave, myRole, hasMemberships, addIssue, updateIssue, deleteIssues, createMilestone, updateMilestone, deleteMilestone, loading, projectsLoaded, addComment, deleteComment, updateComment, depsVersion, bumpDepsVersion }}>
       {children}
     </IssuesContext.Provider>
   )

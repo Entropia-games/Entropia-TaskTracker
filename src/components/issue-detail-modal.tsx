@@ -53,6 +53,8 @@ import {
   Trash2,
   Pencil,
   X,
+  ShieldOff,
+  ShieldAlert,
 } from "lucide-react"
 import { format } from "date-fns"
 import { cn, userAvatarColor } from "@/lib/utils"
@@ -63,7 +65,6 @@ const STATUS_OPTIONS: { value: IssueStatus; label: string; icon: typeof Circle; 
   { value: "todo",        label: "Todo",        icon: Circle,      color: "text-muted-foreground" },
   { value: "in_progress", label: "In Progress", icon: CircleDot,   color: "text-yellow-400" },
   { value: "done",        label: "Done",        icon: CircleCheck, color: "text-green-400" },
-  { value: "canceled",    label: "Canceled",    icon: CircleOff,   color: "text-muted-foreground/40" },
 ]
 
 const PRIORITY_OPTIONS: { value: IssuePriority; label: string; icon: typeof Minus; color: string }[] = [
@@ -99,7 +100,7 @@ type Props = {
 }
 
 export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetail, parentIssue }: Props) {
-  const { updateIssue, deleteIssues, issues, milestones, currentProject, addComment, deleteComment, updateComment } = useIssues()
+  const { updateIssue, deleteIssues, issues, milestones, currentProject, addComment, deleteComment, updateComment, bumpDepsVersion } = useIssues()
   const { documents } = useDocs()
   const { requireAuth } = useAuthGate()
   const deptMap = useDeptMap()
@@ -112,6 +113,8 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
   const [childIssues, setChildIssues] = useState<Issue[]>([])
   const [allEpics, setAllEpics] = useState<Issue[]>([])
   const [linkedPRs, setLinkedPRs] = useState<Database["public"]["Tables"]["issue_links"]["Row"][]>([])
+  const [blockedBy, setBlockedBy] = useState<Database["public"]["Tables"]["issue_dependencies"]["Row"][]>([])
+  const [blocks, setBlocks] = useState<Database["public"]["Tables"]["issue_dependencies"]["Row"][]>([])
   const [editTitle, setEditTitle] = useState("")
   const [editDescription, setEditDescription] = useState("")
   const [editingDescription, setEditingDescription] = useState(false)
@@ -185,6 +188,8 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
       return
     }
     // New target: buffer its related data, keep the previous issue on screen.
+    setBlockedBy([])
+    setBlocks([])
     let active = true
     const tasks: PromiseLike<void>[] = []
     if (issue.is_epic) {
@@ -204,6 +209,10 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
       getSupabase().from("issue_links").select("*").eq("issue_id", issue.id).then(({ data: rows }) => {
         if (active && rows) setLinkedPRs(rows)
       }),
+    )
+    tasks.push(
+      getSupabase().from("issue_dependencies").select("*").eq("issue_id", issue.id).then(({ data: rows }) => { if (active) setBlockedBy(rows ?? []) }),
+      getSupabase().from("issue_dependencies").select("*").eq("blocked_by_id", issue.id).then(({ data: rows }) => { if (active) setBlocks(rows ?? []) }),
     )
     if (currentProject) {
       tasks.push(
@@ -630,9 +639,11 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
                       className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-accent"
                       onClick={() => handleAssigneeChange(u.id)}
                     >
-                      <span className="flex size-4 items-center justify-center rounded-full bg-muted-foreground/30 text-[9px] font-medium text-foreground">
-                        {(u.name ?? u.email[0])[0].toUpperCase()}
-                      </span>
+                      <Avatar className="size-4">
+                        <AvatarFallback className={cn(userAvatarColor((u.name ?? u.email)), "text-[9px]")}>
+                          {(u.name ?? u.email)[0].toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
                        <UserDisplayName name={u.name} email={u.email} displayName={u.display_name} department={deptMap.get(u.id)} />
                     </button>
                   ))}
@@ -683,8 +694,55 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
                       <span className="block px-2 py-1.5 text-xs text-muted-foreground/50">No epics yet</span>
                     )}
                   </PopoverContent>
-                </Popover>
-              )}
+                  </Popover>
+                )}
+              <Popover>
+                <PopoverTrigger
+                  render={
+                    <button className="flex items-center gap-1 rounded px-1.5 py-0.5 text-muted-foreground/60 transition-colors hover:bg-accent">
+                      <ShieldOff className="size-3.5" />
+                      <span className="text-[11px]">Blocked by</span>
+                    </button>
+                  }
+                />
+                <PopoverContent className="w-56 p-1 max-h-60 overflow-y-auto" align="start">
+                  <input
+                    autoFocus
+                    placeholder="Search..."
+                    className="w-full rounded border border-border/50 bg-transparent px-2 py-1 text-xs text-muted-foreground outline-none mb-1 placeholder:text-muted-foreground/30"
+                    onChange={(e) => {
+                      const q = e.target.value.toLowerCase()
+                      const list = e.target.closest("[data-slot='popover-content']")?.querySelectorAll("[data-dep-item]") as NodeListOf<HTMLElement>
+                      list?.forEach((el) => {
+                        const title = el.getAttribute("data-title")?.toLowerCase() ?? ""
+                        const id = el.getAttribute("data-id")?.toLowerCase() ?? ""
+                        el.style.display = title.includes(q) || id.includes(q) ? "" : "none"
+                      })
+                    }}
+                  />
+                  {issues.filter((i) => i.id !== data.id && !blockedBy.some((d) => d.blocked_by_id === i.id)).map((i) => (
+                    <button
+                      key={i.id}
+                      data-dep-item
+                      data-title={i.title.toLowerCase()}
+                      data-id={`${currentProject?.code ?? ""}-${i.display_id}`.toLowerCase()}
+                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent"
+                      onClick={() => {
+                        getSupabase().from("issue_dependencies").insert({ issue_id: data.id, blocked_by_id: i.id }).then(() => {
+                          setBlockedBy((prev) => [...prev, { id: Date.now(), issue_id: data.id, blocked_by_id: i.id, created_at: new Date().toISOString() }])
+                          bumpDepsVersion()
+                        })
+                      }}
+                    >
+                      <span className="text-muted-foreground/40 font-mono">{currentProject?.code ?? "?"}-{i.display_id}</span>
+                      <span className="flex-1 truncate">{i.title}</span>
+                    </button>
+                  ))}
+                  {issues.filter((i) => i.id !== data.id && !blockedBy.some((d) => d.blocked_by_id === i.id)).length === 0 && (
+                    <span className="block px-2 py-1.5 text-xs text-muted-foreground/50">No issues available</span>
+                  )}
+                </PopoverContent>
+              </Popover>
             </div>
 
             {linkedPRs.length > 0 && (
@@ -707,6 +765,62 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
                     </div>
                   )
                 })}
+              </div>
+            )}
+            {(blockedBy.length > 0 || blocks.length > 0) && (
+              <div className="mt-4 space-y-2 border-t border-border/30 pt-4">
+                {blockedBy.length > 0 && (
+                  <div>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50">Blocked by</span>
+                    <div className="mt-1 space-y-0.5">
+                      {blockedBy.map((dep) => {
+                        const blocker = issues.find((i) => i.id === dep.blocked_by_id)
+                        if (!blocker) return null
+                        const sColor = STATUS_OPTIONS.find((s) => s.value === blocker.status)?.color
+                        return (
+                          <div key={dep.id} className="flex items-center gap-2 rounded-md px-2 py-1 text-sm text-muted-foreground hover:bg-accent/50 cursor-pointer" onClick={() => onOpenDetail?.(blocker)}>
+                            <ShieldOff className="size-3.5 shrink-0 text-red-400" />
+                            <Circle className={cn("size-2.5 shrink-0 fill-current", sColor ?? "text-muted-foreground/40")} />
+                            <span className="text-xs text-muted-foreground/40 font-mono">{currentProject?.code ?? "?"}-{blocker.display_id}</span>
+                            <span className="flex-1 truncate text-xs">{blocker.title}</span>
+                            <button
+                              className="shrink-0 rounded p-0.5 text-muted-foreground/30 hover:text-muted-foreground hover:bg-accent"
+                              onClick={(e) => { e.stopPropagation(); getSupabase().from("issue_dependencies").delete().eq("id", dep.id).then(() => { setBlockedBy((prev) => prev.filter((d) => d.id !== dep.id)); setBlocks((prev) => prev.filter((d) => d.id !== dep.id)); bumpDepsVersion() }) }}
+                            >
+                              <X className="size-3" />
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+                {blocks.length > 0 && (
+                  <div>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50">Blocks</span>
+                    <div className="mt-1 space-y-0.5">
+                      {blocks.map((dep) => {
+                        const blocked = issues.find((i) => i.id === dep.issue_id)
+                        if (!blocked) return null
+                        const sColor = STATUS_OPTIONS.find((s) => s.value === blocked.status)?.color
+                        return (
+                          <div key={dep.id} className="flex items-center gap-2 rounded-md px-2 py-1 text-sm text-muted-foreground hover:bg-accent/50 cursor-pointer" onClick={() => onOpenDetail?.(blocked)}>
+                            <ShieldAlert className="size-3.5 shrink-0 text-amber-400" />
+                            <Circle className={cn("size-2.5 shrink-0 fill-current", sColor ?? "text-muted-foreground/40")} />
+                            <span className="text-xs text-muted-foreground/40 font-mono">{currentProject?.code ?? "?"}-{blocked.display_id}</span>
+                            <span className="flex-1 truncate text-xs">{blocked.title}</span>
+                            <button
+                              className="shrink-0 rounded p-0.5 text-muted-foreground/30 hover:text-muted-foreground hover:bg-accent"
+                              onClick={(e) => { e.stopPropagation(); getSupabase().from("issue_dependencies").delete().eq("id", dep.id).then(() => { setBlockedBy((prev) => prev.filter((d) => d.id !== dep.id)); setBlocks((prev) => prev.filter((d) => d.id !== dep.id)); bumpDepsVersion() }) }}
+                            >
+                              <X className="size-3" />
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
             {isEpic && (

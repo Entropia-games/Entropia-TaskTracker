@@ -120,21 +120,18 @@ const STATUS_LABELS: Record<IssueStatus, string> = {
   todo: "Todo",
   in_progress: "In Progress",
   done: "Done",
-  canceled: "Canceled",
 }
 const STATUS_ICON: Record<IssueStatus, typeof Circle> = {
   backlog: CircleOff,
   todo: Circle,
   in_progress: CircleDot,
   done: CircleCheck,
-  canceled: CircleOff,
 }
 const STATUS_COLOR: Record<IssueStatus, string> = {
   backlog: "text-muted-foreground/40",
   todo: "text-muted-foreground",
   in_progress: "text-yellow-400",
   done: "text-green-400",
-  canceled: "text-muted-foreground/40",
 }
 const PRIORITY_ICON: Record<IssuePriority, typeof Minus> = {
   none: Minus,

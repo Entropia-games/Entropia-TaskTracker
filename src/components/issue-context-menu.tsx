@@ -28,7 +28,6 @@ const statusMeta: Record<IssueStatus, { label: string; icon: typeof Circle; colo
   todo: { label: "Todo", icon: Circle, color: "text-muted-foreground" },
   in_progress: { label: "In Progress", icon: CircleDot, color: "text-yellow-400" },
   done: { label: "Done", icon: CircleCheck, color: "text-green-400" },
-  canceled: { label: "Canceled", icon: CircleOff, color: "text-muted-foreground/40" },
 }
 
 const priorityMeta: Record<IssuePriority, { label: string; icon: typeof Minus; color: string }> = {
@@ -49,7 +48,7 @@ const teamColors: Record<string, string> = {
   LD: "text-green-400",
 }
 
-const STATUSES = ["backlog", "todo", "in_progress", "done", "canceled"] as IssueStatus[]
+const STATUSES = ["backlog", "todo", "in_progress", "done"] as IssueStatus[]
 const PRIORITIES = ["none", "low", "medium", "high", "urgent"] as IssuePriority[]
 const TEAMS = ["3D", "Concept", "DEV", "QA", "GD", "Sound", "LD"] as IssueTeam[]
 

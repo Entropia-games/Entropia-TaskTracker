@@ -15,15 +15,15 @@ import { useDeptMap } from "@/lib/use-dept-map"
 import { startOfWeek, startOfMonth, startOfDay, endOfDay, eachDayOfInterval, format } from "date-fns"
 
 const statusLabels: Record<IssueStatus, string> = {
-  backlog: "Backlog", todo: "Todo", in_progress: "In Progress", done: "Done", canceled: "Canceled",
+  backlog: "Backlog", todo: "Todo", in_progress: "In Progress", done: "Done",
 }
 
 const statusColors: Record<IssueStatus, string> = {
-  backlog: "text-muted-foreground/40", todo: "text-muted-foreground", in_progress: "text-yellow-400", done: "text-green-400", canceled: "text-muted-foreground/40",
+  backlog: "text-muted-foreground/40", todo: "text-muted-foreground", in_progress: "text-yellow-400", done: "text-green-400",
 }
 
 const statusIcons: Record<IssueStatus, typeof Circle> = {
-  backlog: CircleOff, todo: Circle, in_progress: CircleDot, done: CircleCheck, canceled: CircleOff,
+  backlog: CircleOff, todo: Circle, in_progress: CircleDot, done: CircleCheck,
 }
 
 const priorityLabels: Record<IssuePriority, string> = {
@@ -357,7 +357,7 @@ export default function StatisticsPage() {
   const pct = total > 0 ? Math.round((doneCount / total) * 100) : 0
 
   const statusCounts = {} as Record<IssueStatus, number>
-  for (const s of ["backlog", "todo", "in_progress", "done", "canceled"] as IssueStatus[]) {
+  for (const s of ["backlog", "todo", "in_progress", "done"] as IssueStatus[]) {
     statusCounts[s] = filteredIssues.filter((i) => i.status === s).length
   }
 
@@ -498,12 +498,12 @@ export default function StatisticsPage() {
           {/* By Status */}
           <div className="space-y-2 rounded-lg border border-border/30 p-4">
             <h2 className="text-sm font-medium text-muted-foreground">By Status</h2>
-            {(["backlog", "todo", "in_progress", "done", "canceled"] as IssueStatus[]).map((s) => {
+            {(["backlog", "todo", "in_progress", "done"] as IssueStatus[]).map((s) => {
               const count = statusCounts[s]
               const barPct = total > 0 ? Math.round((count / total) * 100) : 0
               const Icon = statusIcons[s]
               const barColors: Record<IssueStatus, string> = {
-                backlog: "bg-muted-foreground/20", todo: "bg-blue-400", in_progress: "bg-yellow-400", done: "bg-green-400", canceled: "bg-muted-foreground/20",
+                backlog: "bg-muted-foreground/20", todo: "bg-blue-400", in_progress: "bg-yellow-400", done: "bg-green-400",
               }
               return (
                 <div key={s} className="space-y-1">

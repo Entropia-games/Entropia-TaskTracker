@@ -198,6 +198,27 @@ export type Database = {
         }
         Relationships: []
       }
+      issue_dependencies: {
+        Row: {
+          id: number
+          issue_id: number
+          blocked_by_id: number
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          issue_id: number
+          blocked_by_id: number
+          created_at?: string
+        }
+        Update: {
+          id?: number
+          issue_id?: number
+          blocked_by_id?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
       milestones: {
         Row: {
           id: number
@@ -363,7 +384,7 @@ export type Database = {
       }
     }
     Enums: {
-      issue_status: "backlog" | "todo" | "in_progress" | "done" | "canceled"
+      issue_status: "backlog" | "todo" | "in_progress" | "done"
       issue_priority: "none" | "low" | "medium" | "high" | "urgent"
       issue_team: "3D" | "Concept" | "DEV" | "QA" | "GD" | "Sound" | "LD"
       issue_type: "task" | "bug" | "epic"

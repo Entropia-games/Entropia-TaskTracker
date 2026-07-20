@@ -55,7 +55,6 @@ const STATUS_OPTIONS: { value: IssueStatus; label: string; icon: typeof Circle }
   { value: "todo", label: "Todo", icon: Circle },
   { value: "in_progress", label: "In Progress", icon: CircleDot },
   { value: "done", label: "Done", icon: CircleCheck },
-  { value: "canceled", label: "Canceled", icon: CircleOff },
 ]
 
 const PRIORITY_OPTIONS: { value: IssuePriority; label: string; icon: typeof Minus }[] = [
@@ -71,7 +70,6 @@ const STATUS_COLORS: Record<IssueStatus, string> = {
   todo: "text-muted-foreground",
   in_progress: "text-yellow-400",
   done: "text-green-400",
-  canceled: "text-muted-foreground/40",
 }
 
 const teamColors: Record<string, string> = {
@@ -497,7 +495,7 @@ export function CreateIssueModal() {
                 </PopoverContent>
               </Popover>
               <div className="ml-auto flex items-center">
-                <Button size="sm" disabled={!title.trim()} onClick={handleSubmit}>
+                <Button size="sm" disabled={!title.trim()} onClick={(e) => { e.stopPropagation(); handleSubmit() }}>
                   Create Issue
                 </Button>
               </div>

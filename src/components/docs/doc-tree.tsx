@@ -209,6 +209,7 @@ function SortableDoc({
   onRenameSubmit,
   setRenamingId,
   onDeleteDocument,
+  indentExtra,
 }: {
   doc: Document
   depth: number
@@ -220,6 +221,7 @@ function SortableDoc({
   onRenameSubmit: () => void
   setRenamingId: (id: string | null) => void
   onDeleteDocument: (doc: Document) => void
+  indentExtra?: boolean
 }) {
   const {
     attributes,
@@ -238,7 +240,7 @@ function SortableDoc({
             ? "bg-accent text-accent-foreground"
             : "text-muted-foreground hover:bg-accent",
         )}
-        style={{ paddingLeft: `${depth * 16 + 8}px` }}
+        style={{ paddingLeft: `${depth * 16 + 8 + (indentExtra ? 8 : 0)}px` }}
       >
         <button
           {...attributes}
@@ -554,6 +556,7 @@ export function DocTree() {
                 onRenameSubmit={handleRenameSubmit}
                 setRenamingId={setRenamingId}
                 onDeleteDocument={(d) => setDeleteTarget({ type: "document", data: d })}
+                indentExtra
               />
             ))}
             {childSections.map((cs) => renderSection(cs, depth + 1))}

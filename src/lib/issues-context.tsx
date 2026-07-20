@@ -16,6 +16,7 @@ import type { Database } from "@/lib/database.types"
 export type IssueStatus = Database["public"]["Enums"]["issue_status"]
 export type IssuePriority = Database["public"]["Enums"]["issue_priority"]
 export type IssueTeam = Database["public"]["Enums"]["issue_team"]
+export type IssueType = Database["public"]["Enums"]["issue_type"]
 export type Issue = Database["public"]["Tables"]["issues"]["Row"]
 export type Milestone = Database["public"]["Tables"]["milestones"]["Row"]
 export type Project = Database["public"]["Tables"]["projects"]["Row"]
@@ -243,6 +244,7 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
           priority: input.priority,
           team: input.team ?? null,
           is_epic: input.is_epic ?? false,
+          issue_type: input.issue_type ?? "task",
           parent_epic_id: input.parent_epic_id ?? null,
           milestone_id: input.milestone_id ?? null,
           due_date: input.due_date,

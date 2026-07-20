@@ -69,6 +69,7 @@ export type Database = {
           priority: Database["public"]["Enums"]["issue_priority"]
           team: Database["public"]["Enums"]["issue_team"] | null
           is_epic: boolean
+          issue_type: Database["public"]["Enums"]["issue_type"]
           parent_epic_id: number | null
           milestone_id: number | null
           due_date: string | null
@@ -89,6 +90,7 @@ export type Database = {
           priority?: Database["public"]["Enums"]["issue_priority"]
           team?: Database["public"]["Enums"]["issue_team"] | null
           is_epic?: boolean
+          issue_type?: Database["public"]["Enums"]["issue_type"]
           parent_epic_id?: number | null
           milestone_id?: number | null
           due_date?: string | null
@@ -109,6 +111,7 @@ export type Database = {
           priority?: Database["public"]["Enums"]["issue_priority"]
           team?: Database["public"]["Enums"]["issue_team"] | null
           is_epic?: boolean
+          issue_type?: Database["public"]["Enums"]["issue_type"]
           parent_epic_id?: number | null
           milestone_id?: number | null
           due_date?: string | null
@@ -363,6 +366,7 @@ export type Database = {
       issue_status: "backlog" | "todo" | "in_progress" | "done" | "canceled"
       issue_priority: "none" | "low" | "medium" | "high" | "urgent"
       issue_team: "3D" | "Concept" | "DEV" | "QA" | "GD" | "Sound" | "LD"
+      issue_type: "task" | "bug" | "epic"
     }
     CompositeTypes: Record<string, never>
   }

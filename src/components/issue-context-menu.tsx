@@ -10,12 +10,12 @@ import {
   ArrowUp,
   ArrowDown,
   AlertCircle,
-  Layers,
   Diamond,
   ChevronRight,
 } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useIssues, type Issue, type IssueStatus, type IssuePriority, type IssueTeam } from "@/lib/issues-context"
+import { issueTypeIcon, issueTypeColor } from "@/lib/issue-types"
 import type { Database } from "@/lib/database.types"
 import { cn, userAvatarColor } from "@/lib/utils"
 import { UserDisplayName } from "@/components/ui/display-name"
@@ -130,7 +130,10 @@ export function IssueContextMenu({ issue, users, x, y, onChange, onClose }: Prop
       onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onClose() }}
     >
       <div className="flex items-center gap-1.5 px-2 pb-1.5 pt-0.5">
-        {issue.is_epic && <Layers className="size-3 shrink-0 text-purple-400" />}
+        {issue.issue_type && issue.issue_type !== "task" && (() => {
+          const TypeIcon = issueTypeIcon(issue.issue_type)
+          return <TypeIcon className={cn("size-3 shrink-0", issueTypeColor(issue.issue_type))} />
+        })()}
         <span className="truncate text-[11px] text-muted-foreground/70">{issue.title}</span>
       </div>
       <div className="h-px bg-border/40" />

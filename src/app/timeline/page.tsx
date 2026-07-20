@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useMemo, useRef, useEffect, useCallback } from "react"
-import { useIssues, type Issue, type IssueStatus, type IssuePriority, type IssueTeam } from "@/lib/issues-context"
+import { useIssues, type Issue, type IssueStatus, type IssuePriority, type IssueTeam, type IssueType } from "@/lib/issues-context"
+import { TYPE_OPTIONS, issueTypeIcon, issueTypeColor } from "@/lib/issue-types"
 import { getSupabase } from "@/lib/supabase"
 import type { Database } from "@/lib/database.types"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -13,7 +14,7 @@ import { cn, userAvatarColor } from "@/lib/utils"
 import { UserDisplayName } from "@/components/ui/display-name"
 import { useDeptMap } from "@/lib/use-dept-map"
 import { format, differenceInDays, addDays, startOfDay, min as dateMin, max as dateMax } from "date-fns"
-import { Plus, X, Layers, Search, GripVertical, ChevronDown, Circle, CircleOff, CircleDot, CircleCheck, Diamond, ArrowDown, ArrowUp, Minus, AlertCircle, Lock } from "lucide-react"
+import { Plus, X, Search, GripVertical, ChevronDown, Circle, CircleOff, CircleDot, CircleCheck, Diamond, ArrowDown, ArrowUp, Minus, AlertCircle, Lock } from "lucide-react"
 import {
   DndContext,
   closestCenter,
@@ -226,7 +227,10 @@ function SortableTimelineRow({
     >
       <div className={cn("group flex w-full items-center gap-2 rounded-md border border-white/20 px-4 py-1.5 transition-colors", idx % 2 === 0 && !rowColorObj && "bg-muted/10 hover:bg-muted/20", rowColorObj?.row, rowColorObj?.rowHover, lock && "opacity-60")}>
         <div className="flex-1 min-w-0 flex items-center gap-1.5">
-          {issue.is_epic && <Layers className="size-3 shrink-0 text-purple-400" />}
+          {issue.issue_type && issue.issue_type !== "task" && (() => {
+            const TypeIcon = issueTypeIcon(issue.issue_type)
+            return <TypeIcon className={cn("size-3 shrink-0", issueTypeColor(issue.issue_type))} />
+          })()}
           <span className="text-xs truncate">{issue.title}</span>
           {lock && (
             <span className="flex shrink-0 items-center gap-0.5 rounded px-1 text-[9px] font-medium text-white" style={{ backgroundColor: lock.color }} title={`${lock.name} is editing`}>
@@ -297,7 +301,7 @@ export default function TimelinePage() {
   const [teamFilter, setTeamFilter] = useState<IssueTeam | null>(null)
   const [milestoneFilter, setMilestoneFilter] = useState<number | null>(null)
   const [assigneeFilter, setAssigneeFilter] = useState<string | null>(null)
-  const [typeFilter, setTypeFilter] = useState<"all" | "issue" | "epic">("all")
+  const [typeFilter, setTypeFilter] = useState<"all" | IssueType>("all")
   const projectMilestones = useMemo(
     () => milestones.filter((m) => m.project_id === currentProject?.id),
     [milestones, currentProject],
@@ -487,7 +491,7 @@ export default function TimelinePage() {
         (!teamFilter || i.team === teamFilter) &&
         (!milestoneFilter || i.milestone_id === milestoneFilter) &&
         (!assigneeFilter || (assigneeFilter === "__none__" ? !i.assignee_id : i.assignee_id === assigneeFilter)) &&
-        (typeFilter === "all" || (typeFilter === "issue" ? !i.is_epic : i.is_epic))
+        (typeFilter === "all" || i.issue_type === typeFilter)
       )
   }, [entries, issueMap, statusFilter, priorityFilter, teamFilter, milestoneFilter, assigneeFilter, typeFilter])
 
@@ -666,15 +670,22 @@ export default function TimelinePage() {
             <PopoverTrigger
               render={
                 <button className={cn("flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm hover:bg-accent", typeFilter !== "all" ? "text-foreground" : "text-muted-foreground")}>
-                  {typeFilter === "issue" ? "Issues" : typeFilter === "epic" ? "Epics" : "All types"}
+                  {typeFilter !== "all" ? (TYPE_OPTIONS.find((o) => o.value === typeFilter)?.label ?? typeFilter) : "All types"}
                   <ChevronDown className="size-3" />
                 </button>
               }
             />
             <PopoverContent className="w-36 p-1" align="start">
               <button className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", typeFilter === "all" ? "text-foreground" : "text-muted-foreground")} onClick={() => setTypeFilter("all")}>All</button>
-              <button className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", typeFilter === "issue" ? "text-foreground" : "text-muted-foreground")} onClick={() => setTypeFilter("issue")}>Issues</button>
-              <button className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", typeFilter === "epic" ? "text-foreground" : "text-muted-foreground")} onClick={() => setTypeFilter("epic")}>Epics</button>
+              {TYPE_OPTIONS.map((opt) => {
+                const TIcon = opt.icon
+                return (
+                  <button key={opt.value} className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", typeFilter === opt.value ? "text-foreground" : "text-muted-foreground")} onClick={() => setTypeFilter(opt.value)}>
+                    <TIcon className={cn("size-3.5", opt.color)} />
+                    {opt.label}
+                  </button>
+                )
+              })}
             </PopoverContent>
           </Popover>
           <Popover>
@@ -939,7 +950,10 @@ export default function TimelinePage() {
                     >
                       <GripVertical className="size-2.5 text-muted-foreground/60" />
                     </div>
-                    {issue.is_epic && <Layers className="size-3 shrink-0 text-purple-400 mx-1" />}
+                    {issue.issue_type && issue.issue_type !== "task" && (() => {
+                      const TypeIcon = issueTypeIcon(issue.issue_type)
+                      return <TypeIcon className={cn("size-3 shrink-0 mx-1", issueTypeColor(issue.issue_type))} />
+                    })()}
                     <span className="truncate flex-1">{issue.title}</span>
                     {barLock && <Lock className="size-2.5 shrink-0 mx-1" style={{ color: barLock.color }} />}
                     {viewTeam ? (
@@ -1003,7 +1017,10 @@ export default function TimelinePage() {
                 onClick={() => { addEntry(issue.id); setAddOpen(false) }}
                 className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-accent text-left"
               >
-                {issue.is_epic ? <Layers className="size-3.5 shrink-0 text-purple-400" /> : <span className="size-3.5 shrink-0" />}
+                {issue.issue_type && issue.issue_type !== "task" ? (() => {
+                  const TypeIcon = issueTypeIcon(issue.issue_type)
+                  return <TypeIcon className={cn("size-3.5 shrink-0", issueTypeColor(issue.issue_type))} />
+                })() : <span className="size-3.5 shrink-0" />}
                 <span className="text-[11px] font-mono text-muted-foreground/50 shrink-0">{currentProject?.code ?? "?"}-{issue.display_id}</span>
                 <span className="truncate flex-1">{issue.title}</span>
                 {issue.assignee_id && userMap.has(issue.assignee_id) && (

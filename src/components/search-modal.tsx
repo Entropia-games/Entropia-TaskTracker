@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useRef } from "react"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
-import { Search, Circle, Layers } from "lucide-react"
+import { Search, Circle } from "lucide-react"
 import { getSupabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 import { useIssues, type Issue, type IssuePriority, type IssueTeam, type IssueStatus } from "@/lib/issues-context"
+import { issueTypeIcon, issueTypeColor } from "@/lib/issue-types"
 import { useAuthGate } from "@/lib/auth-gate-context"
 import type { Database } from "@/lib/database.types"
 
@@ -98,7 +99,10 @@ export function SearchModal({ open, onOpenChange }: Props) {
                   const PIcon = priorityIcons[issue.priority]
                   return <PIcon className={cn("size-3.5 shrink-0", priorityColors[issue.priority])} />
                 })()}
-                {issue.is_epic && <Layers className="size-3.5 shrink-0 text-purple-400" />}
+                {issue.issue_type && issue.issue_type !== "task" && (() => {
+                  const TypeIcon = issueTypeIcon(issue.issue_type)
+                  return <TypeIcon className={cn("size-3.5 shrink-0", issueTypeColor(issue.issue_type))} />
+                })()}
                 <span className="text-xs text-muted-foreground/50 font-mono shrink-0">{currentProject?.code ?? "?"}-{issue.display_id}</span>
                 <span className="flex-1 truncate">{issue.title}</span>
                 {issue.team && (

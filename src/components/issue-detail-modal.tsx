@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
-import type { Issue, IssueStatus, IssuePriority, IssueTeam, Attachment, IssueComment } from "@/lib/issues-context"
+import type { Issue, IssueStatus, IssuePriority, IssueTeam, IssueType, Attachment, IssueComment } from "@/lib/issues-context"
 import { useIssues } from "@/lib/issues-context"
+import { issueTypeIcon, issueTypeColor } from "@/lib/issue-types"
 import { useDocs } from "@/lib/docs-context"
 import { useAuthGate } from "@/lib/auth-gate-context"
 import { uploadFiles } from "@/lib/uploadthing"
@@ -372,7 +373,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
       getSupabase().from("issues").update({ parent_epic_id: null }).eq("parent_epic_id", data.id).then()
       issues.filter((i) => i.parent_epic_id === data.id).forEach((child) => updateIssue(child.id, { parent_epic_id: null }))
     }
-    guardedUpdate({ is_epic: next })
+    guardedUpdate({ is_epic: next, issue_type: next ? "epic" : "task" })
   }
 
   const handleParentEpicChange = (id: number | null) => {
@@ -396,7 +397,10 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
                   Back
                 </button>
               )}
-              {data.is_epic && <Layers className="size-3.5 text-purple-400" />}
+              {data.issue_type && data.issue_type !== "task" && (() => {
+                const TypeIcon = issueTypeIcon(data.issue_type)
+                return <TypeIcon className={cn("size-3.5", issueTypeColor(data.issue_type))} />
+              })()}
               <span>{currentProject?.code ?? "?"}-{data.display_id}</span>
               <span className="text-muted-foreground/20">·</span>
               <span className={cn(activeStatus?.color)}>{activeStatus?.label}</span>

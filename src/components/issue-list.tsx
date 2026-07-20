@@ -33,7 +33,8 @@ import {   Circle, ChevronDown, Trash2, X, ArrowUp, ArrowDown, ArrowUpDown, Minu
 import { CreateIssueModal } from "@/components/create-issue-modal"
 import { IssueDetailModal } from "@/components/issue-detail-modal"
 import { IssueContextMenu } from "@/components/issue-context-menu"
-import { useIssues, type Issue, type IssueStatus, type IssuePriority, type IssueTeam, type Milestone } from "@/lib/issues-context"
+import { useIssues, type Issue, type IssueStatus, type IssuePriority, type IssueTeam, type IssueType, type Milestone } from "@/lib/issues-context"
+import { TYPE_OPTIONS, issueTypeIcon, issueTypeColor } from "@/lib/issue-types"
 import { useAuthGate } from "@/lib/auth-gate-context"
 import { getSupabase } from "@/lib/supabase"
 import type { Database } from "@/lib/database.types"
@@ -167,7 +168,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
   const [teamFilter, setTeamFilter] = useState<IssueTeam | null>(null)
   const [milestoneFilter, setMilestoneFilter] = useState<number | null>(null)
   const [assigneeFilter, setAssigneeFilter] = useState<string | null>(null)
-  const [typeFilter, setTypeFilter] = useState<"all" | "issue" | "epic">("all")
+  const [typeFilter, setTypeFilter] = useState<"all" | IssueType>("all")
   const [sortBy, setSortBy] = useState<SortBy>("newest")
   const [openFilter, setOpenFilter] = useState<string | null>(null)
   const [view, setView] = useState<"list" | "board">("list")
@@ -243,8 +244,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
     } else if (assigneeFilter && i.assignee_id !== assigneeFilter) {
       return false
     }
-    if (typeFilter === "issue" && i.is_epic) return false
-    if (typeFilter === "epic" && !i.is_epic) return false
+    if (typeFilter !== "all" && i.issue_type !== typeFilter) return false
     return true
   })
 
@@ -362,15 +362,22 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
             <PopoverTrigger
               render={
                 <button className={cn("flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm hover:bg-accent", typeFilter !== "all" ? "text-foreground" : "text-muted-foreground")}>
-                  {typeFilter === "issue" ? "Issues" : typeFilter === "epic" ? "Epics" : "All types"}
+                  {typeFilter !== "all" ? (TYPE_OPTIONS.find((o) => o.value === typeFilter)?.label ?? typeFilter) : "All types"}
                   <ChevronDown className="size-3" />
                 </button>
               }
             />
             <PopoverContent className="w-36 p-1" align="end" onClick={() => setOpenFilter(null)}>
               <button className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", typeFilter === "all" ? "text-foreground" : "text-muted-foreground")} onClick={() => setTypeFilter("all")}>All</button>
-              <button className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", typeFilter === "issue" ? "text-foreground" : "text-muted-foreground")} onClick={() => setTypeFilter("issue")}>Issues</button>
-              <button className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", typeFilter === "epic" ? "text-foreground" : "text-muted-foreground")} onClick={() => setTypeFilter("epic")}>Epics</button>
+              {TYPE_OPTIONS.map((opt) => {
+                const TIcon = opt.icon
+                return (
+                  <button key={opt.value} className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", typeFilter === opt.value ? "text-foreground" : "text-muted-foreground")} onClick={() => setTypeFilter(opt.value)}>
+                    <TIcon className={cn("size-3.5", opt.color)} />
+                    {opt.label}
+                  </button>
+                )
+              })}
             </PopoverContent>
           </Popover>
           )}
@@ -593,7 +600,10 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                           >
                             <div className="flex items-center justify-between gap-2">
                               <div className="flex min-w-0 items-center gap-1.5 text-sm font-mono text-muted-foreground/60">
-                                {issue.is_epic && <Layers className="size-3.5 shrink-0 text-purple-400" />}
+                                {issue.issue_type && issue.issue_type !== "task" && (() => {
+                                  const TypeIcon = issueTypeIcon(issue.issue_type)
+                                  return <TypeIcon className={cn("size-3.5 shrink-0", issueTypeColor(issue.issue_type))} />
+                                })()}
                                 <span className="truncate">{currentProject?.code ?? "?"}-{issue.display_id}</span>
                               </div>
                               <div onClick={(e) => e.stopPropagation()}>
@@ -828,7 +838,10 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
             {activeDragIssue ? (
               <div className="rounded-md border border-border/60 bg-muted/90 p-2.5 shadow-lg">
                 <div className="flex items-center gap-2 text-sm font-mono text-muted-foreground/60">
-                  {activeDragIssue.is_epic && <Layers className="size-3.5 shrink-0 text-purple-400" />}
+                  {activeDragIssue.issue_type && activeDragIssue.issue_type !== "task" && (() => {
+                    const TypeIcon = issueTypeIcon(activeDragIssue.issue_type)
+                    return <TypeIcon className={cn("size-3.5 shrink-0", issueTypeColor(activeDragIssue.issue_type))} />
+                  })()}
                   <span>{currentProject?.code ?? "?"}-{activeDragIssue.display_id}</span>
                 </div>
                 <div className="flex items-center gap-2 mt-2">
@@ -895,7 +908,10 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                         })}
                       </PopoverContent>
                     </Popover>
-                    <span className="flex w-5 shrink-0 items-center justify-center">{issue.is_epic && <Layers className="size-4 text-purple-400" />}</span>
+                    <span className="flex w-5 shrink-0 items-center justify-center">{issue.issue_type && issue.issue_type !== "task" && (() => {
+                      const TypeIcon = issueTypeIcon(issue.issue_type)
+                      return <TypeIcon className={cn("size-4 shrink-0", issueTypeColor(issue.issue_type))} />
+                    })()}</span>
                     <span className={cn("min-w-[4rem] text-sm font-mono", issue.status === "done" || issue.status === "canceled" ? "text-muted-foreground/30 line-through" : "text-muted-foreground/60")}>
                       {currentProject?.code ?? "?"}-{issue.display_id}
                     </span>

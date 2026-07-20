@@ -24,7 +24,8 @@ import {
 } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { UserDisplayName } from "@/components/ui/display-name"
-import { useIssues, type IssueStatus, type IssuePriority, type IssueTeam, type Milestone, type Attachment } from "@/lib/issues-context"
+import { useIssues, type IssueStatus, type IssuePriority, type IssueTeam, type IssueType, type Milestone, type Attachment } from "@/lib/issues-context"
+import { TYPE_OPTIONS, issueTypeIcon, issueTypeColor } from "@/lib/issue-types"
 import { useDocs } from "@/lib/docs-context"
 import { useAuth } from "@/lib/auth-context"
 import { getSupabase } from "@/lib/supabase"
@@ -103,6 +104,7 @@ export function CreateIssueModal() {
   const [priority, setPriority] = useState<IssuePriority>("none")
   const [team, setTeam] = useState<IssueTeam | null>(null)
   const [isEpic, setIsEpic] = useState(false)
+  const [issueType, setIssueType] = useState<IssueType>("task")
   const [assigneeId, setAssigneeId] = useState<string | null>(null)
   const [milestoneId, setMilestoneId] = useState<number | null>(null)
   const [parentEpicId, setParentEpicId] = useState<number | null>(null)
@@ -177,6 +179,7 @@ export function CreateIssueModal() {
       priority,
       team,
       is_epic: isEpic,
+      issue_type: issueType,
       milestone_id: milestoneId,
       parent_epic_id: parentEpicId,
       assignee_id: assigneeId,
@@ -191,6 +194,7 @@ export function CreateIssueModal() {
     setParentEpicId(null)
     setAssigneeId(null)
     setIsEpic(false)
+    setIssueType("task")
     setAttachments([])
     setOpen(false)
   }
@@ -228,6 +232,7 @@ export function CreateIssueModal() {
         setPriority("none")
         setTeam(null)
         setIsEpic(false)
+        setIssueType("task")
         setParentEpicId(null)
         discardAttachments()
       }
@@ -358,27 +363,29 @@ export function CreateIssueModal() {
               <Popover>
                 <PopoverTrigger
                   render={
-                    <button className={cn("flex h-7 cursor-default items-center gap-1.5 border-0 px-2 text-xs hover:bg-accent data-open:bg-accent", isEpic ? "text-purple-400" : "text-muted-foreground")}>
-                      <Layers className="size-3.5" />
-                      {isEpic ? "Epic" : "Issue"}
+                    <button className={cn("flex h-7 cursor-default items-center gap-1.5 border-0 px-2 text-xs hover:bg-accent data-open:bg-accent", issueTypeColor(issueType))}>
+                      {(() => { const TIcon = issueTypeIcon(issueType); return <TIcon className="size-3.5" /> })()}
+                      {TYPE_OPTIONS.find((o) => o.value === issueType)?.label ?? "Task"}
                     </button>
                   }
                 />
                 <PopoverContent className="w-32 p-1" align="start">
-                  <button
-                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent"
-                    onClick={() => setIsEpic(false)}
-                  >
-                    <FileText className="size-3.5" />
-                    Issue
-                  </button>
-                  <button
-                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-purple-400 hover:bg-accent"
-                    onClick={() => setIsEpic(true)}
-                  >
-                    <Layers className="size-3.5" />
-                    Epic
-                  </button>
+                  {TYPE_OPTIONS.map((opt) => {
+                    const TIcon = opt.icon
+                    return (
+                      <button
+                        key={opt.value}
+                        className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-accent", issueType === opt.value ? "text-foreground" : opt.color)}
+                        onClick={() => {
+                          setIssueType(opt.value)
+                          setIsEpic(opt.value === "epic")
+                        }}
+                      >
+                        <TIcon className="size-3.5" />
+                        {opt.label}
+                      </button>
+                    )
+                  })}
                 </PopoverContent>
               </Popover>
               <Select value={team ?? "none"} onValueChange={(v) => setTeam(v === "none" ? null : v as IssueTeam)}>
@@ -411,7 +418,7 @@ export function CreateIssueModal() {
                   </SelectContent>
                 </Select>
               )}
-              {!isEpic && (
+              {issueType !== "epic" && (
                 <Popover>
                   <PopoverTrigger
                     render={

@@ -32,6 +32,7 @@ export function useBoard(boardId: string, me: Me | null) {
 
   const channelRef = useRef<ReturnType<ReturnType<typeof getSupabase>["channel"]> | null>(null)
   const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastSendRef = useRef(0)
 
   const strokesRef = useRef(strokes)
   const cardsRef = useRef(cards)
@@ -248,7 +249,11 @@ export function useBoard(boardId: string, me: Me | null) {
           [id]: { id, points: [point], color, size, author: me?.id ?? "anon" },
         }
       })
-      send("draw:point", { id, point, color, size, author: me?.id ?? "anon" })
+      const now = performance.now()
+      if (now - lastSendRef.current >= 32) {
+        lastSendRef.current = now
+        send("draw:point", { id, point, color, size, author: me?.id ?? "anon" })
+      }
     },
     [me?.id, send],
   )

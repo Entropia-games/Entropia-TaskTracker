@@ -114,22 +114,6 @@ export function DocsProvider({ children }: { children: ReactNode }) {
           }
         },
       )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "documents", filter },
-        (payload) => {
-          if (payload.eventType === "DELETE") {
-            const oldId = (payload.old as { id: number }).id
-            setDocuments((prev) => prev.filter((d) => d.id !== oldId))
-            setActiveDocumentState((prev) => (prev?.id === oldId ? null : prev))
-          } else {
-            const row = payload.new as Document
-            const meta = { ...row, content: "" }
-            setDocuments(upsertBy(meta))
-            setActiveDocumentState((prev) => (prev?.id === row.id ? { ...prev, ...row } : prev))
-          }
-        },
-      )
       .subscribe()
 
     return () => {

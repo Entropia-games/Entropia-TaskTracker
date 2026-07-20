@@ -167,7 +167,7 @@ export default function DeskPage() {
 
       {boards.some((b) => b.id === boardId) ? (
         <div className="min-h-0 flex-1">
-          <Whiteboard key={boardId} boardId={boardId} me={me} />
+          <Whiteboard key={boardId} boardId={boardId} boardName={currentName} me={me} />
         </div>
       ) : (
         <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-neutral-950">

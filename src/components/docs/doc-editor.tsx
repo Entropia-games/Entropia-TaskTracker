@@ -12,6 +12,7 @@ import { Trash2 } from "lucide-react"
 import { useDocs } from "@/lib/docs-context"
 import { uploadFiles } from "@/lib/uploadthing"
 import { compressImage } from "@/lib/compress-image"
+import { renameFile, slugify } from "@/lib/upload-rename"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -245,7 +246,10 @@ function EditorContent() {
           [Crepe.Feature.ImageBlock]: {
             onUpload: async (file: File) => {
               const compressed = await compressImage(file)
-              const [res] = await uploadFiles("image", { files: [compressed] })
+              const ext = file.name.split(".").pop() ?? "png"
+              const docTitle = activeDocument?.title ?? "untitled"
+              const renamed = renameFile(compressed, `doc_image_${slugify(docTitle)}.${ext}`)
+              const [res] = await uploadFiles("image", { files: [renamed] })
               return res?.url ?? ""
             },
           },

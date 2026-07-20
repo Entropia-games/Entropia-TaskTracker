@@ -9,6 +9,7 @@ import { useDocs } from "@/lib/docs-context"
 import { useAuthGate } from "@/lib/auth-gate-context"
 import { uploadFiles } from "@/lib/uploadthing"
 import { compressImage } from "@/lib/compress-image"
+import { renameFile, slugify } from "@/lib/upload-rename"
 import { showToast } from "@/lib/toast"
 import type { Database } from "@/lib/database.types"
 import {
@@ -309,7 +310,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
         if (imageInputRef.current) imageInputRef.current.value = ""
         return
       }
-      const [res] = await uploadFiles(isImage ? "image" : "file", { files: [toUpload] })
+      const [res] = await uploadFiles(isImage ? "image" : "file", { files: [renameFile(toUpload, `${isImage ? "task_image" : "task_file"}_${(currentProject?.code ?? "unknown").toLowerCase()}-${data.display_id}.${(file.name.split(".").pop() ?? "bin")}`)] })
       if (res?.serverData?.url) {
         const att: Attachment = {
           url: res.serverData.url,

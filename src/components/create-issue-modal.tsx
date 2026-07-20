@@ -27,6 +27,7 @@ import { UserDisplayName } from "@/components/ui/display-name"
 import { useIssues, type IssueStatus, type IssuePriority, type IssueTeam, type IssueType, type Milestone, type Attachment } from "@/lib/issues-context"
 import { TYPE_OPTIONS, issueTypeIcon, issueTypeColor } from "@/lib/issue-types"
 import { useDocs } from "@/lib/docs-context"
+import { renameFile, slugify } from "@/lib/upload-rename"
 import { useAuth } from "@/lib/auth-context"
 import { getSupabase } from "@/lib/supabase"
 import { useAuthGate } from "@/lib/auth-gate-context"
@@ -91,7 +92,7 @@ const PRIORITY_COLORS: Record<IssuePriority, string> = {
 }
 
 export function CreateIssueModal() {
-  const { addIssue, milestones: projectMilestones, issues } = useIssues()
+  const { addIssue, milestones: projectMilestones, issues, currentProject } = useIssues()
   const { documents } = useDocs()
   const { requireAuth } = useAuthGate()
   const { user } = useAuth()
@@ -133,7 +134,11 @@ export function CreateIssueModal() {
     try {
       const isImage = file.type.startsWith("image/")
       const toUpload = isImage ? await compressImage(file) : file
-      const [res] = await uploadFiles(isImage ? "image" : "file", { files: [toUpload] })
+      const ext = file.name.split(".").pop() ?? "bin"
+      const nextId = (issues.reduce((max, i) => Math.max(max, i.display_id ?? 0), 0) + 1)
+      const prefix = isImage ? "task_image" : "task_file"
+      const renamed = renameFile(toUpload, `${prefix}_${(currentProject?.code ?? "unknown").toLowerCase()}-${nextId}.${ext}`)
+      const [res] = await uploadFiles(isImage ? "image" : "file", { files: [renamed] })
       if (res?.serverData?.url) {
         const att: Attachment = {
           url: res.serverData.url,

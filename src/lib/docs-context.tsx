@@ -11,6 +11,7 @@ import {
 import { getSupabase } from "@/lib/supabase"
 import { uploadFiles } from "@/lib/uploadthing"
 import { compressImage } from "@/lib/compress-image"
+import { renameFile, slugify } from "@/lib/upload-rename"
 import { useAuth } from "@/lib/auth-context"
 import { useIssues } from "@/lib/issues-context"
 import type { Database } from "@/lib/database.types"
@@ -214,11 +215,12 @@ export function DocsProvider({ children }: { children: ReactNode }) {
 
   const base64Pattern = /!\[.*?\]\((data:image\/[^;]+;base64,[^)]+)\)/g
 
-  const uploadBase64Images = async (content: string): Promise<string> => {
+  const uploadBase64Images = async (content: string, docTitle: string): Promise<string> => {
     const matches = [...content.matchAll(base64Pattern)]
     if (matches.length === 0) return content
 
     let result = content
+    let counter = 0
     for (const match of matches) {
       const fullMatch = match[0]
       const dataUrl = match[1]
@@ -232,7 +234,9 @@ export function DocsProvider({ children }: { children: ReactNode }) {
         const blob = new Blob([bytes], { type: mime })
         const file = new File([blob], `pasted-image.${ext}`, { type: mime })
         const compressed = await compressImage(file)
-        const [res] = await uploadFiles("image", { files: [compressed] })
+        counter++
+        const renamed = renameFile(compressed, `doc_image_${slugify(docTitle)}_${counter}.${ext}`)
+        const [res] = await uploadFiles("image", { files: [renamed] })
         if (res?.url) {
           const md = fullMatch.replace(dataUrl, res.url)
           result = result.replace(fullMatch, md)
@@ -247,7 +251,8 @@ export function DocsProvider({ children }: { children: ReactNode }) {
   const updateDocument = useCallback(async (id: number, changes: Partial<Document>) => {
     if (!user) return
     if (changes.content !== undefined) {
-      const newContent = await uploadBase64Images(changes.content)
+      const docTitle = documents.find((d) => d.id === id)?.title ?? "untitled"
+      const newContent = await uploadBase64Images(changes.content, docTitle)
       changes = { ...changes, content: newContent }
       const { data: old } = await getSupabase().from("documents").select("content").eq("id", id).single()
       const oldUrls = old?.content ? new Set(extractImageUrls(old.content)) : new Set<string>()

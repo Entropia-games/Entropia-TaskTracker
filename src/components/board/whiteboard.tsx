@@ -6,6 +6,7 @@ import { useDrag } from "@use-gesture/react"
 import { uploadFiles } from "@/lib/uploadthing"
 import { useBoard } from "@/lib/board/use-board"
 import type { Card, ImageItem, Me, Point } from "@/lib/board/types"
+import { renameFile, slugify } from "@/lib/upload-rename"
 
 const CARD_COLORS = ["#fde68a", "#bfdbfe", "#bbf7d0", "#fbcfe8", "#ddd6fe", "#fed7aa"]
 const PEN_COLORS = [
@@ -40,15 +41,17 @@ async function compressImage(file: File, maxDim = 1600, quality = 0.82): Promise
   return new File([blob], name, { type: "image/jpeg" })
 }
 
-async function uploadImage(file: File): Promise<{ url: string; key: string }> {
+async function uploadImage(file: File, boardName: string, imageCount: number): Promise<{ url: string; key: string }> {
   const toUpload = file.type === "image/gif" ? file : await compressImage(file)
-  const res = await uploadFiles("image", { files: [toUpload] })
+  const ext = file.name.split(".").pop() ?? "png"
+  const renamed = renameFile(toUpload, `desk_image_${slugify(boardName)}_${imageCount + 1}.${ext}`)
+  const res = await uploadFiles("image", { files: [renamed] })
   const uploaded = res[0]
   if (!uploaded?.url) throw new Error("upload failed")
   return { url: uploaded.url, key: uploaded.key ?? "" }
 }
 
-export function Whiteboard({ boardId, me }: { boardId: string; me: Me }) {
+export function Whiteboard({ boardId, boardName, me }: { boardId: string; boardName: string; me: Me }) {
   const {
     strokes,
     liveStrokes,
@@ -105,14 +108,14 @@ export function Whiteboard({ boardId, me }: { boardId: string; me: Me }) {
       for (const f of files) {
         if (!f.type.startsWith("image/")) continue
         try {
-          const { url, key } = await uploadImage(f)
+          const { url, key } = await uploadImage(f, boardName, images.length)
           addImageCard(makeImageItem(url, key, at.x, at.y))
         } catch (err) {
           console.error("[board] image upload failed:", err)
         }
       }
     },
-    [addImageCard],
+    [addImageCard, boardName, images.length],
   )
 
   const addFromClipboard = useCallback(
@@ -126,7 +129,7 @@ export function Whiteboard({ boardId, me }: { boardId: string; me: Me }) {
           if (!type) continue
           const blob = await item.getType(type)
           const file = new File([blob], `clipboard-${Date.now()}.png`, { type })
-          const { url, key } = await uploadImage(file)
+          const { url, key } = await uploadImage(file, boardName, images.length)
           addImageCard(makeImageItem(url, key, at.x, at.y))
           added = true
         }

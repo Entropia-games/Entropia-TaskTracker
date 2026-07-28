@@ -24,7 +24,26 @@ function DocsPageInner() {
   const { sections, documents, activeDocument, setActiveDocument, createDocument, loading: docsLoading } = useDocs()
   const [newDocOpen, setNewDocOpen] = useState(false)
   const [newDocTitle, setNewDocTitle] = useState("")
+  const [sidebarWidth, setSidebarWidth] = useState(266)
+  const [resizing, setResizing] = useState(false)
   const searchParams = useSearchParams()
+
+  useEffect(() => {
+    if (!resizing) return
+    const onMouseMove = (e: MouseEvent) => {
+      setSidebarWidth((prev) => {
+        const newWidth = window.innerWidth - e.clientX
+        return Math.max(180, Math.min(500, newWidth))
+      })
+    }
+    const onMouseUp = () => setResizing(false)
+    window.addEventListener("mousemove", onMouseMove)
+    window.addEventListener("mouseup", onMouseUp)
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove)
+      window.removeEventListener("mouseup", onMouseUp)
+    }
+  }, [resizing])
 
   useEffect(() => {
     const docId = searchParams.get("doc")
@@ -63,7 +82,11 @@ function DocsPageInner() {
         <div className="flex-1 min-w-0 overflow-auto pl-4 py-2">
           <DocEditor />
         </div>
-        <div className="w-[266px] shrink-0 border-l border-border overflow-auto">
+        <div className="relative shrink-0 border-l border-border overflow-auto" style={{ width: sidebarWidth }}>
+          <div
+            className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-accent/50 transition-colors"
+            onMouseDown={() => setResizing(true)}
+          />
           <DocTree />
         </div>
       </div>

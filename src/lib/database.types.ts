@@ -198,6 +198,27 @@ export type Database = {
         }
         Relationships: []
       }
+      issue_epics: {
+        Row: {
+          id: number
+          issue_id: number
+          epic_id: number
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          issue_id: number
+          epic_id: number
+          created_at?: string
+        }
+        Update: {
+          id?: number
+          issue_id?: number
+          epic_id?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
       issue_dependencies: {
         Row: {
           id: number

@@ -49,6 +49,7 @@ import {
   Diamond,
   Image,
   X,
+  Check,
 } from "lucide-react"
 
 const STATUS_OPTIONS: { value: IssueStatus; label: string; icon: typeof Circle }[] = [
@@ -92,7 +93,7 @@ const PRIORITY_COLORS: Record<IssuePriority, string> = {
 }
 
 export function CreateIssueModal() {
-  const { addIssue, milestones: projectMilestones, issues, currentProject } = useIssues()
+  const { addIssue, milestones: projectMilestones, issues, currentProject, issueEpics, setIssueEpics } = useIssues()
   const { documents } = useDocs()
   const { requireAuth } = useAuthGate()
   const { user } = useAuth()
@@ -106,7 +107,7 @@ export function CreateIssueModal() {
   const [issueType, setIssueType] = useState<IssueType>("task")
   const [assigneeId, setAssigneeId] = useState<string | null>(null)
   const [milestoneId, setMilestoneId] = useState<number | null>(null)
-  const [parentEpicId, setParentEpicId] = useState<number | null>(null)
+  const [parentEpicIds, setParentEpicIds] = useState<number[]>([])
   const [users, setUsers] = useState<Database["public"]["Tables"]["users"]["Row"][]>([])
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [uploading, setUploading] = useState(false)
@@ -174,9 +175,10 @@ export function CreateIssueModal() {
   const StatusIcon = activeStatus?.icon ?? Circle
   const PriorityIcon = activePriority?.icon ?? Minus
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!title.trim()) return
-    addIssue({
+    const epicIdsToLink = [...parentEpicIds]
+    const newId = await addIssue({
       title: title.trim(),
       description: description.trim() ? description : null,
       status,
@@ -185,17 +187,20 @@ export function CreateIssueModal() {
       is_epic: isEpic,
       issue_type: issueType,
       milestone_id: milestoneId,
-      parent_epic_id: parentEpicId,
+      parent_epic_id: epicIdsToLink.length > 0 ? epicIdsToLink[0] : null,
       assignee_id: assigneeId,
       attachments,
     })
+    if (newId && epicIdsToLink.length > 0) {
+      setIssueEpics(newId, epicIdsToLink)
+    }
     setTitle("")
     setDescription("")
     setStatus("todo")
     setPriority("none")
     setTeam(null)
     setMilestoneId(null)
-    setParentEpicId(null)
+    setParentEpicIds([])
     setAssigneeId(null)
     setIsEpic(false)
     setIssueType("task")
@@ -238,7 +243,7 @@ export function CreateIssueModal() {
         setTeam(null)
         setIsEpic(false)
         setIssueType("task")
-        setParentEpicId(null)
+        setParentEpicIds([])
         discardAttachments()
       }
   }
@@ -427,30 +432,46 @@ export function CreateIssueModal() {
               <Popover onOpenChange={(v) => { popoverOpenRef.current = v }}>
                 <PopoverTrigger
                   render={
-                      <button className={cn("flex h-7 cursor-default items-center gap-1.5 border-0 px-2 text-xs hover:bg-accent", parentEpicId ? "text-purple-400" : "text-muted-foreground")}>
+                      <button className={cn("flex h-7 cursor-default items-center gap-1.5 border-0 px-2 text-xs hover:bg-accent", parentEpicIds.length > 0 ? "text-purple-400" : "text-muted-foreground")}>
                         <Layers className="size-3.5" />
-                        {parentEpicId ? (epics.find((e) => e.id === parentEpicId)?.title ?? "Epic") : "No Epic"}
+                        {parentEpicIds.length > 0 ? `${parentEpicIds.length} epic${parentEpicIds.length > 1 ? 's' : ''}` : "No Epic"}
                       </button>
                     }
                   />
-                  <PopoverContent className="w-56 p-1" align="start">
-                    <button
-                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent"
-                      onClick={() => setParentEpicId(null)}
-                    >
-                      <Circle className="size-3 text-muted-foreground/40" />
-                      No Epic
-                    </button>
-                    {epics.map((e) => (
+                  <PopoverContent className="w-56 p-1 max-h-60 overflow-y-auto" align="start">
+                    {parentEpicIds.length > 0 && (
                       <button
-                        key={e.id}
-                        className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-accent", parentEpicId === e.id ? "text-purple-400" : "text-muted-foreground")}
-                        onClick={() => setParentEpicId(e.id)}
+                        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent"
+                        onClick={() => setParentEpicIds([])}
                       >
-                        <Layers className="size-3.5 shrink-0 text-purple-400" />
-                        <span className="truncate">{e.title}</span>
+                        <Circle className="size-3 text-muted-foreground/40" />
+                        Remove from all epics
                       </button>
-                    ))}
+                    )}
+                    <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50">Select epics</div>
+                    {epics.map((e) => {
+                      const checked = parentEpicIds.includes(e.id)
+                      return (
+                        <label
+                          key={e.id}
+                          className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-accent cursor-pointer", checked ? "text-purple-400" : "text-muted-foreground")}
+                        >
+                          <span
+                            role="checkbox"
+                            aria-checked={checked}
+                            onClick={() => setParentEpicIds((prev) => checked ? prev.filter((id) => id !== e.id) : [...prev, e.id])}
+                            className={cn(
+                              "flex size-4 shrink-0 items-center justify-center rounded-[4px] border transition-colors cursor-pointer",
+                              checked ? "border-primary bg-primary text-primary-foreground" : "border-input"
+                            )}
+                          >
+                            {checked && <Check className="size-3" />}
+                          </span>
+                          <Layers className="size-3.5 shrink-0 text-purple-400" />
+                          <span className="truncate">{e.title}</span>
+                        </label>
+                      )
+                    })}
                     {epics.length === 0 && (
                       <span className="block px-2 py-1.5 text-xs text-muted-foreground/50">No epics yet</span>
                     )}

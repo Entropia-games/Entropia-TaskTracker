@@ -29,7 +29,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import {   Circle, ChevronDown, Trash2, X, ArrowUp, ArrowDown, ArrowUpDown, Minus, AlertCircle, CircleDot, CircleCheck, CircleOff, Layers, GitPullRequest, Diamond, Plus, Link, List, LayoutGrid, Loader2, ShieldOff, Shield } from "lucide-react"
+import {   Circle, ChevronDown, Trash2, X, ArrowUp, ArrowDown, ArrowUpDown, Minus, AlertCircle, CircleDot, CircleCheck, CircleOff, Layers, GitPullRequest, Diamond, Plus, Link, List, LayoutGrid, Loader2, ShieldOff, Shield, Check } from "lucide-react"
 import { CreateIssueModal } from "@/components/create-issue-modal"
 import { IssueDetailModal } from "@/components/issue-detail-modal"
 import { IssueContextMenu } from "@/components/issue-context-menu"
@@ -153,7 +153,7 @@ const boardCollisionDetection: CollisionDetection = (args) => {
 }
 
 export function IssueList({ title, issues, focusId, showTypeFilter = true }: Props) {
-  const { issues: allIssues, deleteIssues, updateIssue, currentProject, milestones: projectMilestones, depsVersion } = useIssues()
+  const { issues: allIssues, deleteIssues, updateIssue, currentProject, milestones: projectMilestones, depsVersion, issueEpics, setIssueEpics } = useIssues()
   const { requireAuth } = useAuthGate()
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [detailIssueId, setDetailIssueId] = useState<number | null>(null)
@@ -184,6 +184,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
   const [openLinkPopover, setOpenLinkPopover] = useState<number | null>(null)
   const [openPriorityPopover, setOpenPriorityPopover] = useState<number | null>(null)
   const [showDone, setShowDone] = useState(true)
+  const [collapsedStatuses, setCollapsedStatuses] = useState<Set<IssueStatus>>(new Set())
   const [users, setUsers] = useState<Database["public"]["Tables"]["users"]["Row"][]>([])
   const [linkedPRMap, setLinkedPRMap] = useState<Map<number, { count: number; firstUrl: string; firstState: string }>>(new Map())
   const rowClickTarget = useRef<number | null>(null)
@@ -590,17 +591,23 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                 const columnIssues = sortedIssues.filter((i) => i.status === status)
                 return (
                   <BoardColumn key={status} status={status}>
-                    <div className={cn("flex items-center gap-2 rounded-md px-2 py-1", statusHeaderBg[status])}>
+                    <div className={cn("flex items-center gap-2 rounded-md px-2 py-1 group/header", statusHeaderBg[status])}>
                       <span className={cn("text-sm font-medium uppercase tracking-wider", statusMeta[status].color)}>{statusLabels[status]}</span>
                       <span className="text-xs text-muted-foreground/50">{columnIssues.length}</span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setCollapsedStatuses((prev) => { const next = new Set(prev); if (next.has(status)) next.delete(status); else next.add(status); return next }) }}
+                        className="ml-auto mr-5 rounded p-0.5 text-muted-foreground/30 hover:text-muted-foreground transition-colors"
+                      >
+                        <ChevronDown className={cn("size-3.5 transition-transform", collapsedStatuses.has(status) ? "-rotate-90" : "")} />
+                      </button>
                     </div>
                     <SortableContext items={columnIssues.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-                      {columnIssues.length === 0 && (
+                      {!collapsedStatuses.has(status) && columnIssues.length === 0 && (
                         <div className="flex min-h-24 flex-1 items-center justify-center rounded-md border border-dashed border-border/30 p-4">
                           <span className="text-xs text-muted-foreground/30">Drop here</span>
                         </div>
                       )}
-                      {columnIssues.map((issue) => (
+                      {!collapsedStatuses.has(status) && columnIssues.map((issue) => (
                         <SortableBoardCard key={issue.id} issue={issue}>
                           <div
                             className={cn(
@@ -684,45 +691,91 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                                   </a>
                                 )
                               })()}                  </span>
-                              {!issue.is_epic && (
-                                <Popover open={openLinkPopover === issue.id} onOpenChange={(v) => setOpenLinkPopover(v ? issue.id : null)}>
-                                  <PopoverTrigger
-                                    render={
-                                      <button
-                                        data-link-btn
-                                        onClick={(e) => e.stopPropagation()}
-                                        className={cn("flex size-7 shrink-0 items-center justify-center rounded border border-transparent transition-colors hover:border-border/30 hover:bg-accent", issue.parent_epic_id ? "text-purple-400" : "text-transparent group-hover:text-muted-foreground/50")}
-                                      >
-                                        <Link className="size-3.5" />
-                                      </button>
-                                    }
-                                  />
-                                  <PopoverContent className="w-48 p-1" align="end">
-                                    {issue.parent_epic_id && (
-                                      <button
-                                        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent"
-                                        onClick={(e) => { e.stopPropagation(); requireAuth(() => updateIssue(issue.id, { parent_epic_id: null })); setOpenLinkPopover(null) }}
-                                      >
-                                        <Circle className="size-3 text-muted-foreground/40" />
-                                        Unlink from epic
-                                      </button>
-                                    )}
-                                    {epics.map((epic) => (
-                                      <button
-                                        key={epic.id}
-                                        className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-accent", issue.parent_epic_id === epic.id ? "text-purple-400" : "text-muted-foreground")}
-                                        onClick={(e) => { e.stopPropagation(); requireAuth(() => updateIssue(issue.id, { parent_epic_id: epic.id })); setOpenLinkPopover(null) }}
-                                      >
-                                        <Layers className="size-3.5 shrink-0 text-purple-400" />
-                                        <span className="truncate">{epic.title}</span>
-                                      </button>
-                                    ))}
-                                    {epics.length === 0 && (
-                                      <span className="block px-2 py-1.5 text-xs text-muted-foreground/50">No epics yet</span>
-                                    )}
-                                  </PopoverContent>
-                                </Popover>
-                              )}
+              {!issue.is_epic && (
+                <Popover open={openLinkPopover === issue.id} onOpenChange={(v) => setOpenLinkPopover(v ? issue.id : null)}>
+                  <div className="relative">
+                    <PopoverTrigger
+                      render={
+                        <button
+                          data-link-btn
+                          onClick={(e) => e.stopPropagation()}
+                          className={cn("peer flex size-7 shrink-0 items-center justify-center rounded border border-transparent transition-colors hover:border-border/30 hover:bg-accent", (issueEpics[issue.id]?.length ?? 0) > 0 ? "text-purple-400" : "text-transparent group-hover:text-muted-foreground/50")}
+                        >
+                          <Link className="size-3.5" />
+                        </button>
+                      }
+                    />
+                    {(() => {
+                      const currentEpicIds = issueEpics[issue.id] ?? (issue.parent_epic_id ? [issue.parent_epic_id] : [])
+                      if (currentEpicIds.length === 0) return null
+                      return (
+                        <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden peer-hover:block z-50 rounded-md bg-zinc-800 px-3 py-1.5 text-xs text-muted-foreground border border-border/60 shadow-md">
+                          {currentEpicIds.map((eid) => {
+                            const epic = epics.find((e) => e.id === eid)
+                            return epic ? (
+                              <div key={eid} className="flex items-center gap-1.5 whitespace-nowrap">
+                                <Layers className="size-3 shrink-0" />
+                                <span>{epic.title}</span>
+                              </div>
+                            ) : null
+                          })}
+                        </div>
+                      )
+                    })()}
+                  </div>
+                  <PopoverContent className="w-56 p-1 max-h-60 overflow-y-auto" align="end">
+                    {(() => {
+                      const currentEpicIds = issueEpics[issue.id] ?? (issue.parent_epic_id ? [issue.parent_epic_id] : [])
+                      return (
+                        <>
+                          {currentEpicIds.length > 0 && (
+                            <button
+                              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent"
+                              onClick={(e) => { e.stopPropagation(); requireAuth(() => setIssueEpics(issue.id, [])); setOpenLinkPopover(null) }}
+                            >
+                              <Circle className="size-3 text-muted-foreground/40" />
+                              Remove from all epics
+                            </button>
+                          )}
+                          <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50">Select epics</div>
+                          {epics.map((epic) => {
+                            const checked = currentEpicIds.includes(epic.id)
+                            return (
+                              <label
+                                key={epic.id}
+                                className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-accent cursor-pointer", checked ? "text-purple-400" : "text-muted-foreground")}
+                              >
+                                <span
+                                  role="checkbox"
+                                  aria-checked={checked}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    const next = checked
+                                      ? currentEpicIds.filter((id) => id !== epic.id)
+                                      : [...currentEpicIds, epic.id]
+                                    requireAuth(() => setIssueEpics(issue.id, next))
+                                  }}
+                                  className={cn(
+                                    "flex size-4 shrink-0 items-center justify-center rounded-[4px] border transition-colors cursor-pointer",
+                                    checked ? "border-primary bg-primary text-primary-foreground" : "border-input"
+                                  )}
+                                >
+                                  {checked && <Check className="size-3" />}
+                                </span>
+                                <Layers className="size-3.5 shrink-0 text-purple-400" />
+                                <span className="truncate">{epic.title}</span>
+                              </label>
+                            )
+                          })}
+                          {epics.length === 0 && (
+                            <span className="block px-2 py-1.5 text-xs text-muted-foreground/50">No epics yet</span>
+                          )}
+                        </>
+                      )
+                    })()}
+                  </PopoverContent>
+                </Popover>
+              )}
                               <Popover open={openTeamPopover === issue.id} onOpenChange={(v) => setOpenTeamPopover(v ? issue.id : null)}>
                                 <PopoverTrigger
                                   render={
@@ -868,15 +921,21 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
       ) : (
         <div className="flex-1 overflow-auto">
           {grouped.map((group) => {
-            if (group.issues.length === 0) return null
+            const isCollapsed = collapsedStatuses.has(group.status)
             return (
               <div key={group.status}>
-                <div className="sticky top-0 z-10 flex items-center gap-2 bg-background px-3 py-2">
+                <div className="sticky top-0 z-10 flex items-center gap-2 bg-background px-3 py-2 group/header">
                   <span className={cn("pointer-events-none absolute inset-y-1 left-3 right-3 rounded-lg", statusHeaderBg[group.status])} />
                   <span className={cn("relative ml-3 text-sm font-medium uppercase tracking-wider", statusMeta[group.status].color)}>{statusLabels[group.status]}</span>
                   <span className="relative text-xs text-muted-foreground/50">{group.issues.length}</span>
+                  <button
+                    onClick={() => setCollapsedStatuses((prev) => { const next = new Set(prev); if (next.has(group.status)) next.delete(group.status); else next.add(group.status); return next })}
+                    className="relative ml-auto mr-5 rounded p-0.5 text-muted-foreground/30 hover:text-muted-foreground transition-colors"
+                  >
+                    <ChevronDown className={cn("size-3.5 transition-transform", isCollapsed ? "-rotate-90" : "")} />
+                  </button>
                 </div>
-                {group.issues.map((issue) => (
+                {!collapsedStatuses.has(group.status) && group.issues.map((issue) => (
                   <div
                     key={issue.id}
                     className={cn("group mx-3 flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-accent/30", selectedIds.has(issue.id) && "bg-accent/20")}
@@ -953,40 +1012,86 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                     })()}                  </span>
                     {!issue.is_epic && (
                       <Popover open={openLinkPopover === issue.id} onOpenChange={(v) => setOpenLinkPopover(v ? issue.id : null)}>
-                        <PopoverTrigger
-                          render={
-                            <button
-                              data-link-btn
-                              onClick={(e) => e.stopPropagation()}
-                              className={cn("flex size-7 shrink-0 items-center justify-center rounded border border-transparent transition-colors hover:border-border/30 hover:bg-accent", issue.parent_epic_id ? "text-purple-400" : "text-transparent group-hover:text-muted-foreground/50")}
-                            >
-                              <Link className="size-3.5" />
-                            </button>
-                          }
-                        />
-                        <PopoverContent className="w-48 p-1" align="end">
-                          {issue.parent_epic_id && (
-                            <button
-                              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent"
-                              onClick={(e) => { e.stopPropagation(); requireAuth(() => updateIssue(issue.id, { parent_epic_id: null })); setOpenLinkPopover(null) }}
-                            >
-                              <Circle className="size-3 text-muted-foreground/40" />
-                              Unlink from epic
-                            </button>
-                          )}
-                          {epics.map((epic) => (
-                            <button
-                              key={epic.id}
-                              className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-accent", issue.parent_epic_id === epic.id ? "text-purple-400" : "text-muted-foreground")}
-                              onClick={(e) => { e.stopPropagation(); requireAuth(() => updateIssue(issue.id, { parent_epic_id: epic.id })); setOpenLinkPopover(null) }}
-                            >
-                              <Layers className="size-3.5 shrink-0 text-purple-400" />
-                              <span className="truncate">{epic.title}</span>
-                            </button>
-                          ))}
-                          {epics.length === 0 && (
-                            <span className="block px-2 py-1.5 text-xs text-muted-foreground/50">No epics yet</span>
-                          )}
+                        <div className="relative">
+                          <PopoverTrigger
+                            render={
+                              <button
+                                data-link-btn
+                                onClick={(e) => e.stopPropagation()}
+                                className={cn("peer flex size-7 shrink-0 items-center justify-center rounded border border-transparent transition-colors hover:border-border/30 hover:bg-accent", (issueEpics[issue.id]?.length ?? 0) > 0 ? "text-purple-400" : "text-transparent group-hover:text-muted-foreground/50")}
+                              >
+                                <Link className="size-3.5" />
+                              </button>
+                            }
+                          />
+                          {(() => {
+                            const currentEpicIds = issueEpics[issue.id] ?? (issue.parent_epic_id ? [issue.parent_epic_id] : [])
+                            if (currentEpicIds.length === 0) return null
+                            return (
+                              <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden peer-hover:block z-50 rounded-md bg-zinc-800 px-3 py-1.5 text-xs text-muted-foreground border border-border/60 shadow-md">
+                                {currentEpicIds.map((eid) => {
+                                  const epic = epics.find((e) => e.id === eid)
+                                  return epic ? (
+                                    <div key={eid} className="flex items-center gap-1.5 whitespace-nowrap">
+                                      <Layers className="size-3 shrink-0" />
+                                      <span>{epic.title}</span>
+                                    </div>
+                                  ) : null
+                                })}
+                              </div>
+                            )
+                          })()}
+                        </div>
+                        <PopoverContent className="w-56 p-1 max-h-60 overflow-y-auto" align="end">
+                          {(() => {
+                            const currentEpicIds = issueEpics[issue.id] ?? (issue.parent_epic_id ? [issue.parent_epic_id] : [])
+                            return (
+                              <>
+                                {currentEpicIds.length > 0 && (
+                                  <button
+                                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent"
+                                    onClick={(e) => { e.stopPropagation(); requireAuth(() => setIssueEpics(issue.id, [])); setOpenLinkPopover(null) }}
+                                  >
+                                    <Circle className="size-3 text-muted-foreground/40" />
+                                    Remove from all epics
+                                  </button>
+                                )}
+                                <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50">Select epics</div>
+                                {epics.map((epic) => {
+                                  const checked = currentEpicIds.includes(epic.id)
+                                  return (
+                                    <label
+                                      key={epic.id}
+                                      className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-accent cursor-pointer", checked ? "text-purple-400" : "text-muted-foreground")}
+                                    >
+                                      <span
+                                        role="checkbox"
+                                        aria-checked={checked}
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          const next = checked
+                                            ? currentEpicIds.filter((id) => id !== epic.id)
+                                            : [...currentEpicIds, epic.id]
+                                          requireAuth(() => setIssueEpics(issue.id, next))
+                                        }}
+                                        className={cn(
+                                          "flex size-4 shrink-0 items-center justify-center rounded-[4px] border transition-colors cursor-pointer",
+                                          checked ? "border-primary bg-primary text-primary-foreground" : "border-input"
+                                        )}
+                                      >
+                                        {checked && <Check className="size-3" />}
+                                      </span>
+                                      <Layers className="size-3.5 shrink-0 text-purple-400" />
+                                      <span className="truncate">{epic.title}</span>
+                                    </label>
+                                  )
+                                })}
+                                {epics.length === 0 && (
+                                  <span className="block px-2 py-1.5 text-xs text-muted-foreground/50">No epics yet</span>
+                                )}
+                              </>
+                            )
+                          })()}
                         </PopoverContent>
                       </Popover>
                     )}

@@ -28,6 +28,7 @@ export type Attachment = {
 }
 
 export type IssueComment = Database["public"]["Tables"]["issue_comments"]["Row"]
+export type IssueEpic = Database["public"]["Tables"]["issue_epics"]["Row"]
 
 export type NewIssueCommentInput = {
   content: string
@@ -45,7 +46,7 @@ type IssuesContext = {
   setCurrentProject: (p: Project | null) => void
   myRole: string | null
   hasMemberships: boolean
-  addIssue: (input: NewIssueInput) => Promise<void>
+  addIssue: (input: NewIssueInput) => Promise<number | undefined>
   updateIssue: (id: number, changes: Partial<Issue>) => Promise<void>
   deleteIssues: (ids: number[]) => Promise<void>
   createMilestone: (name: string, description?: string, target_date?: string) => Promise<void>
@@ -59,6 +60,8 @@ type IssuesContext = {
   updateComment: (commentId: number, issueId: number, content: string) => Promise<void>
   depsVersion: number
   bumpDepsVersion: () => void
+  issueEpics: Record<number, number[]>
+  setIssueEpics: (issueId: number, epicIds: number[]) => Promise<void>
 }
 
 const IssuesContext = createContext<IssuesContext | null>(null)
@@ -76,6 +79,7 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
   const [myRole, setMyRole] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [projectsLoaded, setProjectsLoaded] = useState(false)
+  const [issueEpics, setIssueEpicsState] = useState<Record<number, number[]>>({})
 
   useEffect(() => {
     if (!user) return
@@ -135,6 +139,24 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
           byIssue.set(c.issue_id, list)
         }
         setIssues(issues.map((issue) => ({ ...issue, comments: byIssue.get(issue.id) ?? [] })))
+
+        // Load issue_epics (many-to-many issue <-> epic)
+        const { data: epics } = ids.length > 0
+          ? await sb.from("issue_epics").select("*").in("issue_id", ids)
+          : { data: [] }
+        const epicMap: Record<number, number[]> = {}
+        for (const row of epics ?? []) {
+          if (!epicMap[row.issue_id]) epicMap[row.issue_id] = []
+          epicMap[row.issue_id].push(row.epic_id)
+        }
+        // Also include epics from parent_epic_id for backward compatibility
+        for (const issue of issues) {
+          if (issue.parent_epic_id && !epicMap[issue.id]?.includes(issue.parent_epic_id)) {
+            if (!epicMap[issue.id]) epicMap[issue.id] = []
+            epicMap[issue.id].push(issue.parent_epic_id)
+          }
+        }
+        setIssueEpicsState(epicMap)
         setLoading(false)
       })
     sb.from("milestones")
@@ -188,6 +210,27 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
       )
       .on(
         "postgres_changes",
+        { event: "*", schema: "public", table: "issue_epics", filter },
+        (payload) => {
+          if (payload.eventType === "DELETE") {
+            const oldIssueId = (payload.old as { issue_id: number }).issue_id
+            const oldEpicId = (payload.old as { epic_id: number }).epic_id
+            setIssueEpicsState((prev) => {
+              const list = prev[oldIssueId] ?? []
+              return { ...prev, [oldIssueId]: list.filter((id) => id !== oldEpicId) }
+            })
+          } else {
+            const newRow = payload.new as IssueEpic
+            setIssueEpicsState((prev) => {
+              const list = prev[newRow.issue_id] ?? []
+              if (list.includes(newRow.epic_id)) return prev
+              return { ...prev, [newRow.issue_id]: [...list, newRow.epic_id] }
+            })
+          }
+        },
+      )
+      .on(
+        "postgres_changes",
         { event: "*", schema: "public", table: "issue_comments", filter },
         (payload) => {
           if (payload.eventType === "DELETE") {
@@ -234,7 +277,7 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const addIssue = useCallback(async (input: NewIssueInput) => {
-    if (!user || !currentProject) return
+    if (!user || !currentProject) return undefined
     const sb = getSupabase()
     const creatorName = username ?? (await sb.from("users").select("name").eq("id", user.id).single()).data?.name ?? "Unknown"
     const { data, error } = await sb
@@ -260,10 +303,11 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
 
     if (error || !data) {
       if (error) console.error("Failed to create issue", JSON.stringify(error, null, 2))
-      return
+      return undefined
     }
 
     setIssues((prev) => [data, ...prev])
+    return data.id
   }, [user, username, currentProject])
 
   const updateIssue = useCallback(async (id: number, changes: Partial<Issue>) => {
@@ -424,11 +468,37 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
     setIssues((prev) => prev.map((i) => i.milestone_id === id ? { ...i, milestone_id: null } : i))
   }, [user])
 
+  const setIssueEpics = useCallback(async (issueId: number, epicIds: number[]) => {
+    if (!user) return
+    const sb = getSupabase()
+
+    // Get current links for this issue
+    const { data: current } = await sb.from("issue_epics").select("epic_id").eq("issue_id", issueId)
+    const currentEpicIds = new Set((current ?? []).map((r) => r.epic_id))
+
+    const toAdd = epicIds.filter((id) => !currentEpicIds.has(id))
+    const toRemove = [...currentEpicIds].filter((id) => !epicIds.includes(id))
+
+    if (toRemove.length > 0) {
+      await sb.from("issue_epics").delete().eq("issue_id", issueId).in("epic_id", toRemove)
+    }
+    for (const epicId of toAdd) {
+      await sb.from("issue_epics").insert({ issue_id: issueId, epic_id: epicId })
+    }
+
+    // Also update parent_epic_id for backward compatibility (set to first epic or null)
+    const primaryEpicId = epicIds.length > 0 ? epicIds[0] : null
+    await sb.from("issues").update({ parent_epic_id: primaryEpicId }).eq("id", issueId)
+
+    setIssueEpicsState((prev) => ({ ...prev, [issueId]: epicIds }))
+    setIssues((prev) => prev.map((i) => i.id === issueId ? { ...i, parent_epic_id: primaryEpicId } : i))
+  }, [user])
+
   const [depsVersion, setDepsVersion] = useState(0)
   const bumpDepsVersion = useCallback(() => setDepsVersion((v) => v + 1), [])
 
   return (
-    <IssuesContext.Provider value={{ issues, milestones, projects, currentProject, setCurrentProject: setCurrentProjectAndSave, myRole, hasMemberships, addIssue, updateIssue, deleteIssues, createMilestone, updateMilestone, deleteMilestone, loading, projectsLoaded, addComment, deleteComment, updateComment, depsVersion, bumpDepsVersion }}>
+    <IssuesContext.Provider value={{ issues, milestones, projects, currentProject, setCurrentProject: setCurrentProjectAndSave, myRole, hasMemberships, addIssue, updateIssue, deleteIssues, createMilestone, updateMilestone, deleteMilestone, loading, projectsLoaded, addComment, deleteComment, updateComment, depsVersion, bumpDepsVersion, issueEpics, setIssueEpics }}>
       {children}
     </IssuesContext.Provider>
   )

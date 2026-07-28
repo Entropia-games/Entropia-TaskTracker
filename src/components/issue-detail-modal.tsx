@@ -56,6 +56,7 @@ import {
   X,
   ShieldOff,
   ShieldAlert,
+  Check,
 } from "lucide-react"
 import { format } from "date-fns"
 import { cn, userAvatarColor } from "@/lib/utils"
@@ -101,7 +102,7 @@ type Props = {
 }
 
 export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetail, parentIssue }: Props) {
-  const { updateIssue, deleteIssues, issues, milestones, currentProject, addComment, deleteComment, updateComment, bumpDepsVersion } = useIssues()
+  const { updateIssue, deleteIssues, issues, milestones, currentProject, addComment, deleteComment, updateComment, bumpDepsVersion, issueEpics, setIssueEpics } = useIssues()
   const { documents } = useDocs()
   const { requireAuth } = useAuthGate()
   const deptMap = useDeptMap()
@@ -163,7 +164,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
     return () => window.removeEventListener("keydown", onKey)
   }, [lightboxUrl])
 
-  const [parentEpicId, setParentEpicId] = useState<number | null>(null)
+  const [epicIds, setEpicIds] = useState<number[]>([])
 
   useEffect(() => {
     if (data) {
@@ -173,9 +174,9 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
       setAssigneeId(data.assignee_id)
       setMilestoneId(data.milestone_id)
       setIsEpic(data.is_epic)
-      setParentEpicId(data.parent_epic_id)
+      setEpicIds(issueEpics[data.id] ?? (data.parent_epic_id ? [data.parent_epic_id] : []))
     }
-  }, [data])
+  }, [data, issueEpics])
 
   useEffect(() => {
     if (!open || !issue) {
@@ -195,9 +196,14 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
     const tasks: PromiseLike<void>[] = []
     if (issue.is_epic) {
       tasks.push(
-        getSupabase().from("issues").select("*").eq("parent_epic_id", issue.id).then(({ data: rows }) => {
+        (async () => {
+          const { data: links } = await getSupabase().from("issue_epics").select("issue_id").eq("epic_id", issue.id)
+          const childIds = (links ?? []).map((l) => l.issue_id)
+          if (!active) return
+          if (childIds.length === 0) { setChildIssues([]); return }
+          const { data: rows } = await getSupabase().from("issues").select("*").in("id", childIds)
           if (active && rows) setChildIssues(rows as Issue[])
-        }),
+        })(),
       )
     } else {
       tasks.push(
@@ -380,15 +386,19 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
     const next = !isEpic
     setIsEpic(next)
     if (!next) {
+      getSupabase().from("issue_epics").delete().eq("epic_id", data.id).then()
+      // Also clear parent_epic_id for backward compatibility
       getSupabase().from("issues").update({ parent_epic_id: null }).eq("parent_epic_id", data.id).then()
-      issues.filter((i) => i.parent_epic_id === data.id).forEach((child) => updateIssue(child.id, { parent_epic_id: null }))
     }
     guardedUpdate({ is_epic: next, issue_type: next ? "epic" : "task" })
   }
 
-  const handleParentEpicChange = (id: number | null) => {
-    setParentEpicId(id)
-    guardedUpdate({ parent_epic_id: id })
+  const handleEpicToggleCheck = (epicId: number, checked: boolean) => {
+    const next = checked
+      ? [...epicIds, epicId]
+      : epicIds.filter((id) => id !== epicId)
+    setEpicIds(next)
+    setIssueEpics(data.id, next)
   }
 
   return (
@@ -664,33 +674,63 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
               </button>
               {!isEpic && (
                 <Popover>
-                  <PopoverTrigger
-                    render={
-                      <button className="flex items-center gap-1 rounded px-1.5 py-0.5 text-muted-foreground/60 transition-colors hover:bg-accent">
-                        <Link className="size-3.5" />
-                        <span className="text-[11px]">{parentEpicId ? "Linked to epic" : "Link to epic"}</span>
-                      </button>
-                    }
-                  />
-                  <PopoverContent className="w-56 p-1" align="start">
-                    {parentEpicId && (
+                  <div className="relative">
+                    <PopoverTrigger
+                      render={
+                        <button className="peer flex items-center gap-1 rounded px-1.5 py-0.5 text-muted-foreground/60 transition-colors hover:bg-accent">
+                          <Link className="size-3.5" />
+                          <span className="text-[11px]">{epicIds.length > 0 ? `${epicIds.length} epic${epicIds.length > 1 ? 's' : ''}` : "Link to epic"}</span>
+                        </button>
+                      }
+                    />
+                    {epicIds.length > 0 && (
+                      <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden peer-hover:block z-50 rounded-md bg-zinc-800 px-3 py-1.5 text-xs text-muted-foreground border border-border/60 shadow-md">
+                        {epicIds.map((eid) => {
+                          const epic = allEpics.find((e) => e.id === eid)
+                          return epic ? (
+                            <div key={eid} className="flex items-center gap-1.5 whitespace-nowrap">
+                              <Layers className="size-3 shrink-0" />
+                              <span>{epic.title}</span>
+                            </div>
+                          ) : null
+                        })}
+                      </div>
+                    )}
+                  </div>
+                  <PopoverContent className="w-56 p-1 max-h-60 overflow-y-auto" align="start">
+                    {epicIds.length > 0 && (
                       <button
                         className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent"
-                        onClick={() => handleParentEpicChange(null)}
+                        onClick={() => { setEpicIds([]); setIssueEpics(data.id, []) }}
                       >
-                        Remove from epic
+                        <Circle className="size-3 text-muted-foreground/40" />
+                        Remove from all epics
                       </button>
                     )}
-                    {allEpics.map((e) => (
-                      <button
-                        key={e.id}
-                        className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-accent", parentEpicId === e.id ? "text-purple-400" : "text-muted-foreground")}
-                        onClick={() => handleParentEpicChange(e.id)}
-                      >
-                        <Layers className="size-3.5" />
-                        <span className="truncate">{e.title}</span>
-                      </button>
-                    ))}
+                    <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50">Select epics</div>
+                    {allEpics.map((e) => {
+                      const checked = epicIds.includes(e.id)
+                      return (
+                        <label
+                          key={e.id}
+                          className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-accent cursor-pointer", checked ? "text-purple-400" : "text-muted-foreground")}
+                        >
+                          <span
+                            role="checkbox"
+                            aria-checked={checked}
+                            onClick={() => handleEpicToggleCheck(e.id, !checked)}
+                            className={cn(
+                              "flex size-4 shrink-0 items-center justify-center rounded-[4px] border transition-colors cursor-pointer",
+                              checked ? "border-primary bg-primary text-primary-foreground" : "border-input"
+                            )}
+                          >
+                            {checked && <Check className="size-3" />}
+                          </span>
+                          <Layers className="size-3.5" />
+                          <span className="truncate">{e.title}</span>
+                        </label>
+                      )
+                    })}
                     {allEpics.length === 0 && (
                       <span className="block px-2 py-1.5 text-xs text-muted-foreground/50">No epics yet</span>
                     )}
@@ -850,7 +890,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
                           <button
                             key={i.id}
                             className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent"
-                            onClick={() => { updateIssue(i.id, { parent_epic_id: data.id }) }}
+                            onClick={() => { setIssueEpics(i.id, [...(issueEpics[i.id] ?? []), data.id]) }}
                           >
                             <span className="text-muted-foreground/40 font-mono">{currentProject?.code ?? "?"}-{i.display_id}</span>
                             <span className="flex-1 truncate">{i.title}</span>

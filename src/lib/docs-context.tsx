@@ -6,6 +6,7 @@ import {
   useState,
   useCallback,
   useEffect,
+  useRef,
   type ReactNode,
 } from "react"
 import { getSupabase } from "@/lib/supabase"
@@ -45,7 +46,9 @@ export function DocsProvider({ children }: { children: ReactNode }) {
   const [sections, setSections] = useState<DocSection[]>([])
   const [documents, setDocuments] = useState<Document[]>([])
   const [activeDocument, setActiveDocumentState] = useState<Document | null>(null)
+  const activeDocRequestRef = useRef(0)
   const setActiveDocument = useCallback(async (doc: Document | null) => {
+    const requestId = ++activeDocRequestRef.current
     if (!doc) {
       setActiveDocumentState(null)
       return
@@ -55,11 +58,18 @@ export function DocsProvider({ children }: { children: ReactNode }) {
       return
     }
     const { data } = await getSupabase().from("documents").select("content").eq("id", doc.id).single()
+    if (requestId !== activeDocRequestRef.current) return
     const full = { ...doc, content: data?.content ?? "" }
     setActiveDocumentState(full)
     setDocuments((prev) => prev.map((d) => d.id === doc.id ? { ...d, content: full.content } : d))
   }, [])
   const [loading, setLoading] = useState(true)
+
+  const documentsRef = useRef<Document[]>([])
+  useEffect(() => {
+    documentsRef.current = documents
+  }, [documents])
+  const docSaveQueueRef = useRef<Map<number, Promise<void>>>(new Map())
 
   useEffect(() => {
     if (!user || !currentProject) {
@@ -234,20 +244,34 @@ export function DocsProvider({ children }: { children: ReactNode }) {
 
   const updateDocument = useCallback(async (id: number, changes: Partial<Document>) => {
     if (!user) return
-    if (changes.content !== undefined) {
-      const docTitle = documents.find((d) => d.id === id)?.title ?? "untitled"
-      const newContent = await uploadBase64Images(changes.content, docTitle)
-      changes = { ...changes, content: newContent }
-      const { data: old } = await getSupabase().from("documents").select("content").eq("id", id).single()
-      const oldUrls = old?.content ? new Set(extractImageUrls(old.content)) : new Set<string>()
-      const newUrls = new Set(extractImageUrls(newContent))
-      const removed = [...oldUrls].filter((u) => !newUrls.has(u))
-      deleteImages(removed)
-    }
     setDocuments((prev) => prev.map((d) => (d.id === id ? { ...d, ...changes } : d)))
     setActiveDocumentState((prev) => (prev?.id === id ? { ...prev, ...changes } as Document : prev))
-    const { error } = await getSupabase().from("documents").update(changes).eq("id", id)
-    if (error) console.error("Failed to update document", JSON.stringify(error))
+
+    const prevTask = (docSaveQueueRef.current.get(id) ?? Promise.resolve()).catch(() => {})
+    const task = prevTask.then(async () => {
+      let effective = changes
+      if (effective.content !== undefined) {
+        const docTitle = documentsRef.current.find((d) => d.id === id)?.title ?? "untitled"
+        const newContent = await uploadBase64Images(effective.content, docTitle)
+        effective = { ...effective, content: newContent }
+        const { data: old } = await getSupabase().from("documents").select("content").eq("id", id).single()
+        const oldUrls = old?.content ? new Set(extractImageUrls(old.content)) : new Set<string>()
+        const newUrls = new Set(extractImageUrls(newContent))
+        const removed = [...oldUrls].filter((u) => !newUrls.has(u))
+        deleteImages(removed)
+      }
+      setDocuments((prev) => prev.map((d) => (d.id === id ? { ...d, ...effective } : d)))
+      setActiveDocumentState((prev) => (prev?.id === id ? { ...prev, ...effective } as Document : prev))
+      const { error } = await getSupabase().from("documents").update(effective).eq("id", id)
+      if (error) console.error("Failed to update document", JSON.stringify(error))
+    })
+    docSaveQueueRef.current.set(id, task)
+    task
+      .then(() => {
+        if (docSaveQueueRef.current.get(id) === task) docSaveQueueRef.current.delete(id)
+      })
+      .catch(() => {})
+    return task
   }, [user])
 
   const deleteDocument = useCallback(async (id: number) => {

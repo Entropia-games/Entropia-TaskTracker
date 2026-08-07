@@ -32,6 +32,7 @@ export function useBoard(boardId: string, me: Me | null) {
 
   const channelRef = useRef<ReturnType<ReturnType<typeof getSupabase>["channel"]> | null>(null)
   const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const persistQueueRef = useRef<Promise<unknown>>(Promise.resolve())
   const lastSendRef = useRef(0)
 
   const strokesRef = useRef(strokes)
@@ -47,23 +48,46 @@ export function useBoard(boardId: string, me: Me | null) {
     channelRef.current?.send({ type: "broadcast", event, payload } as never)
   }, [])
 
+  const persist = useCallback(() => {
+    if (!me) return
+    const snapshot = {
+      strokes: strokesRef.current,
+      cards: cardsRef.current,
+      images: imagesRef.current,
+    }
+    const task = persistQueueRef.current
+      .catch(() => {})
+      .then(() =>
+        getSupabase()
+          .from("boards")
+          .upsert({
+            id: boardId,
+            data: snapshot,
+            updated_at: new Date().toISOString(),
+            updated_by: me.id,
+          }),
+      )
+    persistQueueRef.current = task
+    return task.then(({ error }) => {
+      if (error) console.error("[board] persist failed:", error.message)
+    })
+  }, [boardId, me])
+
   const schedulePersist = useCallback(() => {
     if (persistTimer.current) clearTimeout(persistTimer.current)
     persistTimer.current = setTimeout(() => {
-      if (!me) return
-      getSupabase()
-        .from("boards")
-        .upsert({
-          id: boardId,
-          data: { strokes: strokesRef.current, cards: cardsRef.current, images: imagesRef.current },
-          updated_at: new Date().toISOString(),
-          updated_by: me.id,
-        })
-        .then(({ error }) => {
-          if (error) console.error("[board] persist failed:", error.message)
-        })
+      persistTimer.current = null
+      persist()
     }, 700)
-  }, [boardId, me])
+  }, [persist])
+
+  const flushPersist = useCallback(() => {
+    if (persistTimer.current) {
+      clearTimeout(persistTimer.current)
+      persistTimer.current = null
+    }
+    return persist()
+  }, [persist])
 
   useEffect(() => {
     if (!me) return
@@ -231,11 +255,11 @@ export function useBoard(boardId: string, me: Me | null) {
     return () => {
       mounted = false
       clearInterval(prune)
-      if (persistTimer.current) clearTimeout(persistTimer.current)
+      flushPersist()
       sb.removeChannel(channel)
       channelRef.current = null
     }
-  }, [boardId, me, schedulePersist])
+  }, [boardId, me, schedulePersist, flushPersist])
 
   const pushStrokePoint = useCallback(
     (id: string, point: Point, color: string, size: number) => {

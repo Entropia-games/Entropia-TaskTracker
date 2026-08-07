@@ -58,7 +58,8 @@ function EditorContent() {
     triggerFrom: number
   }>({ active: false, query: "", position: { top: 0, left: 0 }, triggerFrom: 0 })
 
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const titleSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const contentSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const crepeRef = useRef<Crepe | null>(null)
   const autocompleteRef = useRef(autocomplete)
   autocompleteRef.current = autocomplete
@@ -84,12 +85,12 @@ function EditorContent() {
 
   const handleTitleChange = (value: string) => {
     setLocalTitle(value)
-    if (activeDocument) {
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
-      saveTimerRef.current = setTimeout(() => {
-        if (activeDocRef.current) {
-          updateDocument(activeDocRef.current.id, { title: value })
-        }
+    const doc = activeDocRef.current
+    if (doc) {
+      const docId = doc.id
+      if (titleSaveTimerRef.current) clearTimeout(titleSaveTimerRef.current)
+      titleSaveTimerRef.current = setTimeout(() => {
+        updateDocument(docId, { title: value })
       }, 800)
     }
   }
@@ -263,12 +264,12 @@ function EditorContent() {
       crepe.on((listener) => {
         listener
           .markdownUpdated((_ctx, markdown) => {
-            if (activeDocRef.current) {
-              if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
-              saveTimerRef.current = setTimeout(() => {
-                if (activeDocRef.current) {
-                  updateDocument(activeDocRef.current.id, { content: markdown })
-                }
+            const doc = activeDocRef.current
+            if (doc) {
+              const docId = doc.id
+              if (contentSaveTimerRef.current) clearTimeout(contentSaveTimerRef.current)
+              contentSaveTimerRef.current = setTimeout(() => {
+                updateDocument(docId, { content: markdown })
               }, 800)
             }
           })

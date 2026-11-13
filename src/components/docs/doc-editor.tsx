@@ -5,7 +5,6 @@ import { useState, useRef, useCallback, useEffect } from "react"
 import { Milkdown, MilkdownProvider, useEditor } from "@milkdown/react"
 import { Crepe } from "@milkdown/crepe"
 import { editorViewCtx } from "@milkdown/core"
-import { replaceAll } from "@milkdown/utils"
 import "@milkdown/crepe/theme/common/style.css"
 import "@milkdown/crepe/theme/frame-dark.css"
 import { Trash2 } from "lucide-react"
@@ -62,47 +61,67 @@ function EditorContent() {
   const contentSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const crepeRef = useRef<Crepe | null>(null)
   const autocompleteRef = useRef(autocomplete)
-  autocompleteRef.current = autocomplete
-  const activeDocRef = useRef(activeDocument)
-  activeDocRef.current = activeDocument
-  const prevDocIdRef = useRef<number | null>(null)
-  const mountedRef = useRef(false)
+
+  // Every mounted EditorContent belongs to exactly one document (see the key in DocEditor).
+  // Capture that id once so an async save can never be attributed to a different document.
+  const docIdRef = useRef<number | null>(activeDocument?.id ?? null)
+  const docTitleRef = useRef(activeDocument?.title ?? "untitled")
+
+  const latestMarkdownRef = useRef<string | null>(null)
+  const lastSavedMarkdownRef = useRef<string | null>(null)
+  const updateDocumentRef = useRef(updateDocument)
+  const skipFlushRef = useRef(false)
+
+  useEffect(() => {
+    autocompleteRef.current = autocomplete
+  }, [autocomplete])
+
+  useEffect(() => {
+    docTitleRef.current = activeDocument?.title ?? "untitled"
+  }, [activeDocument?.title])
+
+  useEffect(() => {
+    updateDocumentRef.current = updateDocument
+  }, [updateDocument])
 
   const getView = useCallback(() => {
     const crepe = crepeRef.current
     if (!crepe) return null
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
       return crepe.editor.action((ctx) => ctx.get(editorViewCtx))
     } catch {
       return null
     }
   }, [])
 
-  useEffect(() => {
-    if (activeDocument) setLocalTitle(activeDocument.title)
-  }, [activeDocument?.id])
-
   const handleTitleChange = (value: string) => {
     setLocalTitle(value)
-    const doc = activeDocRef.current
-    if (doc) {
-      const docId = doc.id
+    const docId = docIdRef.current
+    if (docId != null) {
       if (titleSaveTimerRef.current) clearTimeout(titleSaveTimerRef.current)
       titleSaveTimerRef.current = setTimeout(() => {
+        titleSaveTimerRef.current = null
         updateDocument(docId, { title: value })
       }, 800)
     }
   }
 
   const handleTitleBlur = () => {
-    if (activeDocument && localTitle.trim()) {
-      updateDocument(activeDocument.id, { title: localTitle.trim() })
+    const docId = docIdRef.current
+    const title = localTitle.trim()
+    if (docId != null && title) {
+      if (titleSaveTimerRef.current) {
+        clearTimeout(titleSaveTimerRef.current)
+        titleSaveTimerRef.current = null
+      }
+      updateDocument(docId, { title })
     }
   }
 
   const handleDelete = () => {
-    if (activeDocument) deleteDocument(activeDocument.id)
+    skipFlushRef.current = true
+    const docId = docIdRef.current
+    if (docId != null) deleteDocument(docId)
     setDeleteConfirmOpen(false)
   }
 
@@ -248,7 +267,7 @@ function EditorContent() {
             onUpload: async (file: File) => {
               const compressed = await compressImage(file)
               const ext = file.name.split(".").pop() ?? "png"
-              const docTitle = activeDocument?.title ?? "untitled"
+              const docTitle = docTitleRef.current
               const renamed = renameFile(compressed, `doc_image_${slugify(docTitle)}.${ext}`)
               const [res] = await uploadFiles("image", { files: [renamed] })
               return res?.url ?? ""
@@ -264,14 +283,15 @@ function EditorContent() {
       crepe.on((listener) => {
         listener
           .markdownUpdated((_ctx, markdown) => {
-            const doc = activeDocRef.current
-            if (doc) {
-              const docId = doc.id
-              if (contentSaveTimerRef.current) clearTimeout(contentSaveTimerRef.current)
-              contentSaveTimerRef.current = setTimeout(() => {
-                updateDocument(docId, { content: markdown })
-              }, 800)
-            }
+            const docId = docIdRef.current
+            if (docId == null) return
+            latestMarkdownRef.current = markdown
+            if (contentSaveTimerRef.current) clearTimeout(contentSaveTimerRef.current)
+            contentSaveTimerRef.current = setTimeout(() => {
+              contentSaveTimerRef.current = null
+              lastSavedMarkdownRef.current = markdown
+              updateDocument(docId, { content: markdown })
+            }, 800)
           })
           .selectionUpdated((_ctx, _selection) => {
             try {
@@ -294,26 +314,39 @@ function EditorContent() {
       })
 
       crepeRef.current = crepe
-      mountedRef.current = true
       return crepe
     },
     [],
   )
 
+  // Persist anything that is still waiting in a debounce when the document is closed/switched.
+  // The editor instance is keyed by document id, so this flush can only ever target its own doc.
   useEffect(() => {
-    if (!mountedRef.current || !activeDocument) return
-    const crepe = crepeRef.current
-    if (!crepe) return
-    if (prevDocIdRef.current === activeDocument.id) return
-    prevDocIdRef.current = activeDocument.id
-    const markdown = activeDocument.content || ""
-    try {
-      crepe.editor.action(replaceAll(markdown))
-    } catch {
-      // eslint-disable-next-line no-console
-      console.warn("replaceAll failed, editor will show next render")
+    const docId = docIdRef.current
+    return () => {
+      if (titleSaveTimerRef.current) {
+        clearTimeout(titleSaveTimerRef.current)
+        titleSaveTimerRef.current = null
+      }
+      if (contentSaveTimerRef.current) {
+        clearTimeout(contentSaveTimerRef.current)
+        contentSaveTimerRef.current = null
+      }
+      if (docId == null || skipFlushRef.current) return
+
+      let markdown = latestMarkdownRef.current
+      try {
+        const fresh = crepeRef.current?.getMarkdown()
+        if (typeof fresh === "string") markdown = fresh
+      } catch {
+        // editor already destroyed - fall back to the last markdown we saw
+      }
+      if (markdown != null && markdown !== lastSavedMarkdownRef.current) {
+        lastSavedMarkdownRef.current = markdown
+        updateDocumentRef.current(docId, { content: markdown })
+      }
     }
-  }, [activeDocument?.id])
+  }, [])
 
   return (
     <div className="flex h-full flex-col min-h-0 relative">
@@ -391,7 +424,7 @@ export function DocEditor() {
 
   return (
     <MilkdownProvider>
-      <EditorContent />
+      <EditorContent key={activeDocument.id} />
     </MilkdownProvider>
   )
 }

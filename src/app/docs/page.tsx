@@ -1,7 +1,7 @@
 "use client"
 
-import { Suspense, useEffect, useState } from "react"
-import { useSearchParams } from "next/navigation"
+import { Suspense, useEffect, useRef, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Plus } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { useIssues } from "@/lib/issues-context"
@@ -27,6 +27,53 @@ function DocsPageInner() {
   const [sidebarWidth, setSidebarWidth] = useState(266)
   const [resizing, setResizing] = useState(false)
   const searchParams = useSearchParams()
+  const router = useRouter()
+
+  const activeDocId = activeDocument?.id ?? null
+
+  // Refs let the URL effects below read fresh values without re-running (and fighting
+  // each other) every time the active document or the document list changes.
+  const activeDocIdRef = useRef(activeDocId)
+  const documentsRef = useRef(documents)
+  const docsReady = documents.length > 0
+  const mirroredDocIdRef = useRef<number | null>(null)
+  const didMountRef = useRef(false)
+
+  useEffect(() => {
+    activeDocIdRef.current = activeDocId
+  }, [activeDocId])
+
+  useEffect(() => {
+    documentsRef.current = documents
+  }, [documents])
+
+  // Mirror the document that is actually open into ?doc= so the address bar (and any
+  // copied/shared link) always points at the content shown in the editor.
+  useEffect(() => {
+    const raw = searchParams.get("doc")
+    const urlDocId = raw == null ? null : Number(raw)
+    if (!didMountRef.current) {
+      didMountRef.current = true
+      // On the first render a ?doc= link is the requested document. Let the effect below
+      // open it before we start mirroring the current selection back into the URL.
+      if (urlDocId != null && urlDocId !== activeDocId) return
+    }
+    if (activeDocId == null || mirroredDocIdRef.current === activeDocId) return
+    mirroredDocIdRef.current = activeDocId
+    router.replace(`/docs?doc=${activeDocId}`, { scroll: false })
+  }, [activeDocId, searchParams, router])
+
+  // Follow ?doc= whenever it changes (wiki links, in-app links, back/forward), even if
+  // a different document is already open.
+  useEffect(() => {
+    const raw = searchParams.get("doc")
+    if (!raw || !docsReady) return
+    const docId = Number(raw)
+    if (!Number.isFinite(docId)) return
+    if (docId === activeDocIdRef.current) return
+    const doc = documentsRef.current.find((d) => d.id === docId)
+    if (doc) void setActiveDocument(doc)
+  }, [searchParams, docsReady, setActiveDocument])
 
   useEffect(() => {
     if (!resizing) return
@@ -44,14 +91,6 @@ function DocsPageInner() {
       window.removeEventListener("mouseup", onMouseUp)
     }
   }, [resizing])
-
-  useEffect(() => {
-    const docId = searchParams.get("doc")
-    if (docId && documents.length > 0 && !activeDocument) {
-      const doc = documents.find((d) => d.id === Number(docId))
-      if (doc) setActiveDocument(doc)
-    }
-  }, [searchParams, documents, activeDocument, setActiveDocument])
 
   if (authLoading || docsLoading) {
     return <div className="p-6 text-muted-foreground">Loading...</div>

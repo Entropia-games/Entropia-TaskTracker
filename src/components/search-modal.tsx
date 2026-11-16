@@ -25,7 +25,7 @@ const priorityColors: Record<string, string> = {
 }
 
 const teamColors: Record<string, string> = {
-  "3D": "text-red-400", Concept: "text-blue-400", DEV: "text-purple-400", QA: "text-white/80", GD: "text-yellow-400", Sound: "text-orange-400", LD: "text-green-400",
+  "3D": "text-red-400", Concept: "text-blue-400", DEV: "text-purple-400", QA: "text-white/80", GD: "text-yellow-400", Sound: "text-orange-400", LD: "text-green-400", CM: "text-pink-400",
 }
 
 const statusLabels: Record<string, string> = {

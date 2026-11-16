@@ -85,6 +85,7 @@ const teamColors: Record<string, string> = {
   GD:       "text-yellow-400",
   Sound:    "text-orange-400",
   LD:       "text-green-400",
+  CM:       "text-pink-400",
 }
 
 const PRIORITY_COLORS: Record<IssuePriority, string> = {
@@ -415,6 +416,7 @@ export function CreateIssueModal() {
                   <SelectItem value="GD"><Circle className="size-3 text-yellow-400" />GD</SelectItem>
                   <SelectItem value="Sound"><Circle className="size-3 text-orange-400" />Sound</SelectItem>
                   <SelectItem value="LD"><Circle className="size-3 text-green-400" />LD</SelectItem>
+                  <SelectItem value="CM"><Circle className="size-3 text-pink-400" />CM</SelectItem>
                 </SelectContent>
               </Select>
               {projectMilestones.length > 0 && (

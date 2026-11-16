@@ -330,6 +330,27 @@ export type Database = {
         }
         Relationships: []
       }
+      project_member_departments: {
+        Row: {
+          id: number
+          member_id: number
+          department: string
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          member_id: number
+          department: string
+          created_at?: string
+        }
+        Update: {
+          id?: number
+          member_id?: number
+          department?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
       doc_sections: {
         Row: {
           id: number
@@ -407,7 +428,7 @@ export type Database = {
     Enums: {
       issue_status: "backlog" | "todo" | "in_progress" | "in_review" | "done"
       issue_priority: "none" | "low" | "medium" | "high" | "urgent"
-      issue_team: "3D" | "Concept" | "DEV" | "QA" | "GD" | "Sound" | "LD"
+      issue_team: "3D" | "Concept" | "DEV" | "QA" | "GD" | "Sound" | "LD" | "CM"
       issue_type: "task" | "bug" | "epic"
     }
     CompositeTypes: Record<string, never>

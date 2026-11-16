@@ -103,6 +103,7 @@ const teamColors: Record<string, string> = {
   GD: "bg-yellow-500/35 border-yellow-500/55 text-yellow-300",
   Sound: "bg-orange-500/35 border-orange-500/55 text-orange-300",
   LD: "bg-green-500/35 border-green-500/55 text-green-300",
+  CM: "bg-pink-500/35 border-pink-500/55 text-pink-300",
 }
 
 const teamTextColors: Record<string, string> = {
@@ -113,6 +114,7 @@ const teamTextColors: Record<string, string> = {
   GD: "text-yellow-400",
   Sound: "text-orange-400",
   LD: "text-green-400",
+  CM: "text-pink-400",
 }
 
 const STATUS_LABELS: Record<IssueStatus, string> = {
@@ -150,7 +152,7 @@ const PRIORITY_COLOR: Record<IssuePriority, string> = {
   high: "text-orange-400",
   urgent: "text-red-400",
 }
-const TEAMS: IssueTeam[] = ["3D", "Concept", "DEV", "QA", "GD", "Sound", "LD"]
+const TEAMS: IssueTeam[] = ["3D", "Concept", "DEV", "QA", "GD", "Sound", "LD", "CM"]
 
 const COLUMN_WIDTH = 40
 const ROW_HEIGHT = 48
@@ -203,7 +205,7 @@ function SortableTimelineRow({
   viewTeam: boolean
   rowColorObj: RowColorObj
   userMap: Map<string, Database["public"]["Tables"]["users"]["Row"]>
-  deptMap: Map<string, string>
+  deptMap: Map<string, string[]>
   onOpen: () => void
   onRemove: (id: number) => void
   lock: { userId: string; name: string; color: string } | null

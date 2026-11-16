@@ -329,7 +329,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
 
   return (
     <div className="relative flex flex-1 flex-col">
-      <div className="flex items-center justify-between border-b border-border/50 px-6 py-3">
+      <div className="sticky top-0 z-30 flex items-center justify-between border-b border-border/50 bg-background px-6 py-3">
         <div className="flex items-center gap-3">
           <h1 className="text-sm font-medium">{title}</h1>
           <Badge variant="secondary" className="rounded-sm text-[11px] font-normal">

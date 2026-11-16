@@ -12,7 +12,7 @@ import { Circle, ChevronDown, CircleDot, CircleCheck, CircleOff, Eye, ArrowUp, A
 import { cn, userAvatarColor } from "@/lib/utils"
 import { UserDisplayName } from "@/components/ui/display-name"
 import { useDeptMap } from "@/lib/use-dept-map"
-import { startOfWeek, startOfMonth, startOfDay, endOfDay, eachDayOfInterval, format } from "date-fns"
+import { startOfMonth, startOfDay, endOfDay, eachDayOfInterval, format, subDays } from "date-fns"
 
 const statusLabels: Record<IssueStatus, string> = {
   backlog: "Backlog", todo: "Todo", in_progress: "In Progress", in_review: "In Review", done: "Done",
@@ -388,7 +388,7 @@ export default function StatisticsPage() {
           <div className="flex items-center rounded-md border border-border/30 p-0.5">
             {([
               { key: "overview", label: "Overview" },
-              { key: "week", label: "This Week" },
+              { key: "week", label: "Last 7 Days" },
               { key: "month", label: "This Month" },
             ] as { key: "overview" | "week" | "month"; label: string }[]).map((t) => (
               <button
@@ -572,8 +572,8 @@ export default function StatisticsPage() {
         <div className="flex-1 overflow-auto px-6 py-5">
           <div className="mx-auto max-w-3xl space-y-6">
             <CompletedPanel
-              title={tab === "week" ? "Tasks completed this week" : "Tasks completed this month"}
-              since={tab === "week" ? startOfWeek(new Date(), { weekStartsOn: 1 }) : startOfMonth(new Date())}
+              title={tab === "week" ? "Tasks completed in the last 7 days" : "Tasks completed this month"}
+              since={tab === "week" ? subDays(startOfDay(new Date()), 6) : startOfMonth(new Date())}
               issues={issues}
               users={users}
               milestones={milestones}

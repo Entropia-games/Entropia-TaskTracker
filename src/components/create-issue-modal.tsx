@@ -40,6 +40,7 @@ import {
   CircleDot,
   CircleCheck,
   CircleOff,
+  Eye,
   ArrowUp,
   ArrowDown,
   Minus,
@@ -56,6 +57,7 @@ const STATUS_OPTIONS: { value: IssueStatus; label: string; icon: typeof Circle }
   { value: "backlog", label: "Backlog", icon: CircleOff },
   { value: "todo", label: "Todo", icon: Circle },
   { value: "in_progress", label: "In Progress", icon: CircleDot },
+  { value: "in_review", label: "In Review", icon: Eye },
   { value: "done", label: "Done", icon: CircleCheck },
 ]
 
@@ -71,6 +73,7 @@ const STATUS_COLORS: Record<IssueStatus, string> = {
   backlog: "text-muted-foreground/40",
   todo: "text-muted-foreground",
   in_progress: "text-yellow-400",
+  in_review: "text-violet-400",
   done: "text-green-400",
 }
 

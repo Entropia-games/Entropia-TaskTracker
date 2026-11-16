@@ -76,7 +76,7 @@ $$;
 do $$
 begin
   if not exists (select 1 from pg_type where typname = 'issue_status') then
-    create type issue_status as enum ('backlog', 'todo', 'in_progress', 'done');
+    create type issue_status as enum ('backlog', 'todo', 'in_progress', 'in_review', 'done');
   end if;
 end;
 $$;

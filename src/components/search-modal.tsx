@@ -29,7 +29,7 @@ const teamColors: Record<string, string> = {
 }
 
 const statusLabels: Record<string, string> = {
-  backlog: "Backlog", todo: "Todo", in_progress: "In Progress", done: "Done",
+  backlog: "Backlog", todo: "Todo", in_progress: "In Progress", in_review: "In Review", done: "Done",
 }
 
 export function SearchModal({ open, onOpenChange }: Props) {

@@ -405,7 +405,7 @@ export type Database = {
       }
     }
     Enums: {
-      issue_status: "backlog" | "todo" | "in_progress" | "done"
+      issue_status: "backlog" | "todo" | "in_progress" | "in_review" | "done"
       issue_priority: "none" | "low" | "medium" | "high" | "urgent"
       issue_team: "3D" | "Concept" | "DEV" | "QA" | "GD" | "Sound" | "LD"
       issue_type: "task" | "bug" | "epic"

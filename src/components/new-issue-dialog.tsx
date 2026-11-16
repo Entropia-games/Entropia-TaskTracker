@@ -33,6 +33,7 @@ const STATUS_OPTIONS = [
   { value: "backlog", label: "Backlog" },
   { value: "todo", label: "Todo" },
   { value: "in_progress", label: "In Progress" },
+  { value: "in_review", label: "In Review" },
   { value: "done", label: "Done" },
 ] as const
 

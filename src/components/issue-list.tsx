@@ -29,7 +29,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import {   Circle, ChevronDown, Trash2, X, ArrowUp, ArrowDown, ArrowUpDown, Minus, AlertCircle, CircleDot, CircleCheck, CircleOff, Layers, GitPullRequest, Diamond, Plus, Link, List, LayoutGrid, Loader2, ShieldOff, Shield, Check } from "lucide-react"
+import {   Circle, ChevronDown, Trash2, X, ArrowUp, ArrowDown, ArrowUpDown, Minus, AlertCircle, CircleDot, CircleCheck, CircleOff, Eye, Layers, GitPullRequest, Diamond, Plus, Link, List, LayoutGrid, Loader2, ShieldOff, Shield, Check } from "lucide-react"
 import { CreateIssueModal } from "@/components/create-issue-modal"
 import { IssueDetailModal } from "@/components/issue-detail-modal"
 import { IssueContextMenu } from "@/components/issue-context-menu"
@@ -47,6 +47,7 @@ const statusLabels: Record<IssueStatus, string> = {
   backlog: "Backlog",
   todo: "Todo",
   in_progress: "In Progress",
+  in_review: "In Review",
   done: "Done",
 }
 
@@ -54,6 +55,7 @@ const statusMeta: Record<IssueStatus, { icon: typeof Circle; color: string }> = 
   backlog: { icon: CircleOff, color: "text-muted-foreground/40" },
   todo: { icon: Circle, color: "text-muted-foreground" },
   in_progress: { icon: CircleDot, color: "text-yellow-400" },
+  in_review: { icon: Eye, color: "text-violet-400" },
   done: { icon: CircleCheck, color: "text-green-400" },
 }
 
@@ -61,6 +63,7 @@ const statusHeaderBg: Record<IssueStatus, string> = {
   backlog: "bg-muted-foreground/10",
   todo: "bg-slate-400/10",
   in_progress: "bg-yellow-400/15",
+  in_review: "bg-violet-400/15",
   done: "bg-green-400/15",
 }
 
@@ -100,7 +103,7 @@ const SORT_OPTIONS = [
 type SortBy = (typeof SORT_OPTIONS)[number]["value"]
 
 const priorityRank: Record<IssuePriority, number> = { urgent: 0, high: 1, medium: 2, low: 3, none: 4 }
-const statusRank: Record<IssueStatus, number> = { backlog: 0, todo: 1, in_progress: 2, done: 3 }
+const statusRank: Record<IssueStatus, number> = { backlog: 0, todo: 1, in_progress: 2, in_review: 3, done: 4 }
 
 function sortIssues(list: Issue[], by: SortBy): Issue[] {
   const arr = [...list]
@@ -299,7 +302,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
     const draggedId = active.id as number
     const overId = over.id
     let targetStatus: IssueStatus | null = null
-    if (["backlog", "todo", "in_progress", "done"].includes(overId as string)) {
+    if (["backlog", "todo", "in_progress", "in_review", "done"].includes(overId as string)) {
       targetStatus = overId as IssueStatus
     } else {
       const overIssue = allIssues.find((i) => i.id === overId)
@@ -317,7 +320,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
     setActiveDragId(null)
   }
 
-  const grouped = (["backlog", "todo", "in_progress", "done"] as IssueStatus[])
+  const grouped = (["backlog", "todo", "in_progress", "in_review", "done"] as IssueStatus[])
     .filter((s) => showDone || s !== "done")
     .map((status) => ({
       status,
@@ -408,9 +411,9 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
               >
                 All
               </button>
-              {(["backlog", "todo", "in_progress", "done"] as IssueStatus[]).map((s) => {
-                const statusIconMap: Record<string, typeof Circle> = { backlog: CircleOff, todo: Circle, in_progress: CircleDot, done: CircleCheck }
-                const statusColorMap: Record<string, string> = { backlog: "text-muted-foreground/40", todo: "text-muted-foreground", in_progress: "text-yellow-400", done: "text-green-400" }
+              {(["backlog", "todo", "in_progress", "in_review", "done"] as IssueStatus[]).map((s) => {
+                const statusIconMap: Record<string, typeof Circle> = { backlog: CircleOff, todo: Circle, in_progress: CircleDot, in_review: Eye, done: CircleCheck }
+                const statusColorMap: Record<string, string> = { backlog: "text-muted-foreground/40", todo: "text-muted-foreground", in_progress: "text-yellow-400", in_review: "text-violet-400", done: "text-green-400" }
                 const SIcon = statusIconMap[s]
                 return (
                   <button
@@ -585,7 +588,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
       {view === "board" ? (
         <DndContext sensors={sensors} collisionDetection={boardCollisionDetection} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
           <div className="flex-1 overflow-auto flex gap-4 p-6">
-            {(["backlog", "todo", "in_progress", "done"] as IssueStatus[])
+            {(["backlog", "todo", "in_progress", "in_review", "done"] as IssueStatus[])
               .filter((s) => showDone || s !== "done")
               .map((status) => {
                 const columnIssues = sortedIssues.filter((i) => i.status === status)

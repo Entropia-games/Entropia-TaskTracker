@@ -8,22 +8,22 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Circle, ChevronDown, CircleDot, CircleCheck, CircleOff, ArrowUp, ArrowDown, Minus, AlertCircle, Layers, Plus, X, Diamond } from "lucide-react"
+import { Circle, ChevronDown, CircleDot, CircleCheck, CircleOff, Eye, ArrowUp, ArrowDown, Minus, AlertCircle, Layers, Plus, X, Diamond } from "lucide-react"
 import { cn, userAvatarColor } from "@/lib/utils"
 import { UserDisplayName } from "@/components/ui/display-name"
 import { useDeptMap } from "@/lib/use-dept-map"
 import { startOfWeek, startOfMonth, startOfDay, endOfDay, eachDayOfInterval, format } from "date-fns"
 
 const statusLabels: Record<IssueStatus, string> = {
-  backlog: "Backlog", todo: "Todo", in_progress: "In Progress", done: "Done",
+  backlog: "Backlog", todo: "Todo", in_progress: "In Progress", in_review: "In Review", done: "Done",
 }
 
 const statusColors: Record<IssueStatus, string> = {
-  backlog: "text-muted-foreground/40", todo: "text-muted-foreground", in_progress: "text-yellow-400", done: "text-green-400",
+  backlog: "text-muted-foreground/40", todo: "text-muted-foreground", in_progress: "text-yellow-400", in_review: "text-violet-400", done: "text-green-400",
 }
 
 const statusIcons: Record<IssueStatus, typeof Circle> = {
-  backlog: CircleOff, todo: Circle, in_progress: CircleDot, done: CircleCheck,
+  backlog: CircleOff, todo: Circle, in_progress: CircleDot, in_review: Eye, done: CircleCheck,
 }
 
 const priorityLabels: Record<IssuePriority, string> = {
@@ -357,7 +357,7 @@ export default function StatisticsPage() {
   const pct = total > 0 ? Math.round((doneCount / total) * 100) : 0
 
   const statusCounts = {} as Record<IssueStatus, number>
-  for (const s of ["backlog", "todo", "in_progress", "done"] as IssueStatus[]) {
+  for (const s of ["backlog", "todo", "in_progress", "in_review", "done"] as IssueStatus[]) {
     statusCounts[s] = filteredIssues.filter((i) => i.status === s).length
   }
 
@@ -498,12 +498,12 @@ export default function StatisticsPage() {
           {/* By Status */}
           <div className="space-y-2 rounded-lg border border-border/30 p-4">
             <h2 className="text-sm font-medium text-muted-foreground">By Status</h2>
-            {(["backlog", "todo", "in_progress", "done"] as IssueStatus[]).map((s) => {
+            {(["backlog", "todo", "in_progress", "in_review", "done"] as IssueStatus[]).map((s) => {
               const count = statusCounts[s]
               const barPct = total > 0 ? Math.round((count / total) * 100) : 0
               const Icon = statusIcons[s]
               const barColors: Record<IssueStatus, string> = {
-                backlog: "bg-muted-foreground/20", todo: "bg-blue-400", in_progress: "bg-yellow-400", done: "bg-green-400",
+                backlog: "bg-muted-foreground/20", todo: "bg-blue-400", in_progress: "bg-yellow-400", in_review: "bg-violet-400", done: "bg-green-400",
               }
               return (
                 <div key={s} className="space-y-1">

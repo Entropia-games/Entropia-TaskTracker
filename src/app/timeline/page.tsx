@@ -14,7 +14,7 @@ import { cn, userAvatarColor } from "@/lib/utils"
 import { UserDisplayName } from "@/components/ui/display-name"
 import { useDeptMap } from "@/lib/use-dept-map"
 import { format, differenceInDays, addDays, startOfDay, min as dateMin, max as dateMax } from "date-fns"
-import { Plus, X, Search, GripVertical, ChevronDown, Circle, CircleOff, CircleDot, CircleCheck, Diamond, ArrowDown, ArrowUp, Minus, AlertCircle, Lock } from "lucide-react"
+import { Plus, X, Search, GripVertical, ChevronDown, Circle, CircleOff, CircleDot, CircleCheck, Eye, Diamond, ArrowDown, ArrowUp, Minus, AlertCircle, Lock } from "lucide-react"
 import {
   DndContext,
   closestCenter,
@@ -119,18 +119,21 @@ const STATUS_LABELS: Record<IssueStatus, string> = {
   backlog: "Backlog",
   todo: "Todo",
   in_progress: "In Progress",
+  in_review: "In Review",
   done: "Done",
 }
 const STATUS_ICON: Record<IssueStatus, typeof Circle> = {
   backlog: CircleOff,
   todo: Circle,
   in_progress: CircleDot,
+  in_review: Eye,
   done: CircleCheck,
 }
 const STATUS_COLOR: Record<IssueStatus, string> = {
   backlog: "text-muted-foreground/40",
   todo: "text-muted-foreground",
   in_progress: "text-yellow-400",
+  in_review: "text-violet-400",
   done: "text-green-400",
 }
 const PRIORITY_ICON: Record<IssuePriority, typeof Minus> = {

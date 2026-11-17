@@ -5,6 +5,7 @@ import { useIssues, type Issue, type IssueStatus, type IssuePriority, type Issue
 import { getSupabase } from "@/lib/supabase"
 import type { Database } from "@/lib/database.types"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -25,6 +26,8 @@ const statusColors: Record<IssueStatus, string> = {
 const statusIcons: Record<IssueStatus, typeof Circle> = {
   backlog: CircleOff, todo: Circle, in_progress: CircleDot, in_review: Eye, done: CircleCheck,
 }
+
+const statusOrder: IssueStatus[] = ["backlog", "todo", "in_progress", "in_review", "done"]
 
 const priorityLabels: Record<IssuePriority, string> = {
   none: "No Priority", low: "Low", medium: "Medium", high: "High", urgent: "Urgent",
@@ -367,8 +370,15 @@ export default function StatisticsPage() {
   }
 
   const teamCounts = {} as Record<string, number>
+  const teamStatusCounts = {} as Record<string, Record<IssueStatus, number>>
   for (const t of teams) {
     teamCounts[t] = filteredIssues.filter((i) => i.team === t).length
+    const byStatus = {} as Record<IssueStatus, number>
+    for (const s of statusOrder) byStatus[s] = 0
+    for (const i of filteredIssues) {
+      if (i.team === t) byStatus[i.status]++
+    }
+    teamStatusCounts[t] = byStatus
   }
 
   const epicCount = filteredIssues.filter((i) => i.is_epic).length
@@ -555,11 +565,38 @@ export default function StatisticsPage() {
             <div className="flex flex-wrap gap-2">
               {teams.map((t) => {
                 const count = teamCounts[t]
+                const byStatus = teamStatusCounts[t]
                 return (
-                  <div key={t} className="rounded-lg border border-border/30 px-3 py-2">
-                    <span className={cn("text-sm font-semibold", teamColors[t])}>{t}</span>
-                    <p className="text-xs text-muted-foreground/60 mt-0.5">{count} issues</p>
-                  </div>
+                  <Tooltip key={t}>
+                    <TooltipTrigger
+                      render={
+                        <div className="cursor-default rounded-lg border border-border/30 px-3 py-2 transition-colors hover:bg-accent/40">
+                          <span className={cn("text-sm font-semibold", teamColors[t])}>{t}</span>
+                          <p className="mt-0.5 text-xs text-muted-foreground/60">{count} issues</p>
+                        </div>
+                      }
+                    />
+                    <TooltipContent>
+                      <div className="min-w-32 space-y-1">
+                        <div className="mb-1.5 text-xs font-medium">
+                          <span className={teamColors[t]}>{t}</span>
+                          <span className="text-neutral-400"> — {count} issues</span>
+                        </div>
+                        {statusOrder.map((s) => {
+                          const Icon = statusIcons[s]
+                          return (
+                            <div key={s} className="flex items-center justify-between gap-4 text-xs">
+                              <span className="flex items-center gap-1.5">
+                                <Icon className={cn("size-3", statusColors[s])} />
+                                {statusLabels[s]}
+                              </span>
+                              <span className="tabular-nums text-neutral-300">{byStatus[s]}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
                 )
               })}
             </div>

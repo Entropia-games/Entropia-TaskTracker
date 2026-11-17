@@ -37,7 +37,7 @@ export function SearchModal({ open, onOpenChange }: Props) {
   const [results, setResults] = useState<Issue[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
-  const { currentProject } = useIssues()
+  const { currentProject, issues: projectIssues } = useIssues()
   const { requireAuth } = useAuthGate()
 
   useEffect(() => {
@@ -47,13 +47,26 @@ export function SearchModal({ open, onOpenChange }: Props) {
 
   useEffect(() => {
     if (!query.trim() || !currentProject) { setResults([]); return }
-    const q = `%${query.trim()}%`
+    const trimmed = query.trim()
+    // "CODE-15" (also "CODE 15" / "CODE15") searches by issue display id prefix,
+    // so HUN-15 matches HUN-15, HUN-151, HUN-1553, ...
+    const codePattern = currentProject.code.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    const idMatch = trimmed.match(new RegExp(`^${codePattern}\\s*-?\\s*(\\d+)$`, "i"))
+    if (idMatch) {
+      const prefix = idMatch[1]
+      const matches = projectIssues
+        .filter((issue) => issue.display_id != null && String(issue.display_id).startsWith(prefix))
+        .sort((a, b) => (a.display_id ?? 0) - (b.display_id ?? 0))
+        .slice(0, 10)
+      setResults(matches)
+      return
+    }
     const timer = setTimeout(() => {
       getSupabase()
         .from("issues")
         .select("*")
         .eq("project_id", currentProject.id)
-        .ilike("title", q)
+        .ilike("title", `%${trimmed}%`)
         .order("id", { ascending: false })
         .limit(10)
         .then(({ data }) => {
@@ -61,7 +74,7 @@ export function SearchModal({ open, onOpenChange }: Props) {
         })
     }, 200)
     return () => clearTimeout(timer)
-  }, [query, currentProject])
+  }, [query, currentProject, projectIssues])
 
   const handleSelect = (issue: Issue) => {
     requireAuth(() => {
@@ -80,7 +93,7 @@ export function SearchModal({ open, onOpenChange }: Props) {
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search issues..."
+            placeholder={currentProject ? `Search issues or ${currentProject.code}-123...` : "Search issues..."}
             className="flex-1 border-none bg-transparent text-sm outline-none ring-0 placeholder:text-muted-foreground/30"
           />
         </div>

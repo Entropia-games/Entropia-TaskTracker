@@ -37,6 +37,8 @@ import { AuthDialog } from "@/components/auth-dialog"
 import { UsersDialog } from "@/components/users-dialog"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
 import { cn, userAvatarColor } from "@/lib/utils"
 
 const teams = [
@@ -75,6 +77,7 @@ export function AppSidebar() {
   const [projectPopoverOpen, setProjectPopoverOpen] = useState(false)
   const [authOpen, setAuthOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [logoutOpen, setLogoutOpen] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
 
@@ -201,7 +204,7 @@ export function AppSidebar() {
             <SidebarMenuItem>
               <SidebarMenuButton
                 tooltip={username ?? "Account"}
-                onClick={() => signOut()}
+                onClick={() => setLogoutOpen(true)}
               >
                 <span className="flex items-center gap-2 text-muted-foreground">
                   <Avatar className="size-5">
@@ -229,6 +232,29 @@ export function AppSidebar() {
         </SidebarMenu>
         <AuthDialog open={authOpen} onOpenChange={setAuthOpen} />
         <SearchModal open={searchOpen} onOpenChange={setSearchOpen} />
+        <Dialog open={logoutOpen} onOpenChange={setLogoutOpen}>
+          <DialogContent className="sm:max-w-xs">
+            <DialogTitle className="text-sm font-medium">Sign out?</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              You will need to sign in again to access your projects.
+            </DialogDescription>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" size="sm" onClick={() => setLogoutOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  setLogoutOpen(false)
+                  signOut()
+                }}
+              >
+                Sign out
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </SidebarFooter>
     </Sidebar>
   )

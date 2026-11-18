@@ -188,6 +188,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
   const [openLinkPopover, setOpenLinkPopover] = useState<number | null>(null)
   const [openPriorityPopover, setOpenPriorityPopover] = useState<number | null>(null)
   const [showDone, setShowDone] = useState(true)
+  const [showBlocked, setShowBlocked] = useState(true)
   const [collapsedStatuses, setCollapsedStatuses] = useState<Set<IssueStatus>>(new Set())
   const [users, setUsers] = useState<Database["public"]["Tables"]["users"]["Row"][]>([])
   const [linkedPRMap, setLinkedPRMap] = useState<Map<number, { count: number; firstUrl: string; firstState: string }>>(new Map())
@@ -260,6 +261,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
       return false
     }
     if (typeFilter !== "all" && i.issue_type !== typeFilter) return false
+    if (!showBlocked && blockedIds.has(i.id)) return false
     return true
   })
 
@@ -368,6 +370,21 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
               <span className={cn(
                 "inline-block size-3.5 rounded-full transition-transform",
                 showDone ? "translate-x-[18px] bg-green-400" : "translate-x-[2px] bg-muted-foreground/50",
+              )} />
+            </button>
+          </span>
+          <span className="flex items-center gap-2 text-sm text-muted-foreground">
+            Enable Blocked
+            <button
+              onClick={() => setShowBlocked((v) => !v)}
+              className={cn(
+                "relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border border-border/30 transition-colors",
+                showBlocked ? "bg-red-500/20 border-red-500/40" : "bg-muted/30",
+              )}
+            >
+              <span className={cn(
+                "inline-block size-3.5 rounded-full transition-transform",
+                showBlocked ? "translate-x-[18px] bg-red-400" : "translate-x-[2px] bg-muted-foreground/50",
               )} />
             </button>
           </span>

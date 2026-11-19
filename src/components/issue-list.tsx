@@ -161,6 +161,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
   const { requireAuth } = useAuthGate()
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [detailIssueId, setDetailIssueId] = useState<number | null>(null)
+  const appliedFocusId = useRef<number | null>(null)
   const detailIssue = allIssues.find((i) => i.id === detailIssueId) ?? null
   const [detailParentIssue, setDetailParentIssue] = useState<Issue | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -209,11 +210,15 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
     })
   }, [])
 
+  // Open the issue from ?issue=... only once per focusId. `issues` changes on
+  // every edit/comment, so re-running this would yank the user back to the
+  // originally linked issue after they navigated to another one in the modal.
   useEffect(() => {
-    if (focusId) {
-      const found = issues.find((i) => i.id === focusId)
-      if (found) setDetailIssueId(found.id)
-    }
+    if (!focusId || appliedFocusId.current === focusId) return
+    const found = issues.find((i) => i.id === focusId)
+    if (!found) return
+    appliedFocusId.current = focusId
+    setDetailIssueId(found.id)
   }, [focusId, issues])
 
   useEffect(() => {

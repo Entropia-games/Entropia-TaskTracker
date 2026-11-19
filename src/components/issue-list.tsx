@@ -187,6 +187,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
   const [openMilestonePopover, setOpenMilestonePopover] = useState<number | null>(null)
   const [openAssigneePopover, setOpenAssigneePopover] = useState<number | null>(null)
   const [openLinkPopover, setOpenLinkPopover] = useState<number | null>(null)
+  const [linkEpicSearch, setLinkEpicSearch] = useState("")
   const [openPriorityPopover, setOpenPriorityPopover] = useState<number | null>(null)
   const [showDone, setShowDone] = useState(true)
   const [showBlocked, setShowBlocked] = useState(true)
@@ -735,7 +736,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                                 )
                               })()}                  </span>
               {!issue.is_epic && (
-                <Popover open={openLinkPopover === issue.id} onOpenChange={(v) => setOpenLinkPopover(v ? issue.id : null)}>
+                <Popover open={openLinkPopover === issue.id} onOpenChange={(v) => { setOpenLinkPopover(v ? issue.id : null); setLinkEpicSearch("") }}>
                   <div className="relative">
                     <PopoverTrigger
                       render={
@@ -769,8 +770,18 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                   <PopoverContent className="w-56 p-1 max-h-60 overflow-y-auto" align="end">
                     {(() => {
                       const currentEpicIds = issueEpics[issue.id] ?? (issue.parent_epic_id ? [issue.parent_epic_id] : [])
+                      const q = linkEpicSearch.trim().toLowerCase()
+                      const filteredEpics = epics.filter((e) => !q || e.title.toLowerCase().includes(q))
                       return (
                         <>
+                          <input
+                            autoFocus
+                            placeholder="Search epics..."
+                            value={linkEpicSearch}
+                            onChange={(e) => setLinkEpicSearch(e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-full rounded border border-border/50 bg-transparent px-2 py-1 text-xs text-muted-foreground outline-none mb-1 placeholder:text-muted-foreground/30"
+                          />
                           {currentEpicIds.length > 0 && (
                             <button
                               className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent"
@@ -781,7 +792,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                             </button>
                           )}
                           <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50">Select epics</div>
-                          {epics.map((epic) => {
+                          {filteredEpics.map((epic) => {
                             const checked = currentEpicIds.includes(epic.id)
                             return (
                               <label
@@ -810,9 +821,11 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                               </label>
                             )
                           })}
-                          {epics.length === 0 && (
+                          {epics.length === 0 ? (
                             <span className="block px-2 py-1.5 text-xs text-muted-foreground/50">No epics yet</span>
-                          )}
+                          ) : filteredEpics.length === 0 ? (
+                            <span className="block px-2 py-1.5 text-xs text-muted-foreground/50">No matches</span>
+                          ) : null}
                         </>
                       )
                     })()}
@@ -1058,7 +1071,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                       )
                     })()}                  </span>
                     {!issue.is_epic && (
-                      <Popover open={openLinkPopover === issue.id} onOpenChange={(v) => setOpenLinkPopover(v ? issue.id : null)}>
+                      <Popover open={openLinkPopover === issue.id} onOpenChange={(v) => { setOpenLinkPopover(v ? issue.id : null); setLinkEpicSearch("") }}>
                         <div className="relative">
                           <PopoverTrigger
                             render={
@@ -1092,8 +1105,18 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                         <PopoverContent className="w-56 p-1 max-h-60 overflow-y-auto" align="end">
                           {(() => {
                             const currentEpicIds = issueEpics[issue.id] ?? (issue.parent_epic_id ? [issue.parent_epic_id] : [])
+                            const q = linkEpicSearch.trim().toLowerCase()
+                            const filteredEpics = epics.filter((e) => !q || e.title.toLowerCase().includes(q))
                             return (
                               <>
+                                <input
+                                  autoFocus
+                                  placeholder="Search epics..."
+                                  value={linkEpicSearch}
+                                  onChange={(e) => setLinkEpicSearch(e.target.value)}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="w-full rounded border border-border/50 bg-transparent px-2 py-1 text-xs text-muted-foreground outline-none mb-1 placeholder:text-muted-foreground/30"
+                                />
                                 {currentEpicIds.length > 0 && (
                                   <button
                                     className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent"
@@ -1104,7 +1127,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                                   </button>
                                 )}
                                 <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50">Select epics</div>
-                                {epics.map((epic) => {
+                                {filteredEpics.map((epic) => {
                                   const checked = currentEpicIds.includes(epic.id)
                                   return (
                                     <label
@@ -1133,9 +1156,11 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                                     </label>
                                   )
                                 })}
-                                {epics.length === 0 && (
+                                {epics.length === 0 ? (
                                   <span className="block px-2 py-1.5 text-xs text-muted-foreground/50">No epics yet</span>
-                                )}
+                                ) : filteredEpics.length === 0 ? (
+                                  <span className="block px-2 py-1.5 text-xs text-muted-foreground/50">No matches</span>
+                                ) : null}
                               </>
                             )
                           })()}

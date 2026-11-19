@@ -196,6 +196,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
   const rowClickTarget = useRef<number | null>(null)
   const [ctxMenu, setCtxMenu] = useState<{ issue: Issue; x: number; y: number } | null>(null)
   const [blockedIds, setBlockedIds] = useState<Set<number>>(new Set())
+  const [blockersByIssue, setBlockersByIssue] = useState<Map<number, number[]>>(new Map())
   const [blockingIds, setBlockingIds] = useState<Set<number>>(new Set())
 
   const applyCtxChange = (changes: Partial<Issue>) => {
@@ -243,7 +244,19 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
     const ids = issues.map((i) => i.id)
     if (ids.length === 0) return
     getSupabase().from("issue_dependencies").select("issue_id, blocked_by_id").in("issue_id", ids).then(({ data }) => {
-      if (data) setBlockedIds(new Set(data.map((d) => d.issue_id)))
+      if (data) {
+        setBlockedIds(new Set(data.map((d) => d.issue_id)))
+        const map = new Map<number, number[]>()
+        for (const d of data) {
+          const arr = map.get(d.issue_id)
+          if (arr) arr.push(d.blocked_by_id)
+          else map.set(d.issue_id, [d.blocked_by_id])
+        }
+        setBlockersByIssue(map)
+      } else {
+        setBlockedIds(new Set())
+        setBlockersByIssue(new Map())
+      }
     })
     getSupabase().from("issue_dependencies").select("blocked_by_id").in("blocked_by_id", ids).then(({ data }) => {
       if (data) setBlockingIds(new Set(data.map((d) => d.blocked_by_id)))
@@ -662,7 +675,11 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                             <div className="flex items-center gap-2">
                               {(() => { const S = statusMeta[issue.status]; const SIcon = S.icon; return <SIcon className={cn("size-3.5 shrink-0", S.color)} /> })()}
                               <span className="min-w-0 flex-1 truncate text-sm">{issue.title}</span>
-                              {blockedIds.has(issue.id) && <ShieldOff className="size-3 shrink-0 text-red-400" />}
+                              {blockedIds.has(issue.id) && (() => {
+                                const blockerIds = blockersByIssue.get(issue.id) ?? []
+                                const allBlockersDone = blockerIds.length > 0 && blockerIds.every((id) => allIssues.find((i) => i.id === id)?.status === "done")
+                                return <ShieldOff className={cn("size-3 shrink-0", allBlockersDone ? "text-green-400" : "text-red-400")} />
+                              })()}
                             </div>
                             <div className="flex items-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:thin]">
                               <Popover open={openPriorityPopover === issue.id} onOpenChange={(v) => setOpenPriorityPopover(v ? issue.id : null)}>
@@ -1014,7 +1031,11 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                       {currentProject?.code ?? "?"}-{issue.display_id}
                     </span>
                     <span className="min-w-0 flex-1 truncate text-sm">{issue.title}</span>
-                    {blockedIds.has(issue.id) && <ShieldOff className="size-3.5 shrink-0 text-red-400" />}
+                    {blockedIds.has(issue.id) && (() => {
+                      const blockerIds = blockersByIssue.get(issue.id) ?? []
+                      const allBlockersDone = blockerIds.length > 0 && blockerIds.every((id) => allIssues.find((i) => i.id === id)?.status === "done")
+                      return <ShieldOff className={cn("size-3.5 shrink-0", allBlockersDone ? "text-green-400" : "text-red-400")} />
+                    })()}
                     <span className="flex w-5 shrink-0 items-center justify-center">{linkedPRMap.has(issue.id) && (() => {
                       const pr = linkedPRMap.get(issue.id)!
                       const isMerged = pr.firstState === "merged"

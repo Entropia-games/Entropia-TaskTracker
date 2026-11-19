@@ -22,8 +22,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { cn } from "@/lib/utils"
+import { cn, userAvatarColor } from "@/lib/utils"
 import { UserDisplayName } from "@/components/ui/display-name"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { useDeptMap } from "@/lib/use-dept-map"
 import { useIssues, type IssueStatus, type IssuePriority, type IssueTeam, type IssueType, type Milestone, type Attachment } from "@/lib/issues-context"
 import { TYPE_OPTIONS, issueTypeIcon, issueTypeColor } from "@/lib/issue-types"
 import { useDocs } from "@/lib/docs-context"
@@ -117,8 +119,12 @@ export function CreateIssueModal() {
   const [uploading, setUploading] = useState(false)
   const [docPickerOpen, setDocPickerOpen] = useState(false)
   const [docSearch, setDocSearch] = useState("")
+  const [assigneeOpen, setAssigneeOpen] = useState(false)
+  const [epicPickerOpen, setEpicPickerOpen] = useState(false)
+  const [epicSearch, setEpicSearch] = useState("")
   const imageInputRef = useRef<HTMLInputElement>(null)
   const popoverOpenRef = useRef(false)
+  const deptMap = useDeptMap()
 
   useEffect(() => {
     if (!open) return
@@ -434,7 +440,7 @@ export function CreateIssueModal() {
                 </Select>
               )}
               {issueType !== "epic" && (
-              <Popover onOpenChange={(v) => { popoverOpenRef.current = v }}>
+              <Popover open={epicPickerOpen} onOpenChange={(v) => { setEpicPickerOpen(v); popoverOpenRef.current = v; if (!v) setEpicSearch("") }}>
                 <PopoverTrigger
                   render={
                       <button className={cn("flex h-7 cursor-default items-center gap-1.5 border-0 px-2 text-xs hover:bg-accent", parentEpicIds.length > 0 ? "text-purple-400" : "text-muted-foreground")}>
@@ -444,6 +450,13 @@ export function CreateIssueModal() {
                     }
                   />
                   <PopoverContent className="w-56 p-1 max-h-60 overflow-y-auto" align="start">
+                    <input
+                      autoFocus
+                      placeholder="Search epics..."
+                      value={epicSearch}
+                      onChange={(e) => setEpicSearch(e.target.value)}
+                      className="w-full rounded border border-border/50 bg-transparent px-2 py-1 text-xs text-muted-foreground outline-none mb-1 placeholder:text-muted-foreground/30"
+                    />
                     {parentEpicIds.length > 0 && (
                       <button
                         className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent"
@@ -454,36 +467,40 @@ export function CreateIssueModal() {
                       </button>
                     )}
                     <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50">Select epics</div>
-                    {epics.map((e) => {
-                      const checked = parentEpicIds.includes(e.id)
-                      return (
-                        <label
-                          key={e.id}
-                          className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-accent cursor-pointer", checked ? "text-purple-400" : "text-muted-foreground")}
-                        >
-                          <span
-                            role="checkbox"
-                            aria-checked={checked}
-                            onClick={() => setParentEpicIds((prev) => checked ? prev.filter((id) => id !== e.id) : [...prev, e.id])}
-                            className={cn(
-                              "flex size-4 shrink-0 items-center justify-center rounded-[4px] border transition-colors cursor-pointer",
-                              checked ? "border-primary bg-primary text-primary-foreground" : "border-input"
-                            )}
+                    {epics
+                      .filter((e) => !epicSearch.trim() || e.title.toLowerCase().includes(epicSearch.trim().toLowerCase()))
+                      .map((e) => {
+                        const checked = parentEpicIds.includes(e.id)
+                        return (
+                          <label
+                            key={e.id}
+                            className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-accent cursor-pointer", checked ? "text-purple-400" : "text-muted-foreground")}
                           >
-                            {checked && <Check className="size-3" />}
-                          </span>
-                          <Layers className="size-3.5 shrink-0 text-purple-400" />
-                          <span className="truncate">{e.title}</span>
-                        </label>
-                      )
-                    })}
-                    {epics.length === 0 && (
+                            <span
+                              role="checkbox"
+                              aria-checked={checked}
+                              onClick={() => setParentEpicIds((prev) => checked ? prev.filter((id) => id !== e.id) : [...prev, e.id])}
+                              className={cn(
+                                "flex size-4 shrink-0 items-center justify-center rounded-[4px] border transition-colors cursor-pointer",
+                                checked ? "border-primary bg-primary text-primary-foreground" : "border-input"
+                              )}
+                            >
+                              {checked && <Check className="size-3" />}
+                            </span>
+                            <Layers className="size-3.5 shrink-0 text-purple-400" />
+                            <span className="truncate">{e.title}</span>
+                          </label>
+                        )
+                      })}
+                    {epics.length === 0 ? (
                       <span className="block px-2 py-1.5 text-xs text-muted-foreground/50">No epics yet</span>
-                    )}
+                    ) : epics.filter((e) => !epicSearch.trim() || e.title.toLowerCase().includes(epicSearch.trim().toLowerCase())).length === 0 ? (
+                      <span className="block px-2 py-1.5 text-xs text-muted-foreground/50">No matches</span>
+                    ) : null}
                   </PopoverContent>
                 </Popover>
               )}
-              <Popover onOpenChange={(v) => { popoverOpenRef.current = v }}>
+              <Popover open={assigneeOpen} onOpenChange={(v) => { setAssigneeOpen(v); popoverOpenRef.current = v }}>
                 <PopoverTrigger
                   render={
                     <button
@@ -492,23 +509,33 @@ export function CreateIssueModal() {
                         !assigneeId && "opacity-60"
                       )}
                     >
-                      <span className="flex size-3.5 items-center justify-center rounded-full bg-muted-foreground/20 text-[9px] font-medium text-muted-foreground">
-                        {assigneeId
-                          ? (users.find((u) => u.id === assigneeId)?.name ?? "?")[0].toUpperCase()
-                          : "?"}
-                      </span>
-                      {assigneeId
-                          ? <>
-  <UserDisplayName name={users.find((u) => u.id === assigneeId)?.name} email={users.find((u) => u.id === assigneeId)?.email ?? ""} displayName={users.find((u) => u.id === assigneeId)?.display_name} />
-</>
-                        : "Unassigned"}
+                      {assigneeId ? (
+                        (() => {
+                          const u = users.find((u) => u.id === assigneeId)
+                          return (
+                            <>
+                              <Avatar className="size-4 shrink-0">
+                                <AvatarFallback className={cn(userAvatarColor((u?.name ?? "?")), "text-[9px]")}>
+                                  {(u?.name ?? "?")[0].toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <UserDisplayName name={u?.name} email={u?.email ?? ""} displayName={u?.display_name} department={deptMap.get(assigneeId)} />
+                            </>
+                          )
+                        })()
+                      ) : (
+                        <>
+                          <span className="flex size-4 items-center justify-center rounded-full bg-muted-foreground/20 text-[9px]">?</span>
+                          Unassigned
+                        </>
+                      )}
                     </button>
                   }
                 />
                 <PopoverContent className="w-48 p-1" align="start">
                   <button
                     className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent"
-                    onClick={() => setAssigneeId(null)}
+                    onClick={() => { setAssigneeId(null); setAssigneeOpen(false) }}
                   >
                     <span className="flex size-4 items-center justify-center rounded-full bg-muted-foreground/20 text-[9px]">?</span>
                     Unassigned
@@ -517,12 +544,14 @@ export function CreateIssueModal() {
                     <button
                       key={u.id}
                       className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-accent"
-                      onClick={() => setAssigneeId(u.id)}
+                      onClick={() => { setAssigneeId(u.id); setAssigneeOpen(false) }}
                     >
-                      <span className="flex size-4 items-center justify-center rounded-full bg-muted-foreground/30 text-[9px] font-medium text-foreground">
-                        {(u.name ?? u.email[0])[0].toUpperCase()}
-                      </span>
-                      <UserDisplayName name={u.name} email={u.email} displayName={u.display_name} />
+                      <Avatar className="size-4 shrink-0">
+                        <AvatarFallback className={cn(userAvatarColor((u.name ?? u.email)), "text-[9px]")}>
+                          {(u.name ?? u.email)[0].toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <UserDisplayName name={u.name} email={u.email} displayName={u.display_name} department={deptMap.get(u.id)} />
                     </button>
                   ))}
                 </PopoverContent>

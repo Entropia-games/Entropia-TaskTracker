@@ -129,6 +129,8 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
   const [docPickerOpen, setDocPickerOpen] = useState(false)
   const [docSearch, setDocSearch] = useState("")
+  const [epicPickerOpen, setEpicPickerOpen] = useState(false)
+  const [epicSearch, setEpicSearch] = useState("")
   const [readyId, setReadyId] = useState<number | null>(null)
   const [displayedIssue, setDisplayedIssue] = useState<Issue | null>(null)
   const [timelineEntry, setTimelineEntry] = useState<{ start_date: string; end_date: string } | null>(null)
@@ -677,7 +679,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
                 <span className="text-[11px]">{isEpic ? "Epic" : "Mark as epic"}</span>
               </button>
               {!isEpic && (
-                <Popover>
+                <Popover open={epicPickerOpen} onOpenChange={(v) => { setEpicPickerOpen(v); if (!v) setEpicSearch("") }}>
                   <div className="relative">
                     <PopoverTrigger
                       render={
@@ -702,6 +704,13 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
                     )}
                   </div>
                   <PopoverContent className="w-56 p-1 max-h-60 overflow-y-auto" align="start">
+                    <input
+                      autoFocus
+                      placeholder="Search epics..."
+                      value={epicSearch}
+                      onChange={(e) => setEpicSearch(e.target.value)}
+                      className="w-full rounded border border-border/50 bg-transparent px-2 py-1 text-xs text-muted-foreground outline-none mb-1 placeholder:text-muted-foreground/30"
+                    />
                     {epicIds.length > 0 && (
                       <button
                         className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent"
@@ -712,32 +721,36 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
                       </button>
                     )}
                     <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50">Select epics</div>
-                    {allEpics.map((e) => {
-                      const checked = epicIds.includes(e.id)
-                      return (
-                        <label
-                          key={e.id}
-                          className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-accent cursor-pointer", checked ? "text-purple-400" : "text-muted-foreground")}
-                        >
-                          <span
-                            role="checkbox"
-                            aria-checked={checked}
-                            onClick={() => handleEpicToggleCheck(e.id, !checked)}
-                            className={cn(
-                              "flex size-4 shrink-0 items-center justify-center rounded-[4px] border transition-colors cursor-pointer",
-                              checked ? "border-primary bg-primary text-primary-foreground" : "border-input"
-                            )}
+                    {allEpics
+                      .filter((e) => !epicSearch.trim() || e.title.toLowerCase().includes(epicSearch.trim().toLowerCase()))
+                      .map((e) => {
+                        const checked = epicIds.includes(e.id)
+                        return (
+                          <label
+                            key={e.id}
+                            className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-accent cursor-pointer", checked ? "text-purple-400" : "text-muted-foreground")}
                           >
-                            {checked && <Check className="size-3" />}
-                          </span>
-                          <Layers className="size-3.5" />
-                          <span className="truncate">{e.title}</span>
-                        </label>
-                      )
-                    })}
-                    {allEpics.length === 0 && (
+                            <span
+                              role="checkbox"
+                              aria-checked={checked}
+                              onClick={() => handleEpicToggleCheck(e.id, !checked)}
+                              className={cn(
+                                "flex size-4 shrink-0 items-center justify-center rounded-[4px] border transition-colors cursor-pointer",
+                                checked ? "border-primary bg-primary text-primary-foreground" : "border-input"
+                              )}
+                            >
+                              {checked && <Check className="size-3" />}
+                            </span>
+                            <Layers className="size-3.5" />
+                            <span className="truncate">{e.title}</span>
+                          </label>
+                        )
+                      })}
+                    {allEpics.length === 0 ? (
                       <span className="block px-2 py-1.5 text-xs text-muted-foreground/50">No epics yet</span>
-                    )}
+                    ) : allEpics.filter((e) => !epicSearch.trim() || e.title.toLowerCase().includes(epicSearch.trim().toLowerCase())).length === 0 ? (
+                      <span className="block px-2 py-1.5 text-xs text-muted-foreground/50">No matches</span>
+                    ) : null}
                   </PopoverContent>
                   </Popover>
                 )}
@@ -824,7 +837,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
                         const sColor = STATUS_OPTIONS.find((s) => s.value === blocker.status)?.color
                         return (
                           <div key={dep.id} className="flex items-center gap-2 rounded-md px-2 py-1 text-sm text-muted-foreground hover:bg-accent/50 cursor-pointer" onClick={() => onOpenDetail?.(blocker)}>
-                            <ShieldOff className="size-3.5 shrink-0 text-red-400" />
+                            <ShieldOff className={cn("size-3.5 shrink-0", blocker.status === "done" ? "text-green-400" : "text-red-400")} />
                             <Circle className={cn("size-2.5 shrink-0 fill-current", sColor ?? "text-muted-foreground/40")} />
                             <span className="text-xs text-muted-foreground/40 font-mono">{currentProject?.code ?? "?"}-{blocker.display_id}</span>
                             <span className="flex-1 truncate text-xs">{blocker.title}</span>

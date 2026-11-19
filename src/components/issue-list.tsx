@@ -775,7 +775,6 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                       return (
                         <>
                           <input
-                            autoFocus
                             placeholder="Search epics..."
                             value={linkEpicSearch}
                             onChange={(e) => setLinkEpicSearch(e.target.value)}
@@ -1110,7 +1109,6 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                             return (
                               <>
                                 <input
-                                  autoFocus
                                   placeholder="Search epics..."
                                   value={linkEpicSearch}
                                   onChange={(e) => setLinkEpicSearch(e.target.value)}

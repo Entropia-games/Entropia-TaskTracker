@@ -29,7 +29,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import {   Circle, ChevronDown, Trash2, X, ArrowUp, ArrowDown, ArrowUpDown, Minus, AlertCircle, CircleDot, CircleCheck, CircleOff, Eye, Layers, GitPullRequest, Diamond, Plus, Link, List, LayoutGrid, Loader2, ShieldOff, Shield, Check } from "lucide-react"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
+import {   Circle, ChevronDown, Trash2, X, ArrowUp, ArrowDown, ArrowUpDown, Minus, AlertCircle, CircleDot, CircleCheck, CircleOff, Eye, Layers, GitPullRequest, Diamond, Plus, Link, List, LayoutGrid, Loader2, ShieldOff, Shield, Check, SlidersHorizontal } from "lucide-react"
 import { CreateIssueModal } from "@/components/create-issue-modal"
 import { IssueDetailModal } from "@/components/issue-detail-modal"
 import { IssueContextMenu } from "@/components/issue-context-menu"
@@ -42,6 +48,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { UserDisplayName } from "@/components/ui/display-name"
 import { cn, userAvatarColor } from "@/lib/utils"
 import { useDeptMap } from "@/lib/use-dept-map"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 const statusLabels: Record<IssueStatus, string> = {
   backlog: "Backlog",
@@ -192,6 +199,11 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
   const [showDone, setShowDone] = useState(true)
   const [showBlocked, setShowBlocked] = useState(true)
   const [collapsedStatuses, setCollapsedStatuses] = useState<Set<IssueStatus>>(new Set())
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
+  const isMobile = useIsMobile()
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+  const showMobileFilters = mounted && isMobile
   const [users, setUsers] = useState<Database["public"]["Tables"]["users"]["Row"][]>([])
   const [linkedPRMap, setLinkedPRMap] = useState<Map<number, { count: number; firstUrl: string; firstState: string }>>(new Map())
   const rowClickTarget = useRef<number | null>(null)
@@ -349,279 +361,268 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
       issues: sortedIssues.filter((i) => i.status === status),
     }))
 
+  const sortControl = (
+    <Popover open={openFilter === "sort"} onOpenChange={(o) => setOpenFilter(o ? "sort" : null)}>
+      <PopoverTrigger
+        render={
+          <button className={cn("flex items-center gap-1.5 rounded-md px-2 py-1 text-xs hover:bg-accent", sortBy !== "newest" ? "text-foreground" : "text-muted-foreground")}>
+            <ArrowUpDown className="size-3.5" />
+            {SORT_OPTIONS.find((o) => o.value === sortBy)?.label}
+            <ChevronDown className="size-3" />
+          </button>
+        }
+      />
+      <PopoverContent className="w-44 p-1" align="start" onClick={() => setOpenFilter(null)}>
+        {SORT_OPTIONS.map((o) => (
+          <button key={o.value} className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", sortBy === o.value ? "text-foreground" : "text-muted-foreground")} onClick={() => setSortBy(o.value)}>
+            {o.label}
+          </button>
+        ))}
+      </PopoverContent>
+    </Popover>
+  )
+
+  const filterControlsBody = (
+    <>
+      <span className="flex items-center gap-2 text-sm text-muted-foreground">
+        Enable Done
+        <button
+          onClick={() => setShowDone((v) => !v)}
+          className={cn(
+            "relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border border-border/30 transition-colors",
+            showDone ? "bg-green-500/20 border-green-500/40" : "bg-muted/30",
+          )}
+        >
+          <span className={cn(
+            "inline-block size-3.5 rounded-full transition-transform",
+            showDone ? "translate-x-[18px] bg-green-400" : "translate-x-[2px] bg-muted-foreground/50",
+          )} />
+        </button>
+      </span>
+      <span className="flex items-center gap-2 text-sm text-muted-foreground">
+        Enable Blocked
+        <button
+          onClick={() => setShowBlocked((v) => !v)}
+          className={cn(
+            "relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border border-border/30 transition-colors",
+            showBlocked ? "bg-red-500/20 border-red-500/40" : "bg-muted/30",
+          )}
+        >
+          <span className={cn(
+            "inline-block size-3.5 rounded-full transition-transform",
+            showBlocked ? "translate-x-[18px] bg-red-400" : "translate-x-[2px] bg-muted-foreground/50",
+          )} />
+        </button>
+      </span>
+      <span className="mx-1 hidden h-4 w-px bg-border md:block" />
+      {showTypeFilter && (
+      <Popover open={openFilter === "type"} onOpenChange={(o) => setOpenFilter(o ? "type" : null)}>
+        <PopoverTrigger
+          render={
+            <button className={cn("flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm hover:bg-accent", typeFilter !== "all" ? "text-foreground" : "text-muted-foreground")}>
+              {typeFilter !== "all" ? (TYPE_OPTIONS.find((o) => o.value === typeFilter)?.label ?? typeFilter) : "All types"}
+              <ChevronDown className="size-3" />
+            </button>
+          }
+        />
+        <PopoverContent className="w-36 p-1" align="end" onClick={() => setOpenFilter(null)}>
+          <button className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", typeFilter === "all" ? "text-foreground" : "text-muted-foreground")} onClick={() => setTypeFilter("all")}>All</button>
+          {TYPE_OPTIONS.map((opt) => {
+            const TIcon = opt.icon
+            return (
+              <button key={opt.value} className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", typeFilter === opt.value ? "text-foreground" : "text-muted-foreground")} onClick={() => setTypeFilter(opt.value)}>
+                <TIcon className={cn("size-3.5", opt.color)} />
+                {opt.label}
+              </button>
+            )
+          })}
+        </PopoverContent>
+      </Popover>
+      )}
+      <Popover open={openFilter === "status"} onOpenChange={(o) => setOpenFilter(o ? "status" : null)}>
+        <PopoverTrigger
+          render={
+            <button className={cn("flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm hover:bg-accent", statusFilter ? "text-foreground" : "text-muted-foreground")}>
+              Status{statusFilter ? `: ${statusLabels[statusFilter]}` : ""}
+              <ChevronDown className="size-3" />
+            </button>
+          }
+        />
+        <PopoverContent className="w-40 p-1" align="end" onClick={() => setOpenFilter(null)}>
+          <button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent" onClick={() => setStatusFilter(null)}>All</button>
+          {(["backlog", "todo", "in_progress", "in_review", "done"] as IssueStatus[]).map((s) => {
+            const statusIconMap: Record<string, typeof Circle> = { backlog: CircleOff, todo: Circle, in_progress: CircleDot, in_review: Eye, done: CircleCheck }
+            const statusColorMap: Record<string, string> = { backlog: "text-muted-foreground/40", todo: "text-muted-foreground", in_progress: "text-yellow-400", in_review: "text-violet-400", done: "text-green-400" }
+            const SIcon = statusIconMap[s]
+            return (
+              <button key={s} className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", statusFilter === s ? "text-foreground" : "text-muted-foreground")} onClick={() => setStatusFilter(s)}>
+                <SIcon className={cn("size-3.5", statusColorMap[s])} />
+                {statusLabels[s]}
+              </button>
+            )
+          })}
+        </PopoverContent>
+      </Popover>
+      <Popover open={openFilter === "priority"} onOpenChange={(o) => setOpenFilter(o ? "priority" : null)}>
+        <PopoverTrigger
+          render={
+            <button className={cn("flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm hover:bg-accent", priorityFilter ? "text-foreground" : "text-muted-foreground")}>
+              Priority{priorityFilter ? `: ${priorityFilter}` : ""}
+              <ChevronDown className="size-3" />
+            </button>
+          }
+        />
+        <PopoverContent className="w-40 p-1" align="end" onClick={() => setOpenFilter(null)}>
+          <button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent" onClick={() => setPriorityFilter(null)}>All</button>
+          {(["none", "low", "medium", "high", "urgent"] as IssuePriority[]).map((p) => {
+            const PIcon = priorityIcons[p]
+            return (
+              <button key={p} className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", priorityFilter === p ? "text-foreground" : "text-muted-foreground")} onClick={() => setPriorityFilter(p)}>
+                <PIcon className={cn("size-3.5", priorityColors[p])} />
+                {p}
+              </button>
+            )
+          })}
+        </PopoverContent>
+      </Popover>
+      <Popover open={openFilter === "team"} onOpenChange={(o) => setOpenFilter(o ? "team" : null)}>
+        <PopoverTrigger
+          render={
+            <button className={cn("flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm hover:bg-accent", teamFilter ? "text-foreground" : "text-muted-foreground")}>
+              Team{teamFilter ? `: ${teamFilter}` : ""}
+              <ChevronDown className="size-3" />
+            </button>
+          }
+        />
+        <PopoverContent className="w-32 p-1" align="end" onClick={() => setOpenFilter(null)}>
+          <button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent" onClick={() => setTeamFilter(null)}>All</button>
+          {(["3D", "Concept", "DEV", "QA", "GD", "Sound", "LD", "CM"] as IssueTeam[]).map((t) => (
+            <button key={t} className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", teamFilter === t ? "text-foreground" : "text-muted-foreground")} onClick={() => setTeamFilter(t)}>
+              <Circle className={cn("size-3 fill-current", teamColors[t])} />
+              {t}
+            </button>
+          ))}
+        </PopoverContent>
+      </Popover>
+      {projectMilestones.length > 0 && (
+        <Popover open={openFilter === "milestone"} onOpenChange={(o) => setOpenFilter(o ? "milestone" : null)}>
+          <PopoverTrigger
+            render={
+              <button className={cn("flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm hover:bg-accent", milestoneFilter ? "text-foreground" : "text-muted-foreground")}>
+                <Diamond className={cn("size-3", milestoneFilter ? "text-red-400/60" : "text-muted-foreground/40")} />
+                Milestone{milestoneFilter ? `: ${projectMilestones.find((m) => m.id === milestoneFilter)?.name}` : ""}
+                <ChevronDown className="size-3" />
+              </button>
+            }
+          />
+          <PopoverContent className="w-48 p-1" align="end" onClick={() => setOpenFilter(null)}>
+            <button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent" onClick={() => setMilestoneFilter(null)}>All</button>
+            {projectMilestones.map((m) => (
+              <button key={m.id} className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", milestoneFilter === m.id ? "text-foreground" : "text-muted-foreground")} onClick={() => setMilestoneFilter(m.id)}>
+                <Diamond className="size-3 text-red-400/60 shrink-0" />
+                {m.name}
+              </button>
+            ))}
+          </PopoverContent>
+        </Popover>
+      )}
+      <Popover open={openFilter === "assignee"} onOpenChange={(o) => setOpenFilter(o ? "assignee" : null)}>
+        <PopoverTrigger
+          render={
+            <button className={cn("flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm hover:bg-accent", assigneeFilter ? "text-foreground" : "text-muted-foreground")}>
+              {assigneeFilter === "__none__"
+                ? "Unassigned"
+                : assigneeFilter
+                  ? <><UserDisplayName name={users.find((u) => u.id === assigneeFilter)?.name} email={users.find((u) => u.id === assigneeFilter)?.email ?? ""} displayName={users.find((u) => u.id === assigneeFilter)?.display_name} department={deptMap.get(assigneeFilter ?? "")} /></>
+                  : "Assignee"}
+              <ChevronDown className="size-3" />
+            </button>
+          }
+        />
+        <PopoverContent className="w-48 p-1" align="end" onClick={() => setOpenFilter(null)}>
+          <button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent" onClick={() => setAssigneeFilter(null)}>All</button>
+          <button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent" onClick={() => setAssigneeFilter("__none__")}>
+            <span className="flex size-4 items-center justify-center rounded-full bg-muted-foreground/20 text-[9px]">?</span>
+            Unassigned
+          </button>
+          {users.map((u) => (
+            <button key={u.id} className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", assigneeFilter === u.id ? "text-foreground" : "text-muted-foreground")} onClick={() => setAssigneeFilter(u.id)}>
+              <Avatar className="size-4">
+                <AvatarFallback className={cn(userAvatarColor((u.name ?? u.email)), "text-[9px]")}>{(u.name ?? u.email)[0].toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <UserDisplayName name={u.name} email={u.email} displayName={u.display_name} department={deptMap.get(u.id)} />
+            </button>
+          ))}
+        </PopoverContent>
+      </Popover>
+      <div className="flex items-center rounded-md border border-border/30 p-0.5">
+        <button onClick={() => switchView("list")} className={cn("flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors", view === "list" ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground")}>
+          <List className="size-3.5" />
+          List
+        </button>
+        <button onClick={() => switchView("board")} className={cn("flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors", view === "board" ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground")}>
+          <LayoutGrid className="size-3.5" />
+          Board
+        </button>
+      </div>
+    </>
+  )
+
+  const mobileFilterControls = (
+    <div className="flex flex-col gap-3">
+      {sortControl}
+      {filterControlsBody}
+    </div>
+  )
+
   return (
     <div className="relative flex flex-1 flex-col">
-      <div className="sticky top-0 z-30 flex flex-col gap-2 border-b border-border/50 bg-background px-4 py-3 md:flex-row md:items-center md:justify-between md:px-6">
-        <div className="flex flex-wrap items-center gap-2 md:gap-3">
-          <h1 className="text-sm font-medium">{title}</h1>
-          <Badge variant="secondary" className="rounded-sm text-[11px] font-normal">
-            {filteredIssues.length}
-          </Badge>
-          <Popover open={openFilter === "sort"} onOpenChange={(o) => setOpenFilter(o ? "sort" : null)}>
-            <PopoverTrigger
-              render={
-                <button className={cn("flex items-center gap-1.5 rounded-md px-2 py-1 text-xs hover:bg-accent", sortBy !== "newest" ? "text-foreground" : "text-muted-foreground")}>
-                  <ArrowUpDown className="size-3.5" />
-                  {SORT_OPTIONS.find((o) => o.value === sortBy)?.label}
-                  <ChevronDown className="size-3" />
-                </button>
-              }
-            />
-            <PopoverContent className="w-44 p-1" align="start" onClick={() => setOpenFilter(null)}>
-              {SORT_OPTIONS.map((o) => (
-                <button key={o.value} className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", sortBy === o.value ? "text-foreground" : "text-muted-foreground")} onClick={() => setSortBy(o.value)}>
-                  {o.label}
-                </button>
-              ))}
-            </PopoverContent>
-          </Popover>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 md:flex-nowrap">
-          <span className="flex items-center gap-2 text-sm text-muted-foreground">
-            Enable Done
-            <button
-              onClick={() => setShowDone((v) => !v)}
-              className={cn(
-                "relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border border-border/30 transition-colors",
-                showDone ? "bg-green-500/20 border-green-500/40" : "bg-muted/30",
-              )}
-            >
-              <span className={cn(
-                "inline-block size-3.5 rounded-full transition-transform",
-                showDone ? "translate-x-[18px] bg-green-400" : "translate-x-[2px] bg-muted-foreground/50",
-              )} />
-            </button>
-          </span>
-          <span className="flex items-center gap-2 text-sm text-muted-foreground">
-            Enable Blocked
-            <button
-              onClick={() => setShowBlocked((v) => !v)}
-              className={cn(
-                "relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border border-border/30 transition-colors",
-                showBlocked ? "bg-red-500/20 border-red-500/40" : "bg-muted/30",
-              )}
-            >
-              <span className={cn(
-                "inline-block size-3.5 rounded-full transition-transform",
-                showBlocked ? "translate-x-[18px] bg-red-400" : "translate-x-[2px] bg-muted-foreground/50",
-              )} />
-            </button>
-          </span>
-          <span className="mx-1 hidden h-4 w-px bg-border md:block" />
-          {showTypeFilter && (
-          <Popover open={openFilter === "type"} onOpenChange={(o) => setOpenFilter(o ? "type" : null)}>
-            <PopoverTrigger
-              render={
-                <button className={cn("flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm hover:bg-accent", typeFilter !== "all" ? "text-foreground" : "text-muted-foreground")}>
-                  {typeFilter !== "all" ? (TYPE_OPTIONS.find((o) => o.value === typeFilter)?.label ?? typeFilter) : "All types"}
-                  <ChevronDown className="size-3" />
-                </button>
-              }
-            />
-            <PopoverContent className="w-36 p-1" align="end" onClick={() => setOpenFilter(null)}>
-              <button className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", typeFilter === "all" ? "text-foreground" : "text-muted-foreground")} onClick={() => setTypeFilter("all")}>All</button>
-              {TYPE_OPTIONS.map((opt) => {
-                const TIcon = opt.icon
-                return (
-                  <button key={opt.value} className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", typeFilter === opt.value ? "text-foreground" : "text-muted-foreground")} onClick={() => setTypeFilter(opt.value)}>
-                    <TIcon className={cn("size-3.5", opt.color)} />
-                    {opt.label}
-                  </button>
-                )
-              })}
-            </PopoverContent>
-          </Popover>
-          )}
-          <Popover open={openFilter === "status"} onOpenChange={(o) => setOpenFilter(o ? "status" : null)}>
-            <PopoverTrigger
-              render={
-                <button className={cn("flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm hover:bg-accent", statusFilter ? "text-foreground" : "text-muted-foreground")}>
-                  Status{statusFilter ? `: ${statusLabels[statusFilter]}` : ""}
-                  <ChevronDown className="size-3" />
-                </button>
-              }
-            />
-            <PopoverContent className="w-40 p-1" align="end" onClick={() => setOpenFilter(null)}>
-              <button
-                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent"
-                onClick={() => setStatusFilter(null)}
-              >
-                All
-              </button>
-              {(["backlog", "todo", "in_progress", "in_review", "done"] as IssueStatus[]).map((s) => {
-                const statusIconMap: Record<string, typeof Circle> = { backlog: CircleOff, todo: Circle, in_progress: CircleDot, in_review: Eye, done: CircleCheck }
-                const statusColorMap: Record<string, string> = { backlog: "text-muted-foreground/40", todo: "text-muted-foreground", in_progress: "text-yellow-400", in_review: "text-violet-400", done: "text-green-400" }
-                const SIcon = statusIconMap[s]
-                return (
-                  <button
-                    key={s}
-                    className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", statusFilter === s ? "text-foreground" : "text-muted-foreground")}
-                    onClick={() => setStatusFilter(s)}
-                  >
-                    <SIcon className={cn("size-3.5", statusColorMap[s])} />
-                    {statusLabels[s]}
-                  </button>
-                )
-              })}
-            </PopoverContent>
-          </Popover>
-          <Popover open={openFilter === "priority"} onOpenChange={(o) => setOpenFilter(o ? "priority" : null)}>
-            <PopoverTrigger
-              render={
-                <button className={cn("flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm hover:bg-accent", priorityFilter ? "text-foreground" : "text-muted-foreground")}>
-                  Priority{priorityFilter ? `: ${priorityFilter}` : ""}
-                  <ChevronDown className="size-3" />
-                </button>
-              }
-            />
-            <PopoverContent className="w-40 p-1" align="end" onClick={() => setOpenFilter(null)}>
-              <button
-                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent"
-                onClick={() => setPriorityFilter(null)}
-              >
-                All
-              </button>
-              {(["none", "low", "medium", "high", "urgent"] as IssuePriority[]).map((p) => {
-                const PIcon = priorityIcons[p]
-                return (
-                  <button
-                    key={p}
-                    className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", priorityFilter === p ? "text-foreground" : "text-muted-foreground")}
-                    onClick={() => setPriorityFilter(p)}
-                  >
-                    <PIcon className={cn("size-3.5", priorityColors[p])} />
-                    {p}
-                  </button>
-                )
-              })}
-            </PopoverContent>
-          </Popover>
-          <Popover open={openFilter === "team"} onOpenChange={(o) => setOpenFilter(o ? "team" : null)}>
-            <PopoverTrigger
-              render={
-                <button className={cn("flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm hover:bg-accent", teamFilter ? "text-foreground" : "text-muted-foreground")}>
-                  Team{teamFilter ? `: ${teamFilter}` : ""}
-                  <ChevronDown className="size-3" />
-                </button>
-              }
-            />
-            <PopoverContent className="w-32 p-1" align="end" onClick={() => setOpenFilter(null)}>
-              <button
-                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent"
-                onClick={() => setTeamFilter(null)}
-              >
-                All
-              </button>
-              {(["3D", "Concept", "DEV", "QA", "GD", "Sound", "LD", "CM"] as IssueTeam[]).map((t) => (
-                <button
-                  key={t}
-                  className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", teamFilter === t ? "text-foreground" : "text-muted-foreground")}
-                  onClick={() => setTeamFilter(t)}
-                >
-                  <Circle className={cn("size-3 fill-current", teamColors[t])} />
-                  {t}
-                </button>
-              ))}
-            </PopoverContent>
-          </Popover>
-          {projectMilestones.length > 0 && (
-            <Popover open={openFilter === "milestone"} onOpenChange={(o) => setOpenFilter(o ? "milestone" : null)}>
-              <PopoverTrigger
-                render={
-                  <button className={cn("flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm hover:bg-accent", milestoneFilter ? "text-foreground" : "text-muted-foreground")}>
-                    <Diamond className={cn("size-3", milestoneFilter ? "text-red-400/60" : "text-muted-foreground/40")} />
-                    Milestone{milestoneFilter ? `: ${projectMilestones.find((m) => m.id === milestoneFilter)?.name}` : ""}
-                    <ChevronDown className="size-3" />
-                  </button>
-                }
-              />
-              <PopoverContent className="w-48 p-1" align="end" onClick={() => setOpenFilter(null)}>
-                <button
-                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent"
-                  onClick={() => setMilestoneFilter(null)}
-                >
-                  All
-                </button>
-                {projectMilestones.map((m) => (
-                  <button
-                    key={m.id}
-                    className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", milestoneFilter === m.id ? "text-foreground" : "text-muted-foreground")}
-                    onClick={() => setMilestoneFilter(m.id)}
-                  >
-                    <Diamond className="size-3 text-red-400/60 shrink-0" />
-                    {m.name}
-                  </button>
-                ))}
-              </PopoverContent>
-            </Popover>
-          )}
-          <Popover open={openFilter === "assignee"} onOpenChange={(o) => setOpenFilter(o ? "assignee" : null)}>
-            <PopoverTrigger
-              render={
-                <button className={cn("flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm hover:bg-accent", assigneeFilter ? "text-foreground" : "text-muted-foreground")}>
-                  {assigneeFilter === "__none__"
-                    ? "Unassigned"
-                    : assigneeFilter
-                      ? <>
-  <UserDisplayName name={users.find((u) => u.id === assigneeFilter)?.name} email={users.find((u) => u.id === assigneeFilter)?.email ?? ""} displayName={users.find((u) => u.id === assigneeFilter)?.display_name} department={deptMap.get(assigneeFilter ?? "")} />
-
-</>
-                      : "Assignee"}
-                  <ChevronDown className="size-3" />
-                </button>
-              }
-            />
-            <PopoverContent className="w-48 p-1" align="end" onClick={() => setOpenFilter(null)}>
-              <button
-                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent"
-                onClick={() => setAssigneeFilter(null)}
-              >
-                All
-              </button>
-              <button
-                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent"
-                onClick={() => setAssigneeFilter("__none__")}
-              >
-                <span className="flex size-4 items-center justify-center rounded-full bg-muted-foreground/20 text-[9px]">?</span>
-                Unassigned
-              </button>
-              {users.map((u) => (
-                <button
-                  key={u.id}
-                  className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent", assigneeFilter === u.id ? "text-foreground" : "text-muted-foreground")}
-                  onClick={() => setAssigneeFilter(u.id)}
-                >
-                  <Avatar className="size-4">
-                    <AvatarFallback className={cn(userAvatarColor((u.name ?? u.email)), "text-[9px]")}>
-                      {(u.name ?? u.email)[0].toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <UserDisplayName name={u.name} email={u.email} displayName={u.display_name} department={deptMap.get(u.id)} />
-                </button>
-              ))}
-            </PopoverContent>
-          </Popover>
-          <div className="flex items-center rounded-md border border-border/30 p-0.5">
-            <button
-              onClick={() => switchView("list")}
-              className={cn("flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors", view === "list" ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground")}
-            >
-              <List className="size-3.5" />
-              List
-            </button>
-            <button
-              onClick={() => switchView("board")}
-              className={cn("flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors", view === "board" ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground")}
-            >
-              <LayoutGrid className="size-3.5" />
-              Board
-            </button>
+      <div className="sticky top-0 z-30 border-b border-border/50 bg-background px-4 py-3 md:px-6">
+        {showMobileFilters ? (
+          <>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <h1 className="truncate text-sm font-medium">{title}</h1>
+                <Badge variant="secondary" className="rounded-sm text-[11px] font-normal">
+                  {filteredIssues.length}
+                </Badge>
+              </div>
+              <div className="flex items-center gap-2">
+                <CreateIssueModal />
+                <Button variant="outline" size="sm" className="h-8 gap-1.5 px-2.5 text-xs" onClick={() => setMobileFiltersOpen(true)}>
+                  <SlidersHorizontal className="size-3.5" />
+                  Filters
+                </Button>
+              </div>
+            </div>
+            <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
+              <SheetContent side="right" className="w-[85vw] max-w-sm overflow-y-auto p-0">
+                <SheetHeader className="border-b border-border/50 px-4 py-3">
+                  <SheetTitle>Filters &amp; View</SheetTitle>
+                </SheetHeader>
+                <div className="flex flex-col gap-3 p-4">
+                  {mobileFilterControls}
+                </div>
+              </SheetContent>
+            </Sheet>
+          </>
+        ) : (
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-wrap items-center gap-2 md:gap-3">
+              <h1 className="text-sm font-medium">{title}</h1>
+              <Badge variant="secondary" className="rounded-sm text-[11px] font-normal">
+                {filteredIssues.length}
+              </Badge>
+              {sortControl}
+            </div>
+            <div className="flex flex-wrap items-center gap-2 md:flex-nowrap">
+              {filterControlsBody}
+              <span className="mx-1 hidden h-4 w-px bg-border md:block" />
+              <CreateIssueModal />
+            </div>
           </div>
-          <span className="mx-1 hidden h-4 w-px bg-border md:block" />
-          <CreateIssueModal />
-        </div>
+        )}
       </div>
-
       {view === "board" ? (
         <DndContext sensors={sensors} collisionDetection={boardCollisionDetection} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
           <div className="flex-1 overflow-auto flex gap-4 p-4 md:p-6">

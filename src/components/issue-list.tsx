@@ -48,7 +48,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { UserDisplayName } from "@/components/ui/display-name"
 import { cn, userAvatarColor } from "@/lib/utils"
 import { useDeptMap } from "@/lib/use-dept-map"
-import { useIsMobile } from "@/hooks/use-mobile"
 
 const statusLabels: Record<IssueStatus, string> = {
   backlog: "Backlog",
@@ -200,10 +199,6 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
   const [showBlocked, setShowBlocked] = useState(true)
   const [collapsedStatuses, setCollapsedStatuses] = useState<Set<IssueStatus>>(new Set())
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
-  const isMobile = useIsMobile()
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => setMounted(true), [])
-  const showMobileFilters = mounted && isMobile
   const [users, setUsers] = useState<Database["public"]["Tables"]["users"]["Row"][]>([])
   const [linkedPRMap, setLinkedPRMap] = useState<Map<number, { count: number; firstUrl: string; firstState: string }>>(new Map())
   const rowClickTarget = useRef<number | null>(null)
@@ -578,50 +573,36 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
   return (
     <div className="relative flex flex-1 flex-col">
       <div className="sticky top-0 z-30 border-b border-border/50 bg-background px-4 py-3 md:px-6">
-        {showMobileFilters ? (
-          <>
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex min-w-0 items-center gap-2">
-                <h1 className="truncate text-sm font-medium">{title}</h1>
-                <Badge variant="secondary" className="rounded-sm text-[11px] font-normal">
-                  {filteredIssues.length}
-                </Badge>
-              </div>
-              <div className="flex items-center gap-2">
-                <CreateIssueModal />
-                <Button variant="outline" size="sm" className="h-8 gap-1.5 px-2.5 text-xs" onClick={() => setMobileFiltersOpen(true)}>
-                  <SlidersHorizontal className="size-3.5" />
-                  Filters
-                </Button>
-              </div>
-            </div>
-            <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
-              <SheetContent side="right" className="w-[85vw] max-w-sm overflow-y-auto p-0">
-                <SheetHeader className="border-b border-border/50 px-4 py-3">
-                  <SheetTitle>Filters &amp; View</SheetTitle>
-                </SheetHeader>
-                <div className="flex flex-col gap-3 p-4">
-                  {mobileFilterControls}
-                </div>
-              </SheetContent>
-            </Sheet>
-          </>
-        ) : (
-          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-            <div className="flex flex-wrap items-center gap-2 md:gap-3">
-              <h1 className="text-sm font-medium">{title}</h1>
-              <Badge variant="secondary" className="rounded-sm text-[11px] font-normal">
-                {filteredIssues.length}
-              </Badge>
-              {sortControl}
-            </div>
-            <div className="flex flex-wrap items-center gap-2 md:flex-nowrap">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2 md:gap-3">
+            <h1 className="truncate text-sm font-medium">{title}</h1>
+            <Badge variant="secondary" className="rounded-sm text-[11px] font-normal">
+              {filteredIssues.length}
+            </Badge>
+            <div className="hidden md:block">{sortControl}</div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="hidden md:flex md:flex-wrap md:items-center md:gap-2 md:flex-nowrap">
               {filterControlsBody}
               <span className="mx-1 hidden h-4 w-px bg-border md:block" />
-              <CreateIssueModal />
             </div>
+            <CreateIssueModal />
+            <Button variant="outline" size="sm" className="h-8 gap-1.5 px-2.5 text-xs md:hidden" onClick={() => setMobileFiltersOpen(true)}>
+              <SlidersHorizontal className="size-3.5" />
+              Filters
+            </Button>
           </div>
-        )}
+        </div>
+        <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
+          <SheetContent side="right" className="w-[85vw] max-w-sm overflow-y-auto p-0 md:hidden">
+            <SheetHeader className="border-b border-border/50 px-4 py-3">
+              <SheetTitle>Filters &amp; View</SheetTitle>
+            </SheetHeader>
+            <div className="flex flex-col gap-3 p-4">
+              {mobileFilterControls}
+            </div>
+          </SheetContent>
+        </Sheet>
       </div>
       {view === "board" ? (
         <DndContext sensors={sensors} collisionDetection={boardCollisionDetection} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
@@ -994,17 +975,18 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                 {!collapsedStatuses.has(group.status) && group.issues.map((issue) => (
                   <div
                     key={issue.id}
-                    className={cn("group mx-3 flex cursor-pointer flex-wrap items-center gap-x-2 gap-y-1 rounded-lg px-3 py-2 transition-colors hover:bg-accent/30 md:flex-nowrap md:gap-3 md:py-2.5", selectedIds.has(issue.id) && "bg-accent/20")}
+                    className={cn("group mx-3 flex cursor-pointer flex-nowrap items-center gap-2 rounded-lg px-3 py-2 transition-colors hover:bg-accent/30 md:gap-3 md:py-2.5", selectedIds.has(issue.id) && "bg-accent/20")}
                     onClick={(e) => { if (openTeamPopover === issue.id || openMilestonePopover === issue.id || openAssigneePopover === issue.id || openLinkPopover === issue.id || openPriorityPopover === issue.id) return; if ((e.target as HTMLElement).closest("[data-pr-link], [data-team-btn], [data-milestone-btn], [data-assignee-btn], [data-link-btn], [data-priority-btn]")) return; requireAuth(() => setDetailIssueId(issue.id)) }}
                     onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setCtxMenu({ issue, x: e.clientX, y: e.clientY }) }}
                   >
-                    <div onClick={(e) => e.stopPropagation()}>
+                    <div className="hidden md:block" onClick={(e) => e.stopPropagation()}>
                       <Checkbox
                         checked={selectedIds.has(issue.id)}
                         onCheckedChange={() => toggleSelect(issue.id)}
                         className={`size-4 ${selectedIds.has(issue.id) ? "opacity-100" : "opacity-100 md:opacity-0 md:group-hover:opacity-100"}`}
                       />
                     </div>
+                    <div className="hidden md:block">
                     <Popover open={openPriorityPopover === issue.id} onOpenChange={(v) => setOpenPriorityPopover(v ? issue.id : null)}>
                       <PopoverTrigger
                         render={
@@ -1036,20 +1018,21 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                         })}
                       </PopoverContent>
                     </Popover>
-                    <span className="flex w-5 shrink-0 items-center justify-center">{issue.issue_type && issue.issue_type !== "task" && (() => {
+                    </div>
+                    <span className="hidden md:flex w-5 shrink-0 items-center justify-center">{issue.issue_type && issue.issue_type !== "task" && (() => {
                       const TypeIcon = issueTypeIcon(issue.issue_type)
                       return <TypeIcon className={cn("size-4 shrink-0", issueTypeColor(issue.issue_type))} />
                     })()}</span>
                     <span className={cn("min-w-[4rem] text-sm font-mono", issue.status === "done" ? "text-muted-foreground/30 line-through" : "text-muted-foreground/60")}>
                       {currentProject?.code ?? "?"}-{issue.display_id}
                     </span>
-                    <span className="order-last min-w-0 basis-full truncate pl-7 text-sm md:order-none md:basis-auto md:flex-1 md:pl-0">{issue.title}</span>
+                    <span className="min-w-0 flex-1 truncate text-sm">{issue.title}</span>
                     {blockedIds.has(issue.id) && (() => {
                       const blockerIds = blockersByIssue.get(issue.id) ?? []
                       const allBlockersDone = blockerIds.length > 0 && blockerIds.every((id) => allIssues.find((i) => i.id === id)?.status === "done")
-                      return <ShieldOff className={cn("size-3.5 shrink-0", allBlockersDone ? "text-green-400" : "text-red-400")} />
+                      return <ShieldOff className={cn("hidden md:block size-3.5 shrink-0", allBlockersDone ? "text-green-400" : "text-red-400")} />
                     })()}
-                    <span className="flex w-5 shrink-0 items-center justify-center">{linkedPRMap.has(issue.id) && (() => {
+                    <span className="hidden w-5 shrink-0 items-center justify-center md:flex">{linkedPRMap.has(issue.id) && (() => {
                       const pr = linkedPRMap.get(issue.id)!
                       const isMerged = pr.firstState === "merged"
                       const isClosed = pr.firstState === "closed"
@@ -1072,7 +1055,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                     })()}                  </span>
                     {!issue.is_epic && (
                       <Popover open={openLinkPopover === issue.id} onOpenChange={(v) => { setOpenLinkPopover(v ? issue.id : null); setLinkEpicSearch("") }}>
-                        <div className="relative">
+                        <div className="relative hidden md:block">
                           <PopoverTrigger
                             render={
                               <button

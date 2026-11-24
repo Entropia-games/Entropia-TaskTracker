@@ -21,6 +21,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { wikiLinkNode, wikiLinkRemark, wikiLinkInputRule } from "./wiki-link-plugin"
+import { bracketPairPlugin } from "./bracket-pair-plugin"
 import { WikiLinkAutocomplete } from "./wiki-link-autocomplete"
 
 function checkAutocomplete(view: { state: { doc: { textBetween: (from: number, to: number) => string }; selection: { $from: { pos: number; parentOffset: number; parent: { textContent: string }; start: () => number } } }; coordsAtPos: (pos: number) => { top: number; bottom: number; left: number } }) {
@@ -279,6 +280,7 @@ function EditorContent() {
       crepe.editor.use(wikiLinkNode)
       crepe.editor.use(wikiLinkRemark)
       crepe.editor.use(wikiLinkInputRule)
+      crepe.editor.use(bracketPairPlugin)
 
       crepe.on((listener) => {
         listener
@@ -292,6 +294,23 @@ function EditorContent() {
               lastSavedMarkdownRef.current = markdown
               updateDocument(docId, { content: markdown })
             }, 800)
+
+            try {
+              const view = crepe.editor.action((c) => c.get(editorViewCtx))
+              const result = checkAutocomplete(view)
+              if (result) {
+                setAutocomplete({
+                  active: true,
+                  query: result.query,
+                  position: result.position,
+                  triggerFrom: result.triggerFrom,
+                })
+              } else {
+                setAutocomplete((prev) => (prev.active ? { ...prev, active: false } : prev))
+              }
+            } catch {
+              // ignore
+            }
           })
           .selectionUpdated((_ctx, _selection) => {
             try {

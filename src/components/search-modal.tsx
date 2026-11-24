@@ -85,7 +85,7 @@ export function SearchModal({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="!rounded-xl !p-0 !gap-0 top-[15%] translate-y-0 max-w-lg">
+      <DialogContent className="!rounded-xl !p-0 !gap-0 top-[15%] translate-y-0 max-w-lg max-md:!inset-x-0 max-md:!top-0 max-md:!left-0 max-md:!h-[100dvh] max-md:!max-h-[100dvh] max-md:!w-full max-md:!max-w-full max-md:!translate-x-0 max-md:!translate-y-0 max-md:!rounded-none">
         <DialogTitle className="sr-only">Search</DialogTitle>
         <div className="flex items-center gap-2 border-b border-border/30 px-4 py-3">
           <Search className="size-4 shrink-0 text-muted-foreground/50" />

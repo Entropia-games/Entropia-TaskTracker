@@ -408,7 +408,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
 
   return (
     <Dialog open={show} onOpenChange={onOpenChange}>
-      <DialogContent className="!max-w-xl !max-h-[90vh] !overflow-y-auto !rounded-xl !border-0 !p-0 sm:!max-w-xl" showCloseButton={false}>
+      <DialogContent className="!max-w-xl !max-h-[90vh] !overflow-y-auto !rounded-xl !border-0 !p-0 sm:!max-w-xl max-md:!inset-0 max-md:!top-0 max-md:!left-0 max-md:!h-[100dvh] max-md:!max-h-[100dvh] max-md:!w-full max-md:!max-w-full max-md:!translate-x-0 max-md:!translate-y-0 max-md:!rounded-none" showCloseButton={false}>
         <DialogTitle className="sr-only">{currentProject?.code ?? "?"}-{data.display_id}</DialogTitle>
         <div className="flex flex-col gap-0">
           <div className="flex flex-col gap-4 px-5 pb-6 pt-6">

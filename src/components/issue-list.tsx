@@ -351,8 +351,8 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
 
   return (
     <div className="relative flex flex-1 flex-col">
-      <div className="sticky top-0 z-30 flex items-center justify-between border-b border-border/50 bg-background px-6 py-3">
-        <div className="flex items-center gap-3">
+      <div className="sticky top-0 z-30 flex flex-col gap-2 border-b border-border/50 bg-background px-4 py-3 md:flex-row md:items-center md:justify-between md:px-6">
+        <div className="flex flex-wrap items-center gap-2 md:gap-3">
           <h1 className="text-sm font-medium">{title}</h1>
           <Badge variant="secondary" className="rounded-sm text-[11px] font-normal">
             {filteredIssues.length}
@@ -376,7 +376,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
             </PopoverContent>
           </Popover>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 md:flex-nowrap">
           <span className="flex items-center gap-2 text-sm text-muted-foreground">
             Enable Done
             <button
@@ -407,7 +407,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
               )} />
             </button>
           </span>
-          <span className="mx-1 h-4 w-px bg-border" />
+          <span className="mx-1 hidden h-4 w-px bg-border md:block" />
           {showTypeFilter && (
           <Popover open={openFilter === "type"} onOpenChange={(o) => setOpenFilter(o ? "type" : null)}>
             <PopoverTrigger
@@ -617,14 +617,14 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
               Board
             </button>
           </div>
-          <span className="mx-1 h-4 w-px bg-border" />
+          <span className="mx-1 hidden h-4 w-px bg-border md:block" />
           <CreateIssueModal />
         </div>
       </div>
 
       {view === "board" ? (
         <DndContext sensors={sensors} collisionDetection={boardCollisionDetection} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
-          <div className="flex-1 overflow-auto flex gap-4 p-6">
+          <div className="flex-1 overflow-auto flex gap-4 p-4 md:p-6">
             {(["backlog", "todo", "in_progress", "in_review", "done"] as IssueStatus[])
               .filter((s) => showDone || s !== "done")
               .map((status) => {
@@ -669,7 +669,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                                 <Checkbox
                                   checked={selectedIds.has(issue.id)}
                                   onCheckedChange={() => toggleSelect(issue.id)}
-                                  className={`size-4 ${selectedIds.has(issue.id) ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+                                  className={`size-4 ${selectedIds.has(issue.id) ? "opacity-100" : "opacity-100 md:opacity-0 md:group-hover:opacity-100"}`}
                                 />
                               </div>
                             </div>
@@ -743,7 +743,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                         <button
                           data-link-btn
                           onClick={(e) => e.stopPropagation()}
-                          className={cn("peer flex size-7 shrink-0 items-center justify-center rounded border border-transparent transition-colors hover:border-border/30 hover:bg-accent", (issueEpics[issue.id]?.length ?? 0) > 0 ? "text-purple-400" : "text-transparent group-hover:text-muted-foreground/50")}
+                          className={cn("peer flex size-7 shrink-0 items-center justify-center rounded border border-transparent transition-colors hover:border-border/30 hover:bg-accent", (issueEpics[issue.id]?.length ?? 0) > 0 ? "text-purple-400" : "text-muted-foreground/30 md:text-transparent md:group-hover:text-muted-foreground/50")}
                         >
                           <Link className="size-3.5" />
                         </button>
@@ -993,7 +993,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                 {!collapsedStatuses.has(group.status) && group.issues.map((issue) => (
                   <div
                     key={issue.id}
-                    className={cn("group mx-3 flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-accent/30", selectedIds.has(issue.id) && "bg-accent/20")}
+                    className={cn("group mx-3 flex cursor-pointer flex-wrap items-center gap-x-2 gap-y-1 rounded-lg px-3 py-2 transition-colors hover:bg-accent/30 md:flex-nowrap md:gap-3 md:py-2.5", selectedIds.has(issue.id) && "bg-accent/20")}
                     onClick={(e) => { if (openTeamPopover === issue.id || openMilestonePopover === issue.id || openAssigneePopover === issue.id || openLinkPopover === issue.id || openPriorityPopover === issue.id) return; if ((e.target as HTMLElement).closest("[data-pr-link], [data-team-btn], [data-milestone-btn], [data-assignee-btn], [data-link-btn], [data-priority-btn]")) return; requireAuth(() => setDetailIssueId(issue.id)) }}
                     onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setCtxMenu({ issue, x: e.clientX, y: e.clientY }) }}
                   >
@@ -1001,7 +1001,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                       <Checkbox
                         checked={selectedIds.has(issue.id)}
                         onCheckedChange={() => toggleSelect(issue.id)}
-                        className={`size-4 ${selectedIds.has(issue.id) ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+                        className={`size-4 ${selectedIds.has(issue.id) ? "opacity-100" : "opacity-100 md:opacity-0 md:group-hover:opacity-100"}`}
                       />
                     </div>
                     <Popover open={openPriorityPopover === issue.id} onOpenChange={(v) => setOpenPriorityPopover(v ? issue.id : null)}>
@@ -1042,7 +1042,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                     <span className={cn("min-w-[4rem] text-sm font-mono", issue.status === "done" ? "text-muted-foreground/30 line-through" : "text-muted-foreground/60")}>
                       {currentProject?.code ?? "?"}-{issue.display_id}
                     </span>
-                    <span className="min-w-0 flex-1 truncate text-sm">{issue.title}</span>
+                    <span className="order-last min-w-0 basis-full truncate pl-7 text-sm md:order-none md:basis-auto md:flex-1 md:pl-0">{issue.title}</span>
                     {blockedIds.has(issue.id) && (() => {
                       const blockerIds = blockersByIssue.get(issue.id) ?? []
                       const allBlockersDone = blockerIds.length > 0 && blockerIds.every((id) => allIssues.find((i) => i.id === id)?.status === "done")
@@ -1077,7 +1077,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                               <button
                                 data-link-btn
                                 onClick={(e) => e.stopPropagation()}
-                                className={cn("peer flex size-7 shrink-0 items-center justify-center rounded border border-transparent transition-colors hover:border-border/30 hover:bg-accent", (issueEpics[issue.id]?.length ?? 0) > 0 ? "text-purple-400" : "text-transparent group-hover:text-muted-foreground/50")}
+                                className={cn("peer flex size-7 shrink-0 items-center justify-center rounded border border-transparent transition-colors hover:border-border/30 hover:bg-accent", (issueEpics[issue.id]?.length ?? 0) > 0 ? "text-purple-400" : "text-muted-foreground/30 md:text-transparent md:group-hover:text-muted-foreground/50")}
                               >
                                 <Link className="size-3.5" />
                               </button>
@@ -1165,6 +1165,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                         </PopoverContent>
                       </Popover>
                     )}
+                    <div className="hidden md:block">
                     <Popover open={openTeamPopover === issue.id} onOpenChange={(v) => setOpenTeamPopover(v ? issue.id : null)}>
                       <PopoverTrigger
                         render={
@@ -1197,6 +1198,8 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                         ))}
                       </PopoverContent>
                     </Popover>
+                    </div>
+                    <div className="hidden md:block">
                     <Popover open={openMilestonePopover === issue.id} onOpenChange={(v) => setOpenMilestonePopover(v ? issue.id : null)}>
                       <PopoverTrigger
                         render={
@@ -1233,17 +1236,18 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                         ))}
                       </PopoverContent>
                     </Popover>
+                    </div>
                     <Popover open={openAssigneePopover === issue.id} onOpenChange={(v) => setOpenAssigneePopover(v ? issue.id : null)}>
                       <PopoverTrigger
                         render={
                           <button
                             data-assignee-btn
                             onClick={(e) => e.stopPropagation()}
-                            className={cn("flex w-36 shrink-0 items-center justify-end gap-1.5 rounded border px-1 py-0.5 text-sm font-medium transition-colors hover:bg-accent", issue.assignee_id && userMap.has(issue.assignee_id) ? "border-border/30" : "border-dashed border-transparent group-hover:border-border/30 text-transparent group-hover:text-muted-foreground/40 hover:border-border/60 hover:text-muted-foreground/70")}
+                            className={cn("flex w-auto shrink-0 items-center justify-end gap-1.5 rounded border px-1 py-0.5 text-sm font-medium transition-colors hover:bg-accent md:w-36", issue.assignee_id && userMap.has(issue.assignee_id) ? "border-border/30" : "border-dashed border-transparent text-muted-foreground/50 hover:border-border/60 hover:text-muted-foreground/70 md:text-transparent md:group-hover:border-border/30 md:group-hover:text-muted-foreground/40")}
                           >
                             {issue.assignee_id && userMap.has(issue.assignee_id) ? (
                               <>
-                                <span className="text-sm text-muted-foreground truncate">
+                                <span className="hidden text-sm text-muted-foreground truncate md:inline">
                                   <UserDisplayName name={userMap.get(issue.assignee_id)?.name} email={userMap.get(issue.assignee_id)?.email ?? ""} displayName={userMap.get(issue.assignee_id)?.display_name} department={deptMap.get(issue.assignee_id)} />
                                 </span>
                                 <Avatar className="size-6">
@@ -1253,7 +1257,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                                 </Avatar>
                               </>
                             ) : (
-                              <><Plus className="size-3 mr-0.5 shrink-0" />Assignee</>
+                              <><Plus className="size-3 shrink-0 md:mr-0.5" /><span className="hidden md:inline">Assignee</span></>
                             )}
                           </button>
                         }
@@ -1289,7 +1293,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
       )}
 
       {selectedIds.size > 0 && (
-        <div className="sticky bottom-0 flex items-center justify-between border-t border-border/50 bg-background px-6 py-2.5">
+        <div className="sticky bottom-0 flex items-center justify-between border-t border-border/50 bg-background px-4 py-2.5 md:px-6">
           <div className="flex items-center gap-3">
             <span className="text-xs text-muted-foreground">
               {selectedIds.size} selected

@@ -269,7 +269,7 @@ export function CreateIssueModal() {
       </button>
       <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
-        className="!max-w-3xl !max-h-[90vh] !overflow-y-auto !rounded-xl !border-0 !p-0 !pb-1 sm:!max-w-3xl"
+        className="!max-w-3xl !max-h-[90vh] !overflow-y-auto !rounded-xl !border-0 !p-0 !pb-1 sm:!max-w-3xl max-md:!inset-0 max-md:!top-0 max-md:!left-0 max-md:!h-[100dvh] max-md:!max-h-[100dvh] max-md:!w-full max-md:!max-w-full max-md:!translate-x-0 max-md:!translate-y-0 max-md:!rounded-none"
         showCloseButton={false}
       >
         <DialogTitle className="sr-only">Create issue</DialogTitle>

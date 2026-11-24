@@ -84,7 +84,7 @@ export function NewIssueDialog() {
         New Issue
       </button>
       <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="!max-w-xl !rounded-xl !p-0" showCloseButton={false}>
+      <DialogContent className="!max-w-xl !rounded-xl !p-0 max-md:!inset-0 max-md:!top-0 max-md:!left-0 max-md:!h-[100dvh] max-md:!max-h-[100dvh] max-md:!w-full max-md:!max-w-full max-md:!translate-x-0 max-md:!translate-y-0 max-md:!rounded-none" showCloseButton={false}>
         <DialogTitle className="sr-only">Create issue</DialogTitle>
         <div className="flex flex-col gap-0">
           <div className="flex flex-col gap-4 px-5 pb-2 pt-6">

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -22,6 +22,11 @@ export const metadata: Metadata = {
   description: "Project management",
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -41,7 +46,7 @@ export default function RootLayout({
             <DocsProvider>
             <SidebarProvider defaultOpen={true}>
               <AppSidebar />
-              <main className="flex flex-1 flex-col">
+              <main className="flex min-w-0 flex-1 flex-col">
                 <div className="flex items-center gap-2 border-b border-border/50 px-4 py-2">
                   <SidebarTrigger />
                 </div>

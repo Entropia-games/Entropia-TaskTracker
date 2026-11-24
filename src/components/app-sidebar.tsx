@@ -16,6 +16,7 @@ import {
 import { useState, useCallback, useEffect } from "react"
 import { SearchModal } from "@/components/search-modal"
 import { useRouter, usePathname } from "next/navigation"
+import { useSidebar } from "@/components/ui/sidebar"
 import {
   List,
   CircleDot,
@@ -78,6 +79,11 @@ export function AppSidebar() {
   const [logoutOpen, setLogoutOpen] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
+  const { isMobile, setOpenMobile } = useSidebar()
+
+  useEffect(() => {
+    setOpenMobile(false)
+  }, [pathname, setOpenMobile])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -89,7 +95,8 @@ export function AppSidebar() {
 
   const navigate = useCallback((href: string) => {
     if (href !== "#") router.push(href)
-  }, [router])
+    if (isMobile) setOpenMobile(false)
+  }, [isMobile, router, setOpenMobile])
 
   const visibleNavItems = navItems.filter(
     (item) => {

@@ -142,7 +142,7 @@ function SortableSectionHeader({
         <GripVertical className="size-3.5" />
       </button>
       <button
-        className="flex items-center gap-1.5 flex-1 min-w-0"
+        className="flex items-center gap-1.5 flex-1 min-w-0 cursor-pointer"
         onClick={onToggle}
       >
         {expanded ? (
@@ -169,7 +169,7 @@ function SortableSectionHeader({
             onClick={(e) => e.stopPropagation()}
           />
         ) : (
-          <span className="truncate text-sm">{section.name}</span>
+          <span className="truncate text-sm cursor-pointer">{section.name}</span>
         )}
       </button>
       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100">
@@ -250,7 +250,7 @@ function SortableDoc({
           <GripVertical className="size-3.5" />
         </button>
         <button
-          className="flex items-center gap-1.5 flex-1 min-w-0"
+          className="flex items-center gap-1.5 flex-1 min-w-0 cursor-pointer"
           onClick={() => onSelectDoc(doc)}
         >
           <FileText className="size-5 shrink-0" />
@@ -268,7 +268,7 @@ function SortableDoc({
               onClick={(e) => e.stopPropagation()}
             />
           ) : (
-            <span className="truncate text-sm cursor-default">{doc.title}</span>
+            <span className="truncate text-sm cursor-pointer">{doc.title}</span>
           )}
         </button>
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100">

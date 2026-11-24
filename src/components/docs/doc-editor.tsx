@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef, useCallback, useEffect } from "react"
+import { useRouter } from "next/navigation"
 
 import { Milkdown, MilkdownProvider, useEditor } from "@milkdown/react"
 import { Crepe } from "@milkdown/crepe"
@@ -51,6 +52,7 @@ function EditorContent() {
   const { activeDocument, updateDocument, deleteDocument, documents } = useDocs()
   const [localTitle, setLocalTitle] = useState(activeDocument?.title ?? "")
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const router = useRouter()
   const [autocomplete, setAutocomplete] = useState<{
     active: boolean
     query: string
@@ -161,23 +163,41 @@ function EditorContent() {
     }
 
     const handleClick = (e: Event) => {
-      const link = isWikiLink((e as MouseEvent).target as HTMLElement)
+      const me = e as MouseEvent
+      const link = isWikiLink(me.target as HTMLElement)
       if (!link) return
       e.preventDefault()
       e.stopPropagation()
       const docId = link.getAttribute("data-doc-id")
-      if (docId) {
-        window.open(`/docs?doc=${docId}`, "_blank")
+      if (!docId) return
+      const href = `/docs?doc=${docId}`
+      if (me.metaKey || me.ctrlKey) {
+        window.open(href, "_blank")
+      } else {
+        router.push(href, { scroll: false })
       }
+    }
+
+    const handleAuxClick = (e: Event) => {
+      const me = e as MouseEvent
+      if (me.button !== 1) return
+      const link = isWikiLink(me.target as HTMLElement)
+      if (!link) return
+      e.preventDefault()
+      e.stopPropagation()
+      const docId = link.getAttribute("data-doc-id")
+      if (docId) window.open(`/docs?doc=${docId}`, "_blank")
     }
 
     container.addEventListener("pointerdown", handlePointerDown, true)
     container.addEventListener("click", handleClick, true)
+    container.addEventListener("auxclick", handleAuxClick, true)
     return () => {
       container.removeEventListener("pointerdown", handlePointerDown, true)
       container.removeEventListener("click", handleClick, true)
+      container.removeEventListener("auxclick", handleAuxClick, true)
     }
-  }, [])
+  }, [router])
 
   useEffect(() => {
     const container = document.querySelector(".milkdown-editor-wrapper")

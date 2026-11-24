@@ -11,6 +11,7 @@ import "@milkdown/crepe/theme/frame-dark.css"
 import { Trash2 } from "lucide-react"
 import { useDocs } from "@/lib/docs-context"
 import { uploadFiles } from "@/lib/uploadthing"
+import { getImageName, setImageName } from "@/lib/image-name-cache"
 import { compressImage } from "@/lib/compress-image"
 import { renameFile, slugify } from "@/lib/upload-rename"
 import { Button } from "@/components/ui/button"
@@ -200,11 +201,33 @@ function EditorContent() {
   }, [router])
 
   useEffect(() => {
+    const content = activeDocument?.content ?? ""
+    if (!content) return
+    const urls = [...content.matchAll(/!\[.*?\]\((https?:\/\/[^)]+)\)/g)].map((m) => m[1])
+    const unknown = urls.filter((u) => /\/f\/[^/?#]+/.test(u) && !getImageName(u))
+    if (unknown.length === 0) return
+    fetch("/api/image-info", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ urls: unknown }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        const info = data?.info as Record<string, { name: string }> | undefined
+        if (!info) return
+        for (const [url, file] of Object.entries(info)) setImageName(url, file.name)
+      })
+      .catch(() => {})
+  }, [activeDocument?.content, activeDocument?.id])
+
+  useEffect(() => {
     const container = document.querySelector(".milkdown-editor-wrapper")
     if (!container) return
 
     let tooltip: HTMLDivElement | null = null
+    let activeSrc = ""
     const sizeCache = new Map<string, string>()
+    const pendingNames = new Set<string>()
 
     const ensureTooltip = () => {
       if (tooltip) return tooltip
@@ -215,27 +238,60 @@ function EditorContent() {
       return tooltip
     }
 
+    const resolveName = (img: HTMLImageElement, src: string) => {
+      const alt = img.getAttribute("alt")?.trim()
+      const keyMatch = src.match(/\/f\/([^/?#]+)/)
+      const cachedName = getImageName(src)
+      const fallback = keyMatch ? keyMatch[1].slice(0, 16) + "..." : src.split("/").pop()?.split("?")[0] || "unknown"
+      const hasGoodAlt = !!alt && alt !== "image"
+      return { name: cachedName || (hasGoodAlt ? alt! : fallback), needsFetch: !cachedName && !hasGoodAlt && !!keyMatch }
+    }
+
+    const renderTooltip = (src: string, name: string) => {
+      if (!tooltip || activeSrc !== src) return
+      const size = sizeCache.get(src)
+      tooltip.textContent = size ? `${name} · ${size}` : `${name} · ...`
+    }
+
     const showTooltip = (img: HTMLImageElement, e: MouseEvent) => {
       const t = ensureTooltip()
       const src = img.src || img.getAttribute("src") || ""
-      const keyMatch = src.match(/\/f\/([a-zA-Z0-9]+)/)
-      const name = keyMatch ? keyMatch[1].slice(0, 16) + "..." : src.split("/").pop()?.split("?")[0] || "unknown"
+      activeSrc = src
+      const { name, needsFetch } = resolveName(img, src)
 
-      if (sizeCache.has(src)) {
-        t.textContent = `${name} · ${sizeCache.get(src)}`
-      } else {
-        t.textContent = `${name} · ...`
+      renderTooltip(src, name)
+
+      if (!sizeCache.has(src)) {
         fetch(src, { method: "HEAD" })
           .then((r) => {
             const len = r.headers.get("content-length")
-            const type = r.headers.get("content-type") || ""
             if (len) {
-              const kb = (parseInt(len) / 1024).toFixed(0)
-              sizeCache.set(src, `${kb}KB`)
-              if (tooltip === t) t.textContent = `${name} · ${kb}KB`
+              sizeCache.set(src, `${(parseInt(len) / 1024).toFixed(0)}KB`)
+              const current = resolveName(img, src)
+              renderTooltip(src, current.name)
             }
           })
           .catch(() => {})
+      }
+
+      if (needsFetch && !pendingNames.has(src)) {
+        pendingNames.add(src)
+        fetch("/api/image-info", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ urls: [src] }),
+        })
+          .then((r) => r.ok ? r.json() : null)
+          .then((data) => {
+            const info = data?.info?.[src]
+            if (info?.name) setImageName(src, info.name)
+          })
+          .catch(() => {})
+          .finally(() => {
+            pendingNames.delete(src)
+            const current = resolveName(img, src)
+            renderTooltip(src, current.name)
+          })
       }
 
       t.style.left = `${e.clientX + 12}px`
@@ -291,6 +347,7 @@ function EditorContent() {
               const docTitle = docTitleRef.current
               const renamed = renameFile(compressed, `doc_image_${slugify(docTitle)}.${ext}`)
               const [res] = await uploadFiles("image", { files: [renamed] })
+              if (res?.url) setImageName(res.url, res.name || renamed.name)
               return res?.url ?? ""
             },
           },

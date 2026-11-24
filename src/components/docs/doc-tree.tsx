@@ -268,7 +268,7 @@ function SortableDoc({
               onClick={(e) => e.stopPropagation()}
             />
           ) : (
-            <span className="truncate text-sm">{doc.title}</span>
+            <span className="truncate text-sm cursor-default">{doc.title}</span>
           )}
         </button>
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100">

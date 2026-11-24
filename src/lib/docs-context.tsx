@@ -11,6 +11,7 @@ import {
 } from "react"
 import { getSupabase } from "@/lib/supabase"
 import { uploadFiles } from "@/lib/uploadthing"
+import { setImageName } from "@/lib/image-name-cache"
 import { compressImage } from "@/lib/compress-image"
 import { renameFile, slugify } from "@/lib/upload-rename"
 import { useAuth } from "@/lib/auth-context"
@@ -232,6 +233,7 @@ export function DocsProvider({ children }: { children: ReactNode }) {
         const renamed = renameFile(compressed, `doc_image_${slugify(docTitle)}_${counter}.${ext}`)
         const [res] = await uploadFiles("image", { files: [renamed] })
         if (res?.url) {
+          setImageName(res.url, res.name || renamed.name)
           const md = fullMatch.replace(dataUrl, res.url)
           result = result.replace(fullMatch, md)
         }

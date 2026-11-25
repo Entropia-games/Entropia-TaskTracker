@@ -186,8 +186,8 @@ export function AppSidebar() {
                     onClick={() => navigate(`/team/${t.label}`)}
                   >
                     <span className="flex items-center gap-2">
-                      <span className={cn("flex size-4 items-center justify-center rounded text-[9px] font-medium", t.color)}>{(t.label === "Sound" ? "S" : t.label)[0]}</span>
-                      <span>{t.label}</span>
+                      <span className={cn("flex size-4 shrink-0 items-center justify-center rounded text-[9px] font-medium", t.color)}>{(t.label === "Sound" ? "S" : t.label)[0]}</span>
+                      <span className="group-data-[collapsible=icon]:hidden">{t.label}</span>
                     </span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

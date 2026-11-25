@@ -17,6 +17,7 @@ import { useState, useCallback, useEffect } from "react"
 import { SearchModal } from "@/components/search-modal"
 import { useRouter, usePathname } from "next/navigation"
 import { useSidebar } from "@/components/ui/sidebar"
+import { useNavigationLoading } from "@/components/navigation-loading"
 import {
   List,
   CircleDot,
@@ -80,6 +81,7 @@ export function AppSidebar() {
   const router = useRouter()
   const pathname = usePathname()
   const { isMobile, setOpenMobile } = useSidebar()
+  const { startNavigation } = useNavigationLoading()
 
   useEffect(() => {
     setOpenMobile(false)
@@ -94,9 +96,12 @@ export function AppSidebar() {
   }, [requireAuth])
 
   const navigate = useCallback((href: string) => {
-    if (href !== "#") router.push(href)
+    if (href !== "#") {
+      startNavigation(href)
+      router.push(href)
+    }
     if (isMobile) setOpenMobile(false)
-  }, [isMobile, router, setOpenMobile])
+  }, [isMobile, router, setOpenMobile, startNavigation])
 
   const visibleNavItems = navItems.filter(
     (item) => {

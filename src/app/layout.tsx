@@ -5,6 +5,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { BoardAccessGate } from "@/components/board-access-gate";
 import { NavigationLoadingContent, NavigationLoadingProvider } from "@/components/navigation-loading";
+import { CreateIssueDraftProvider } from "@/lib/create-issue-draft-context";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/lib/auth-context";
 import { AuthGateProvider } from "@/lib/auth-gate-context";
@@ -46,18 +47,20 @@ export default function RootLayout({
             <IssuesProvider>
             <DocsProvider>
             <SidebarProvider defaultOpen={true}>
-              <NavigationLoadingProvider>
-                <AppSidebar />
-                <main className="flex min-w-0 flex-1 flex-col">
-                  <div className="flex items-center gap-2 border-b border-border/50 px-4 py-2">
-                    <SidebarTrigger />
-                  </div>
-                  <NavigationLoadingContent>
-                    <BoardAccessGate>{children}</BoardAccessGate>
-                  </NavigationLoadingContent>
-                </main>
-                <ToastViewport />
-              </NavigationLoadingProvider>
+              <CreateIssueDraftProvider>
+                <NavigationLoadingProvider>
+                  <AppSidebar />
+                  <main className="flex min-w-0 flex-1 flex-col">
+                    <div className="flex items-center gap-2 border-b border-border/50 px-4 py-2">
+                      <SidebarTrigger />
+                    </div>
+                    <NavigationLoadingContent>
+                      <BoardAccessGate>{children}</BoardAccessGate>
+                    </NavigationLoadingContent>
+                  </main>
+                  <ToastViewport />
+                </NavigationLoadingProvider>
+              </CreateIssueDraftProvider>
             </SidebarProvider>
             </DocsProvider>
             </IssuesProvider>

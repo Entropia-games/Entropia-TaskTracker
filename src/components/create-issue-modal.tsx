@@ -27,6 +27,7 @@ import { UserDisplayName } from "@/components/ui/display-name"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useDeptMap } from "@/lib/use-dept-map"
 import { useIssues, type IssueStatus, type IssuePriority, type IssueTeam, type IssueType, type Milestone, type Attachment } from "@/lib/issues-context"
+import { useCreateIssueDraft } from "@/lib/create-issue-draft-context"
 import { TYPE_OPTIONS, issueTypeIcon, issueTypeColor } from "@/lib/issue-types"
 import { useDocs } from "@/lib/docs-context"
 import { renameFile, slugify } from "@/lib/upload-rename"
@@ -104,18 +105,20 @@ export function CreateIssueModal() {
   const { requireAuth } = useAuthGate()
   const { user } = useAuth()
   const [open, setOpen] = useState(false)
-  const [title, setTitle] = useState("")
-  const [description, setDescription] = useState("")
-  const [status, setStatus] = useState<IssueStatus>("todo")
-  const [priority, setPriority] = useState<IssuePriority>("none")
-  const [team, setTeam] = useState<IssueTeam | null>(null)
-  const [isEpic, setIsEpic] = useState(false)
-  const [issueType, setIssueType] = useState<IssueType>("task")
-  const [assigneeId, setAssigneeId] = useState<string | null>(null)
-  const [milestoneId, setMilestoneId] = useState<number | null>(null)
-  const [parentEpicIds, setParentEpicIds] = useState<number[]>([])
+  const { draft, setDraft, resetDraft, cleanRef } = useCreateIssueDraft()
+  const { title, description, status, priority, team, isEpic, issueType, assigneeId, milestoneId, parentEpicIds, attachments } = draft
+  const setTitle = (v: string) => setDraft((d) => ({ ...d, title: v }))
+  const setDescription = (v: string) => setDraft((d) => ({ ...d, description: v }))
+  const setStatus = (v: IssueStatus) => setDraft((d) => ({ ...d, status: v }))
+  const setPriority = (v: IssuePriority) => setDraft((d) => ({ ...d, priority: v }))
+  const setTeam = (v: IssueTeam | null) => setDraft((d) => ({ ...d, team: v }))
+  const setIsEpic = (v: boolean) => setDraft((d) => ({ ...d, isEpic: v }))
+  const setIssueType = (v: IssueType) => setDraft((d) => ({ ...d, issueType: v }))
+  const setAssigneeId = (v: string | null) => setDraft((d) => ({ ...d, assigneeId: v }))
+  const setMilestoneId = (v: number | null) => setDraft((d) => ({ ...d, milestoneId: v }))
+  const setParentEpicIds = (v: number[] | ((prev: number[]) => number[])) => setDraft((d) => ({ ...d, parentEpicIds: typeof v === "function" ? v(d.parentEpicIds) : v }))
+  const setAttachments = (v: Attachment[] | ((prev: Attachment[]) => Attachment[])) => setDraft((d) => ({ ...d, attachments: typeof v === "function" ? v(d.attachments) : v }))
   const [users, setUsers] = useState<Database["public"]["Tables"]["users"]["Row"][]>([])
-  const [attachments, setAttachments] = useState<Attachment[]>([])
   const [uploading, setUploading] = useState(false)
   const [docPickerOpen, setDocPickerOpen] = useState(false)
   const [docSearch, setDocSearch] = useState("")
@@ -131,33 +134,43 @@ export function CreateIssueModal() {
     getSupabase().from("users").select("*").then(({ data }) => {
       if (data) setUsers(data)
     })
-    setMilestoneId(null)
-    setAssigneeId(user?.id ?? null)
+    if (cleanRef.current) {
+      setMilestoneId(null)
+      setAssigneeId(user?.id ?? null)
+      cleanRef.current = false
+    }
   }, [open, user?.id])
 
   const isImageAtt = (a: Attachment) =>
     a.type?.startsWith("image/") ?? /\.(png|jpe?g|gif|webp|svg|bmp|avif)$/i.test(a.url)
 
   const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const files = Array.from(e.target.files ?? [])
+    if (files.length === 0) return
     setUploading(true)
     try {
-      const isImage = file.type.startsWith("image/")
-      const toUpload = isImage ? await compressImage(file) : file
-      const ext = file.name.split(".").pop() ?? "bin"
-      const nextId = (issues.reduce((max, i) => Math.max(max, i.display_id ?? 0), 0) + 1)
-      const prefix = isImage ? "task_image" : "task_file"
-      const renamed = renameFile(toUpload, `${prefix}_${(currentProject?.code ?? "unknown").toLowerCase()}-${nextId}.${ext}`)
-      const [res] = await uploadFiles(isImage ? "image" : "file", { files: [renamed] })
-      if (res?.serverData?.url) {
-        const att: Attachment = {
-          url: res.serverData.url,
-          name: res.serverData.name ?? file.name,
-          type: res.serverData.type ?? file.type,
-        }
-        setAttachments((prev) => [...prev, att])
-      }
+      const nextId = issues.reduce((max, i) => Math.max(max, i.display_id ?? 0), 0) + 1
+      const results = await Promise.allSettled(
+        files.map(async (file, index) => {
+          const isImage = file.type.startsWith("image/")
+          const toUpload = isImage ? await compressImage(file) : file
+          const ext = file.name.split(".").pop() ?? "bin"
+          const prefix = isImage ? "task_image" : "task_file"
+          const suffix = files.length > 1 ? `-${index + 1}` : ""
+          const renamed = renameFile(toUpload, `${prefix}_${(currentProject?.code ?? "unknown").toLowerCase()}-${nextId}${suffix}.${ext}`)
+          const [res] = await uploadFiles(isImage ? "image" : "file", { files: [renamed] })
+          if (res?.serverData?.url) {
+            return {
+              url: res.serverData.url,
+              name: res.serverData.name ?? file.name,
+              type: res.serverData.type ?? file.type,
+            } as Attachment
+          }
+          return null
+        })
+      )
+      const uploaded = results.flatMap((r) => (r.status === "fulfilled" && r.value ? [r.value] : []))
+      if (uploaded.length > 0) setAttachments((prev) => [...prev, ...uploaded])
     } catch (err) {
       console.error("Upload failed", err)
     }
@@ -204,27 +217,8 @@ export function CreateIssueModal() {
     if (newId && epicIdsToLink.length > 0) {
       setIssueEpics(newId, epicIdsToLink)
     }
-    setTitle("")
-    setDescription("")
-    setStatus("todo")
-    setPriority("none")
-    setTeam(null)
-    setMilestoneId(null)
-    setParentEpicIds([])
-    setAssigneeId(null)
-    setIsEpic(false)
-    setIssueType("task")
-    setAttachments([])
+    resetDraft()
     setOpen(false)
-  }
-
-  const discardAttachments = () => {
-    const nonDocAtts = attachments.filter((a) => a.type !== "doc/link")
-    if (nonDocAtts.length > 0) {
-      fetch("/api/delete-images", { method: "POST", body: JSON.stringify({ urls: nonDocAtts.map((a) => a.url) }) })
-        .catch((e) => console.error("Failed to delete image", e))
-    }
-    setAttachments([])
   }
 
   useEffect(() => {
@@ -233,29 +227,14 @@ export function CreateIssueModal() {
       if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
         handleSubmit()
       }
-      if (e.key === "Escape") {
-        discardAttachments()
-        setOpen(false)
-      }
     }
     window.addEventListener("keydown", handler)
     return () => window.removeEventListener("keydown", handler)
-  }, [open, title, description, status, priority, discardAttachments])
+  }, [open, title, description, status, priority, team, isEpic, issueType, assigneeId, milestoneId, parentEpicIds, attachments])
 
   const handleOpenChange = (v: boolean) => {
     if (!v && popoverOpenRef.current) return
     setOpen(v)
-      if (!v) {
-        setTitle("")
-        setDescription("")
-        setStatus("todo")
-        setPriority("none")
-        setTeam(null)
-        setIsEpic(false)
-        setIssueType("task")
-        setParentEpicIds([])
-        discardAttachments()
-      }
   }
 
   return (
@@ -288,7 +267,7 @@ export function CreateIssueModal() {
               onChange={(e) => setDescription(e.target.value)}
               rows={1}
             />
-            <input ref={imageInputRef} type="file" accept="image/*,.pdf,.doc,.docx,.txt,.zip,.xls,.xlsx,.ppt,.pptx" className="hidden" onChange={handleAttachmentUpload} />
+            <input ref={imageInputRef} type="file" multiple accept="image/*,.pdf,.doc,.docx,.txt,.zip,.xls,.xlsx,.ppt,.pptx" className="hidden" onChange={handleAttachmentUpload} />
             {attachments.length > 0 && (
               <div className="mt-2 flex flex-col gap-2">
                 {attachments.map((att, i) => (

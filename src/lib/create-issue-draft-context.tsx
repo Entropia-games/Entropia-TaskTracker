@@ -13,6 +13,7 @@ type CreateIssueDraft = {
   issueType: IssueType
   assigneeId: string | null
   milestoneId: number | null
+  dueDate: string | null
   parentEpicIds: number[]
   attachments: Attachment[]
 }
@@ -27,6 +28,7 @@ const initialDraft: CreateIssueDraft = {
   issueType: "task",
   assigneeId: null,
   milestoneId: null,
+  dueDate: null,
   parentEpicIds: [],
   attachments: [],
 }

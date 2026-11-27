@@ -54,7 +54,10 @@ import {
   Image,
   X,
   Check,
+  CalendarIcon,
 } from "lucide-react"
+import { Calendar } from "@/components/ui/calendar"
+import { format } from "date-fns"
 
 const STATUS_OPTIONS: { value: IssueStatus; label: string; icon: typeof Circle }[] = [
   { value: "backlog", label: "Backlog", icon: CircleOff },
@@ -106,7 +109,7 @@ export function CreateIssueModal() {
   const { user } = useAuth()
   const [open, setOpen] = useState(false)
   const { draft, setDraft, resetDraft, cleanRef } = useCreateIssueDraft()
-  const { title, description, status, priority, team, isEpic, issueType, assigneeId, milestoneId, parentEpicIds, attachments } = draft
+  const { title, description, status, priority, team, isEpic, issueType, assigneeId, milestoneId, dueDate, parentEpicIds, attachments } = draft
   const setTitle = (v: string) => setDraft((d) => ({ ...d, title: v }))
   const setDescription = (v: string) => setDraft((d) => ({ ...d, description: v }))
   const setStatus = (v: IssueStatus) => setDraft((d) => ({ ...d, status: v }))
@@ -116,6 +119,7 @@ export function CreateIssueModal() {
   const setIssueType = (v: IssueType) => setDraft((d) => ({ ...d, issueType: v }))
   const setAssigneeId = (v: string | null) => setDraft((d) => ({ ...d, assigneeId: v }))
   const setMilestoneId = (v: number | null) => setDraft((d) => ({ ...d, milestoneId: v }))
+  const setDueDate = (v: string | null) => setDraft((d) => ({ ...d, dueDate: v }))
   const setParentEpicIds = (v: number[] | ((prev: number[]) => number[])) => setDraft((d) => ({ ...d, parentEpicIds: typeof v === "function" ? v(d.parentEpicIds) : v }))
   const setAttachments = (v: Attachment[] | ((prev: Attachment[]) => Attachment[])) => setDraft((d) => ({ ...d, attachments: typeof v === "function" ? v(d.attachments) : v }))
   const [users, setUsers] = useState<Database["public"]["Tables"]["users"]["Row"][]>([])
@@ -210,6 +214,7 @@ export function CreateIssueModal() {
       is_epic: isEpic,
       issue_type: issueType,
       milestone_id: milestoneId,
+      due_date: dueDate,
       parent_epic_id: epicIdsToLink.length > 0 ? epicIdsToLink[0] : null,
       assignee_id: assigneeId,
       attachments,
@@ -418,6 +423,38 @@ export function CreateIssueModal() {
                   </SelectContent>
                 </Select>
               )}
+              <Popover onOpenChange={(v) => { popoverOpenRef.current = v }}>
+                <PopoverTrigger
+                  render={
+                    <button
+                      className={cn(
+                        "flex h-7 cursor-default items-center gap-1.5 border-0 px-2 text-xs hover:bg-accent",
+                        dueDate ? "text-muted-foreground" : "text-muted-foreground opacity-60"
+                      )}
+                    >
+                      <CalendarIcon className={cn("size-3.5", dueDate ? "text-muted-foreground/60" : "text-muted-foreground/40")} />
+                      {dueDate ? format(new Date(dueDate), "MMM d, yyyy") : "Due date"}
+                    </button>
+                  }
+                />
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dueDate ? new Date(dueDate) : undefined}
+                    onSelect={(date) => setDueDate(date ? format(date, "yyyy-MM-dd") : null)}
+                  />
+                  {dueDate && (
+                    <div className="border-t border-border/50 p-1">
+                      <button
+                        className="flex w-full items-center justify-center rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent"
+                        onClick={() => setDueDate(null)}
+                      >
+                        Clear date
+                      </button>
+                    </div>
+                  )}
+                </PopoverContent>
+              </Popover>
               {issueType !== "epic" && (
               <Popover open={epicPickerOpen} onOpenChange={(v) => { setEpicPickerOpen(v); popoverOpenRef.current = v; if (!v) setEpicSearch("") }}>
                 <PopoverTrigger

@@ -29,13 +29,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
-import {   Circle, ChevronDown, Trash2, X, ArrowUp, ArrowDown, ArrowUpDown, Minus, AlertCircle, CircleDot, CircleCheck, CircleOff, Eye, Layers, GitPullRequest, Diamond, Plus, Link, List, LayoutGrid, Loader2, ShieldOff, Shield, Check, SlidersHorizontal } from "lucide-react"
+import {   Circle, ChevronDown, Trash2, X, ArrowUp, ArrowDown, ArrowUpDown, Minus, AlertCircle, CircleDot, CircleCheck, CircleOff, Eye, Layers, GitPullRequest, Diamond, Plus, Link, List, LayoutGrid, Loader2, ShieldOff, Shield, Check, SlidersHorizontal, CalendarIcon } from "lucide-react"
 import { CreateIssueModal } from "@/components/create-issue-modal"
 import { IssueDetailModal } from "@/components/issue-detail-modal"
 import { IssueContextMenu } from "@/components/issue-context-menu"
@@ -47,6 +48,7 @@ import type { Database } from "@/lib/database.types"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { UserDisplayName } from "@/components/ui/display-name"
 import { cn, userAvatarColor } from "@/lib/utils"
+import { format } from "date-fns"
 import { useDeptMap } from "@/lib/use-dept-map"
 
 const statusLabels: Record<IssueStatus, string> = {
@@ -195,6 +197,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
   const [openLinkPopover, setOpenLinkPopover] = useState<number | null>(null)
   const [linkEpicSearch, setLinkEpicSearch] = useState("")
   const [openPriorityPopover, setOpenPriorityPopover] = useState<number | null>(null)
+  const [openDueDatePopover, setOpenDueDatePopover] = useState<number | null>(null)
   const [showDone, setShowDone] = useState(true)
   const [showBlocked, setShowBlocked] = useState(true)
   const [collapsedStatuses, setCollapsedStatuses] = useState<Set<IssueStatus>>(new Set())
@@ -636,7 +639,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                               "group relative flex flex-col gap-2 cursor-pointer rounded-md border border-border/60 bg-muted/40 p-2.5 transition-colors hover:border-border hover:bg-muted/60",
                               selectedIds.has(issue.id) && "border-border bg-muted/70",
                             )}
-                            onClick={(e) => { if (openTeamPopover === issue.id || openMilestonePopover === issue.id || openAssigneePopover === issue.id || openLinkPopover === issue.id || openPriorityPopover === issue.id) return; if ((e.target as HTMLElement).closest("[data-pr-link], [data-team-btn], [data-milestone-btn], [data-assignee-btn], [data-link-btn], [data-priority-btn]")) return; requireAuth(() => setDetailIssueId(issue.id)) }}
+                            onClick={(e) => { if (openTeamPopover === issue.id || openMilestonePopover === issue.id || openAssigneePopover === issue.id || openLinkPopover === issue.id || openPriorityPopover === issue.id || openDueDatePopover === issue.id) return; if ((e.target as HTMLElement).closest("[data-pr-link], [data-team-btn], [data-milestone-btn], [data-assignee-btn], [data-link-btn], [data-priority-btn], [data-due-btn]")) return; requireAuth(() => setDetailIssueId(issue.id)) }}
                             onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setCtxMenu({ issue, x: e.clientX, y: e.clientY }) }}
                           >
                             <div className="flex items-center justify-between gap-2">
@@ -658,11 +661,50 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                             <div className="flex items-center gap-2">
                               {(() => { const S = statusMeta[issue.status]; const SIcon = S.icon; return <SIcon className={cn("size-3.5 shrink-0", S.color)} /> })()}
                               <span className="min-w-0 flex-1 truncate text-sm">{issue.title}</span>
-                              {blockedIds.has(issue.id) && (() => {
-                                const blockerIds = blockersByIssue.get(issue.id) ?? []
-                                const allBlockersDone = blockerIds.length > 0 && blockerIds.every((id) => allIssues.find((i) => i.id === id)?.status === "done")
-                                return <ShieldOff className={cn("size-3 shrink-0", allBlockersDone ? "text-green-400" : "text-red-400")} />
-                              })()}
+                              <Popover open={openDueDatePopover === issue.id} onOpenChange={(v) => setOpenDueDatePopover(v ? issue.id : null)}>
+                                <PopoverTrigger
+                                  render={
+                                    <button
+                                      data-due-btn
+                                      onClick={(e) => e.stopPropagation()}
+                                      className={cn(
+                                        "flex h-7 w-14 shrink-0 items-center gap-1 rounded px-0.5 text-xs transition-colors hover:bg-accent",
+                                        issue.due_date ? "text-muted-foreground/60" : "text-transparent"
+                                      )}
+                                    >
+                                      <CalendarIcon className={cn("size-3 shrink-0", !issue.due_date && "text-muted-foreground/0 group-hover:text-muted-foreground/30")} />
+                                      {issue.due_date ? format(new Date(issue.due_date), "MMM d") : ""}
+                                    </button>
+                                  }
+                                />
+                                <PopoverContent className="w-auto p-0" align="start" onClick={(e) => e.stopPropagation()}>
+                                  <Calendar
+                                    mode="single"
+                                    selected={issue.due_date ? new Date(issue.due_date) : undefined}
+                                    onSelect={(date) => {
+                                      requireAuth(() => updateIssue(issue.id, { due_date: date ? format(date, "yyyy-MM-dd") : null }))
+                                      setOpenDueDatePopover(null)
+                                    }}
+                                  />
+                                  {issue.due_date && (
+                                    <div className="border-t border-border/50 p-1">
+                                      <button
+                                        className="flex w-full items-center justify-center rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent"
+                                        onClick={(e) => { e.stopPropagation(); requireAuth(() => updateIssue(issue.id, { due_date: null })); setOpenDueDatePopover(null) }}
+                                      >
+                                        Clear date
+                                      </button>
+                                    </div>
+                                  )}
+                                </PopoverContent>
+                              </Popover>
+                              <span className="flex w-4 shrink-0 items-center justify-center">
+                                {blockedIds.has(issue.id) && (() => {
+                                  const blockerIds = blockersByIssue.get(issue.id) ?? []
+                                  const allBlockersDone = blockerIds.length > 0 && blockerIds.every((id) => allIssues.find((i) => i.id === id)?.status === "done")
+                                  return <ShieldOff className={cn("size-3 shrink-0", allBlockersDone ? "text-green-400" : "text-red-400")} />
+                                })()}
+                              </span>
                             </div>
                             <div className="flex items-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:thin]">
                               <Popover open={openPriorityPopover === issue.id} onOpenChange={(v) => setOpenPriorityPopover(v ? issue.id : null)}>
@@ -976,7 +1018,7 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                   <div
                     key={issue.id}
                     className={cn("group mx-3 flex cursor-pointer flex-nowrap items-center gap-2 rounded-lg px-3 py-2 transition-colors hover:bg-accent/30 md:gap-3 md:py-2.5", selectedIds.has(issue.id) && "bg-accent/20")}
-                    onClick={(e) => { if (openTeamPopover === issue.id || openMilestonePopover === issue.id || openAssigneePopover === issue.id || openLinkPopover === issue.id || openPriorityPopover === issue.id) return; if ((e.target as HTMLElement).closest("[data-pr-link], [data-team-btn], [data-milestone-btn], [data-assignee-btn], [data-link-btn], [data-priority-btn]")) return; requireAuth(() => setDetailIssueId(issue.id)) }}
+                    onClick={(e) => { if (openTeamPopover === issue.id || openMilestonePopover === issue.id || openAssigneePopover === issue.id || openLinkPopover === issue.id || openPriorityPopover === issue.id || openDueDatePopover === issue.id) return; if ((e.target as HTMLElement).closest("[data-pr-link], [data-team-btn], [data-milestone-btn], [data-assignee-btn], [data-link-btn], [data-priority-btn], [data-due-btn]")) return; requireAuth(() => setDetailIssueId(issue.id)) }}
                     onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setCtxMenu({ issue, x: e.clientX, y: e.clientY }) }}
                   >
                     <div className="hidden md:block" onClick={(e) => e.stopPropagation()}>
@@ -1027,11 +1069,50 @@ export function IssueList({ title, issues, focusId, showTypeFilter = true }: Pro
                       {currentProject?.code ?? "?"}-{issue.display_id}
                     </span>
                     <span className="min-w-0 flex-1 truncate text-sm">{issue.title}</span>
-                    {blockedIds.has(issue.id) && (() => {
-                      const blockerIds = blockersByIssue.get(issue.id) ?? []
-                      const allBlockersDone = blockerIds.length > 0 && blockerIds.every((id) => allIssues.find((i) => i.id === id)?.status === "done")
-                      return <ShieldOff className={cn("hidden md:block size-3.5 shrink-0", allBlockersDone ? "text-green-400" : "text-red-400")} />
-                    })()}
+                    <Popover open={openDueDatePopover === issue.id} onOpenChange={(v) => setOpenDueDatePopover(v ? issue.id : null)}>
+                      <PopoverTrigger
+                        render={
+                          <button
+                            data-due-btn
+                            onClick={(e) => e.stopPropagation()}
+                            className={cn(
+                              "hidden h-7 w-14 shrink-0 items-center gap-1 rounded px-0.5 text-xs md:flex transition-colors hover:bg-accent",
+                              issue.due_date ? "text-muted-foreground/60" : "text-transparent"
+                            )}
+                          >
+                            <CalendarIcon className={cn("size-3 shrink-0", !issue.due_date && "text-muted-foreground/0 group-hover:text-muted-foreground/30")} />
+                            {issue.due_date ? format(new Date(issue.due_date), "MMM d") : ""}
+                          </button>
+                        }
+                      />
+                      <PopoverContent className="w-auto p-0" align="start" onClick={(e) => e.stopPropagation()}>
+                        <Calendar
+                          mode="single"
+                          selected={issue.due_date ? new Date(issue.due_date) : undefined}
+                          onSelect={(date) => {
+                            requireAuth(() => updateIssue(issue.id, { due_date: date ? format(date, "yyyy-MM-dd") : null }))
+                            setOpenDueDatePopover(null)
+                          }}
+                        />
+                        {issue.due_date && (
+                          <div className="border-t border-border/50 p-1">
+                            <button
+                              className="flex w-full items-center justify-center rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent"
+                              onClick={(e) => { e.stopPropagation(); requireAuth(() => updateIssue(issue.id, { due_date: null })); setOpenDueDatePopover(null) }}
+                            >
+                              Clear date
+                            </button>
+                          </div>
+                        )}
+                      </PopoverContent>
+                    </Popover>
+                    <span className="hidden w-4 shrink-0 items-center justify-center md:flex">
+                      {blockedIds.has(issue.id) && (() => {
+                        const blockerIds = blockersByIssue.get(issue.id) ?? []
+                        const allBlockersDone = blockerIds.length > 0 && blockerIds.every((id) => allIssues.find((i) => i.id === id)?.status === "done")
+                        return <ShieldOff className={cn("size-3.5 shrink-0", allBlockersDone ? "text-green-400" : "text-red-400")} />
+                      })()}
+                    </span>
                     <span className="hidden w-5 shrink-0 items-center justify-center md:flex">{linkedPRMap.has(issue.id) && (() => {
                       const pr = linkedPRMap.get(issue.id)!
                       const isMerged = pr.firstState === "merged"

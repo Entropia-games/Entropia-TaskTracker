@@ -34,6 +34,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
 import {
   Circle,
   CircleDot,
@@ -408,7 +409,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
 
   return (
     <Dialog open={show} onOpenChange={onOpenChange}>
-      <DialogContent className="!max-w-xl !max-h-[90vh] !overflow-y-auto !rounded-xl !border-0 !p-0 sm:!max-w-xl max-md:!inset-0 max-md:!top-0 max-md:!left-0 max-md:!h-[100dvh] max-md:!max-h-[100dvh] max-md:!w-full max-md:!max-w-full max-md:!translate-x-0 max-md:!translate-y-0 max-md:!rounded-none" showCloseButton={false}>
+      <DialogContent className="!max-w-2xl !max-h-[90vh] !overflow-y-auto !rounded-xl !border-0 !p-0 sm:!max-w-2xl max-md:!inset-0 max-md:!top-0 max-md:!left-0 max-md:!h-[100dvh] max-md:!max-h-[100dvh] max-md:!w-full max-md:!max-w-full max-md:!translate-x-0 max-md:!translate-y-0 max-md:!rounded-none" showCloseButton={false}>
         <DialogTitle className="sr-only">{currentProject?.code ?? "?"}-{data.display_id}</DialogTitle>
         <div className="flex flex-col gap-0">
           <div className="flex flex-col gap-4 px-5 pb-6 pt-6">
@@ -602,12 +603,38 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
                 </Select>
               )}
 
-              {data.due_date && (
-                <div className="flex items-center gap-1.5 rounded-md border border-transparent px-2 py-1 hover:border-border/30">
-                  <CalendarIcon className="size-3.5 text-muted-foreground/60" />
-                  <span className="text-xs text-muted-foreground">{format(new Date(data.due_date), "MMM d, yyyy")}</span>
-                </div>
-              )}
+              <Popover>
+                <PopoverTrigger
+                  render={
+                    <button
+                      className={cn(
+                        "flex h-7 cursor-default items-center gap-1.5 border border-transparent px-2 text-xs hover:border-border/30 hover:bg-accent",
+                        data.due_date ? "text-muted-foreground" : "text-muted-foreground opacity-60"
+                      )}
+                    >
+                      <CalendarIcon className={cn("size-3.5", data.due_date ? "text-muted-foreground/60" : "text-muted-foreground/40")} />
+                      {data.due_date ? format(new Date(data.due_date), "MMM d, yyyy") : "Due date"}
+                    </button>
+                  }
+                />
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={data.due_date ? new Date(data.due_date) : undefined}
+                    onSelect={(date) => guardedUpdate({ due_date: date ? format(date, "yyyy-MM-dd") : null })}
+                  />
+                  {data.due_date && (
+                    <div className="border-t border-border/50 p-1">
+                      <button
+                        className="flex w-full items-center justify-center rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent"
+                        onClick={() => guardedUpdate({ due_date: null })}
+                      >
+                        Clear date
+                      </button>
+                    </div>
+                  )}
+                </PopoverContent>
+              </Popover>
 
               {timelineEntry && (
                 <div className="flex items-center gap-1.5 rounded-md border border-transparent px-2 py-1 hover:border-border/30">

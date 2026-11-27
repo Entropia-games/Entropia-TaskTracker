@@ -148,8 +148,7 @@ export function CreateIssueModal() {
   const isImageAtt = (a: Attachment) =>
     a.type?.startsWith("image/") ?? /\.(png|jpe?g|gif|webp|svg|bmp|avif)$/i.test(a.url)
 
-  const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? [])
+  const uploadAttachmentFiles = async (files: File[]) => {
     if (files.length === 0) return
     setUploading(true)
     try {
@@ -179,6 +178,11 @@ export function CreateIssueModal() {
       console.error("Upload failed", err)
     }
     setUploading(false)
+  }
+
+  const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    await uploadAttachmentFiles(files)
     if (imageInputRef.current) imageInputRef.current.value = ""
   }
 
@@ -236,6 +240,18 @@ export function CreateIssueModal() {
     window.addEventListener("keydown", handler)
     return () => window.removeEventListener("keydown", handler)
   }, [open, title, description, status, priority, team, isEpic, issueType, assigneeId, milestoneId, parentEpicIds, attachments])
+
+  useEffect(() => {
+    if (!open) return
+    const handlePaste = (e: ClipboardEvent) => {
+      const files = Array.from(e.clipboardData?.files ?? []).filter((f) => f.type.startsWith("image/"))
+      if (files.length === 0) return
+      e.preventDefault()
+      void uploadAttachmentFiles(files)
+    }
+    window.addEventListener("paste", handlePaste)
+    return () => window.removeEventListener("paste", handlePaste)
+  }, [open, uploadAttachmentFiles])
 
   const handleOpenChange = (v: boolean) => {
     if (!v && popoverOpenRef.current) return

@@ -140,6 +140,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
   const titleRef = useRef<HTMLInputElement>(null)
   const descRef = useRef<HTMLTextAreaElement>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
+  const uploadAttachmentFilesRef = useRef<(files: File[]) => Promise<void>>(async () => {})
 
   // `loading` is true while the target `issue`'s related data is buffering.
   // `data` is what is currently rendered: during loading we keep showing the
@@ -251,6 +252,18 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
     }
   }, [open, issue, readyId])
 
+  useEffect(() => {
+    if (!open || !data) return
+    const handlePaste = (e: ClipboardEvent) => {
+      const files = Array.from(e.clipboardData?.files ?? []).filter((f) => f.type.startsWith("image/"))
+      if (files.length === 0) return
+      e.preventDefault()
+      void uploadAttachmentFilesRef.current(files)
+    }
+    window.addEventListener("paste", handlePaste)
+    return () => window.removeEventListener("paste", handlePaste)
+  }, [open, data])
+
   const show = open && (!loading || displayedIssue !== null)
 
   if (!issue) return null
@@ -308,35 +321,48 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
   const guardedUpdate = (patch: Parameters<typeof updateIssue>[1]) =>
     requireAuth(() => updateIssue(data.id, patch))
 
-  const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  const uploadAttachmentFiles = async (files: File[]) => {
+    if (files.length === 0) return
     setUploading(true)
     try {
-      const isImage = file.type.startsWith("image/")
-      const toUpload = isImage ? await compressImage(file) : file
-      const limit = isImage ? 4 * 1024 * 1024 : 16 * 1024 * 1024
-      if (toUpload.size > limit) {
-        setUploading(false)
-        showToast(isImage ? "Photo is too large — max 4 MB" : "File is too large — max 16 MB")
-        if (imageInputRef.current) imageInputRef.current.value = ""
-        return
-      }
-      const [res] = await uploadFiles(isImage ? "image" : "file", { files: [renameFile(toUpload, `${isImage ? "task_image" : "task_file"}_${(currentProject?.code ?? "unknown").toLowerCase()}-${data.display_id}.${(file.name.split(".").pop() ?? "bin")}`)] })
-      if (res?.serverData?.url) {
-        const att: Attachment = {
-          url: res.serverData.url,
-          name: res.serverData.name ?? file.name,
-          type: res.serverData.type ?? file.type,
+      const uploaded: Attachment[] = []
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+        const isImage = file.type.startsWith("image/")
+        const toUpload = isImage ? await compressImage(file) : file
+        const limit = isImage ? 4 * 1024 * 1024 : 16 * 1024 * 1024
+        if (toUpload.size > limit) {
+          showToast(isImage ? "Photo is too large — max 4 MB" : "File is too large — max 16 MB")
+          continue
         }
-        guardedUpdate({ attachments: [...currentAttachments, att] })
+        const ext = file.name.split(".").pop() ?? "bin"
+        const suffix = files.length > 1 ? `-${i + 1}` : ""
+        const [res] = await uploadFiles(isImage ? "image" : "file", {
+          files: [renameFile(toUpload, `${isImage ? "task_image" : "task_file"}_${(currentProject?.code ?? "unknown").toLowerCase()}-${data.display_id}${suffix}.${ext}`)],
+        })
+        if (res?.serverData?.url) {
+          uploaded.push({
+            url: res.serverData.url,
+            name: res.serverData.name ?? file.name,
+            type: res.serverData.type ?? file.type,
+          })
+        }
       }
+      if (uploaded.length > 0) guardedUpdate({ attachments: [...currentAttachments, ...uploaded] })
     } catch (err) {
       console.error("Upload failed", err)
     }
     setUploading(false)
+  }
+  uploadAttachmentFilesRef.current = uploadAttachmentFiles
+
+  const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    await uploadAttachmentFiles(files)
     if (imageInputRef.current) imageInputRef.current.value = ""
   }
+
+
 
   const removeAttachment = async (att: Attachment) => {
     const next = currentAttachments.filter((a) => a.url !== att.url)
@@ -470,7 +496,7 @@ export function IssueDetailModal({ issue, users, open, onOpenChange, onOpenDetai
                   </div>
                 )}
                              </div>
-               <input ref={imageInputRef} type="file" accept="image/*,.pdf,.doc,.docx,.txt,.zip,.xls,.xlsx,.ppt,.pptx" className="hidden" onChange={handleAttachmentUpload} />
+               <input ref={imageInputRef} type="file" multiple accept="image/*,.pdf,.doc,.docx,.txt,.zip,.xls,.xlsx,.ppt,.pptx" className="hidden" onChange={handleAttachmentUpload} />
               {currentAttachments.length > 0 && (
                 <div className="mt-2 flex flex-col gap-2">
                   {currentAttachments.map((att, i) => (
